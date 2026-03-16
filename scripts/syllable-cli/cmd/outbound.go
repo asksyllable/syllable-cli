@@ -148,15 +148,16 @@ func outboundBatchesGetCmd() *cobra.Command {
 			}
 
 			var b struct {
-				BatchID      string      `json:"batch_id"`
-				CampaignID   json.Number `json:"campaign_id"`
-				Status       string `json:"status"`
-				Paused       bool   `json:"paused"`
-				ExpiresOn    string `json:"expires_on"`
-				CreatedAt    string `json:"created_at"`
-				LastUpdatedAt string `json:"last_updated_at"`
-				LastUpdatedBy string `json:"last_updated_by"`
-				ErrorMessage string `json:"error_message"`
+				BatchID       string      `json:"batch_id"`
+				CampaignID    json.Number `json:"campaign_id"`
+				Status        string      `json:"status"`
+				Paused        bool        `json:"paused"`
+				DispatchID    string      `json:"dispatch_id"`
+				ExpiresOn     string      `json:"expires_on"`
+				CreatedAt     string      `json:"created_at"`
+				LastUpdatedAt string      `json:"last_updated_at"`
+				LastUpdatedBy string      `json:"last_updated_by"`
+				ErrorMessage  string      `json:"error_message"`
 			}
 			if err := json.Unmarshal(data, &b); err != nil {
 				output.PrintJSON(data)
@@ -172,6 +173,7 @@ func outboundBatchesGetCmd() *cobra.Command {
 				{"Campaign ID", b.CampaignID.String()},
 				{"Status", b.Status},
 				{"Paused", paused},
+				{"Dispatch ID", b.DispatchID},
 				{"Expires On", b.ExpiresOn},
 				{"Created At", b.CreatedAt},
 				{"Last Updated At", b.LastUpdatedAt},
