@@ -82,12 +82,12 @@ Services
 Any time the user needs to configure the CLI — whether it's the first time, adding a new org, adding a new environment, or updating an API key — run the setup tool:
 
 ```bash
-cd scripts/syllable-setup && ./syllable-setup
+syllable setup
 ```
 
 This opens a browser UI where the user can safely manage all orgs, API keys, and environments. Always use this tool for config changes — never edit `~/.syllable/config.yaml` directly or ask the user to paste API keys into the terminal.
 
-**Trigger `syllable-setup` whenever the user says things like:**
+**Trigger `syllable setup` whenever the user says things like:**
 - "I need to add a new org"
 - "Add a new environment"
 - "Update my API key"
