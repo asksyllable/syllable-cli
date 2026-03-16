@@ -143,7 +143,7 @@ func directoryGetCmd() *cobra.Command {
 }
 
 func directoryCreateCmd() *cobra.Command {
-	var file, name, memberType string
+	var file, name, memberType, comments string
 
 	cmd := &cobra.Command{
 		Use:   "create",
@@ -163,10 +163,14 @@ func directoryCreateCmd() *cobra.Command {
 				if name == "" || memberType == "" {
 					return fmt.Errorf("required flags: --name, --type (or use --file)")
 				}
-				body = map[string]interface{}{
+				b := map[string]interface{}{
 					"name": name,
 					"type": memberType,
 				}
+				if comments != "" {
+					b["comments"] = comments
+				}
+				body = b
 			}
 
 			data, _, err := apiClient.Post("/api/v1/directory_members/", body)
@@ -182,6 +186,7 @@ func directoryCreateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&file, "file", "", "Path to JSON body file")
 	cmd.Flags().StringVar(&name, "name", "", "Member name")
 	cmd.Flags().StringVar(&memberType, "type", "", "Member type")
+	cmd.Flags().StringVar(&comments, "comments", "", "Comments for version history")
 
 	return cmd
 }

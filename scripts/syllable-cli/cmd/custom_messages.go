@@ -122,13 +122,14 @@ func customMessagesGetCmd() *cobra.Command {
 
 			var m struct {
 				ID         json.Number `json:"id"`
-				Name       string `json:"name"`
-				Type       string `json:"type"`
-				Preamble   string `json:"preamble"`
-				Text       string `json:"text"`
-				AgentCount int    `json:"agent_count"`
-				UpdatedAt  string `json:"updated_at"`
-				LastUpdBy  string `json:"last_updated_by"`
+				Name       string      `json:"name"`
+				Type       string      `json:"type"`
+				Preamble   string      `json:"preamble"`
+				Text       string      `json:"text"`
+				Subject    string      `json:"subject"`
+				AgentCount int         `json:"agent_count"`
+				UpdatedAt  string      `json:"updated_at"`
+				LastUpdBy  string      `json:"last_updated_by"`
 			}
 			if err := json.Unmarshal(data, &m); err != nil {
 				output.PrintJSON(data)
@@ -141,6 +142,7 @@ func customMessagesGetCmd() *cobra.Command {
 				{"Type", m.Type},
 				{"Preamble", output.Truncate(m.Preamble, 80)},
 				{"Text", output.Truncate(m.Text, 80)},
+				{"Subject", m.Subject},
 				{"Agent Count", fmt.Sprintf("%d", m.AgentCount)},
 				{"Updated At", m.UpdatedAt},
 				{"Last Updated By", m.LastUpdBy},
@@ -152,7 +154,7 @@ func customMessagesGetCmd() *cobra.Command {
 }
 
 func customMessagesCreateCmd() *cobra.Command {
-	var file, name, text string
+	var file, name, text, msgType, subject string
 
 	cmd := &cobra.Command{
 		Use:   "create",
@@ -172,10 +174,15 @@ func customMessagesCreateCmd() *cobra.Command {
 				if name == "" || text == "" {
 					return fmt.Errorf("required flags: --name, --text (or use --file)")
 				}
-				body = map[string]interface{}{
+				b := map[string]interface{}{
 					"name": name,
 					"text": text,
+					"type": msgType,
 				}
+				if subject != "" {
+					b["subject"] = subject
+				}
+				body = b
 			}
 
 			data, _, err := apiClient.Post("/api/v1/custom_messages/", body)
@@ -190,7 +197,9 @@ func customMessagesCreateCmd() *cobra.Command {
 
 	cmd.Flags().StringVar(&file, "file", "", "Path to JSON body file")
 	cmd.Flags().StringVar(&name, "name", "", "Message name")
-	cmd.Flags().StringVar(&text, "text", "", "Message text")
+	cmd.Flags().StringVar(&text, "text", "", "Message text (body for email_template)")
+	cmd.Flags().StringVar(&msgType, "type", "greeting", "Message type: greeting (voice) or email_template")
+	cmd.Flags().StringVar(&subject, "subject", "", "Email subject (required for email_template)")
 
 	return cmd
 }
