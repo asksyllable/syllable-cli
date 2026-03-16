@@ -1,19 +1,15 @@
----
-name: syllable-cli
-description: Use when the user wants to interact with the Syllable platform via the Go CLI. Use for listing, getting, creating, updating, or deleting agents, channels, prompts, tools, sessions, outbound campaigns/batches, users, directory members, insights workflows/folders/tool-configs/tool-definitions, custom messages, language groups, organizations, data sources, voice groups, services, roles, incidents, pronunciations, session labels, session debug, takeouts, events, permissions, conversation config, or dashboards using the `syllable` binary. Also use for exploring API schemas and data structures.
----
+# Syllable CLI — Agent Reference
 
-# Syllable CLI
+Machine-readable reference for AI agents using the Syllable CLI. The `syllable` binary manages all resources on the Syllable AI platform: agents, channels, prompts, tools, sessions, outbound campaigns/batches, users, directory, insights, custom messages, language groups, organizations, data sources, voice groups, services, roles, incidents, pronunciations, session labels, session debug, takeouts, events, permissions, conversation config, and dashboards.
 
-A Go CLI for managing the Syllable AI platform. Source is at `scripts/syllable-cli/` relative to the repo root.
+Binary location: `scripts/syllable-cli/syllable`
 
 ## Setup — First Time and Any Config Changes
 
 Any time the user needs to configure the CLI — whether it's the first time, adding a new org, adding a new environment, or updating an API key — run the setup tool:
 
 ```bash
-cd scripts/syllable-setup
-./syllable-setup
+cd scripts/syllable-setup && ./syllable-setup
 ```
 
 This opens a browser UI where the user can safely manage all orgs, API keys, and environments. Always use this tool for config changes — never edit `~/.syllable/config.yaml` directly or ask the user to paste API keys into the terminal.
