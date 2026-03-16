@@ -2,11 +2,14 @@
 
 A command-line interface for managing the [Syllable AI platform](https://syllable.ai). Built in Go using [Cobra](https://github.com/spf13/cobra).
 
+For deeper platform reference, see [docs.syllable.ai](https://docs.syllable.ai).
+
 ## Contents
 
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Quick Start](#quick-start)
+- [How It Works](#how-it-works)
 - [Global Flags](#global-flags)
 - [Output Formats](#output-formats)
 - [Scripting and Automation](#scripting-and-automation)
@@ -109,6 +112,30 @@ syllable agents create --file agent.json
 # Delete a resource
 syllable agents delete 42
 ```
+
+---
+
+## How It Works
+
+Syllable is a platform for building custom AI voice and chat agents. Resources are layered — each depends on the ones below it:
+
+```
+Data Sources → Tools + Services → Prompts → Agents → Channels/Targets → Users
+```
+
+**Data Sources** are knowledge bases (text blobs) that agents can search during a conversation. They connect to agents indirectly — you create a tool that references the data source, add that tool to a prompt, and attach the prompt to an agent. Data sources do not connect to agents directly.
+
+**Services** are centralized credential stores. They handle authentication (Basic, Bearer, or custom headers) for tools, so you configure credentials once and reuse them across many tools.
+
+**Tools** are APIs that agents call during live sessions — to look up data, schedule appointments, transfer calls, and more. Every tool is backed by a service for auth. Three types exist: agent tools (called during user sessions), step tools (structured multi-step workflows), and system tools (pre-built platform tools like hangup, transfer, and web_search).
+
+**Prompts** are natural language instruction sets that define how an agent behaves. They reference the LLM to use (e.g., `gpt-4o`, `gemini-2.0-flash`), the tools available, and the tone and rules the agent follows. Prompts are automatically versioned — every edit creates a new version, and you can roll back at any time.
+
+**Agents** are the deployable AI systems that talk to users. Each agent is configured with a prompt, an optional opening message, a timezone, speech-to-text settings, and session variables for personalization. Each agent maps one-to-one to a channel target (a specific phone number or chat ID). A test channel is auto-generated for every agent so you can test before going live.
+
+**Channels** are the communication modes (voice, SMS, chat). A target is the specific address within a channel — a phone number like `+18002832940` or a chat ID like `chat-1-org-3` — where an agent operates.
+
+For a visual overview of the platform, see [docs.syllable.ai](https://docs.syllable.ai).
 
 ---
 
@@ -236,6 +263,8 @@ When using `--output json`, errors are machine-readable:
 
 ### Agents
 
+Agents are the AI systems that communicate with users. Each agent is configured with a prompt, a timezone, an optional opening message, session variables for personalization, and optional tool headers. An agent maps one-to-one to a channel target — one phone number or chat ID, one agent. A test channel is auto-generated for every agent for pre-production testing.
+
 ```bash
 syllable agents list [--search TEXT]
 syllable agents get <id>
@@ -246,6 +275,8 @@ syllable agents delete <id>
 ```
 
 ### Channels
+
+Channels define how users reach agents — voice, SMS, or chat. A target is the specific phone number or chat ID where an agent is active. One agent per target — you cannot assign two agents to the same target. Twilio voice channels can be fully configured via the CLI; other channel types should be configured through the SDK or platform UI.
 
 ```bash
 syllable channels list [--search TEXT]
@@ -269,13 +300,15 @@ syllable channels twilio numbers-add --file number.json
 
 ### Conversations
 
+Conversations are grouped views of session activity. Use date filters to scope results; dates are ISO 8601 (`2024-01-01T00:00:00Z`).
+
 ```bash
 syllable conversations list [--start-date DATE] [--end-date DATE] [--search TEXT]
 ```
 
-Dates are ISO 8601: `2024-01-01T00:00:00Z`
-
 ### Prompts
+
+Prompts are natural language instruction sets that define agent behavior, backed by an LLM (Azure OpenAI, Google, or OpenAI). Key fields include the provider, model (e.g., `gpt-4o`, `gpt-4.1`, `gemini-2.0-flash`), temperature (0 = deterministic, higher = more creative), seed (for reproducible outputs), and the list of tools the agent may call. Every edit to a prompt creates a new version automatically — use `prompts history` to view past versions and restore them if needed.
 
 ```bash
 syllable prompts list [--search TEXT]
@@ -289,6 +322,8 @@ syllable prompts supported-llms
 
 ### Tools
 
+Tools are APIs that agents call during live sessions — for example, to look up records, schedule appointments, transfer calls, or search the web. Each tool is backed by a Service that handles authentication. Tools are referenced in prompts, which makes them available to agents. Three types exist: agent tools (called during user sessions), step tools (structured multi-step workflows), and system tools (pre-built platform tools ready to use, such as `hangup`, `transfer`, and `web_search`).
+
 ```bash
 syllable tools list [--search TEXT]
 syllable tools get <id>
@@ -300,6 +335,8 @@ syllable tools delete <id>
 
 ### Sessions
 
+Sessions are individual voice or chat conversations. Each session captures the transcript, an AI summary, all tool calls with their arguments and API responses, duration (for voice), channel, and test/live status. Use `transcript`, `summary`, `latency`, and `recording` subcommands to pull specific session data.
+
 ```bash
 syllable sessions list [--start-date DATE] [--end-date DATE]
 syllable sessions get <id>
@@ -310,6 +347,8 @@ syllable sessions recording <id>
 ```
 
 ### Outbound
+
+Outbound campaigns are planned calling efforts — they define the agent making calls, the caller ID shown to recipients, the call rate per hour, and operating hours. Batches are CSV contact lists attached to a campaign; the CSV must include `reference_id` (unique identifier) and `target` (E.164 phone number, e.g., `+14155551234`). Additional CSV columns are passed as variables to the agent prompt. A campaign can have multiple batches.
 
 ```bash
 # Campaigns
@@ -331,6 +370,8 @@ syllable outbound batches remove-requests <id> --file requests.json
 
 ### Users
 
+Users are platform accounts. `users me` returns the currently authenticated user — useful for verifying that an API key is working.
+
 ```bash
 syllable users list [--search TEXT]
 syllable users get <email>
@@ -344,6 +385,8 @@ syllable users send-email <email>
 
 ### Directory
 
+The directory is a member/contact list used for call routing and agent-initiated transfers. It stores names, numbers, and metadata that agents can look up at runtime.
+
 ```bash
 syllable directory list [--search TEXT]
 syllable directory get <id>
@@ -353,6 +396,8 @@ syllable directory delete <id>
 ```
 
 ### Insights
+
+Insights workflows automatically evaluate call sessions or recordings using LLMs. Three workflow types are available: Agent (analyzes the AI agent portion of a call), Transfer (includes post-transfer legs), and Folder (processes uploaded recordings). Workflows produce structured outputs (boolean, string, integer, array) that feed into dashboards.
 
 ```bash
 syllable insights workflows list
@@ -372,6 +417,8 @@ syllable insights tool-definitions list
 ```
 
 ### Custom Messages
+
+Custom messages are opening greetings that an agent plays or sends at the start of a session. They are configured per-agent.
 
 ```bash
 syllable custom-messages list [--search TEXT]
@@ -401,23 +448,23 @@ Use this when you need to know what fields a create or update body requires.
 
 ### Other Resources
 
-| Command | Subcommands |
-|---------|------------|
-| `language-groups` | list, get, create, update, delete |
-| `data-sources` | list, get, create, update, delete |
-| `voice-groups` | list, get, create, update, delete |
-| `services` | list, get, create, update, delete |
-| `roles` | list, get, create, update, delete |
-| `incidents` | list, get, create, update, delete, organizations |
-| `pronunciations` | list, get-csv, metadata |
-| `session-labels` | list, get, create |
-| `session-debug` | by-session-id, by-sid, tool-result |
-| `takeouts` | create, get, download |
-| `events` | list |
-| `permissions` | list |
-| `conversation-config` | bridges, bridges-update |
-| `dashboards` | list, sessions, session-events, session-transfers, session-summary, fetch-info |
-| `organizations` | list (read-only) |
+| Command | Subcommands | Notes |
+|---------|------------|-------|
+| `data-sources` | list, get, create, update, delete | Text knowledge bases for agents. Name must have no whitespace. Connect to agents via a tool, not directly. |
+| `services` | list, get, create, update, delete | Credential store for tool auth (Basic, Bearer, or custom headers). Credentials are masked and not stored by Syllable after configuration. |
+| `voice-groups` | list, get, create, update, delete | Voice configuration for agents. |
+| `language-groups` | list, get, create, update, delete | **Deprecated** — use `voice-groups` instead. |
+| `roles` | list, get, create, update, delete | User roles with associated permissions. |
+| `incidents` | list, get, create, update, delete, organizations | Platform incident tracking. |
+| `pronunciations` | list, get-csv, metadata | Custom TTS pronunciation dictionary. Downloadable as CSV. |
+| `session-labels` | list, get, create | Manual annotations on sessions (rating, issue category, notes). **Once a label is added to a session, it cannot be updated or deleted.** |
+| `session-debug` | by-session-id, by-sid, tool-result | Low-level session diagnostics. |
+| `takeouts` | create, get, download | Data export jobs — create, poll with get, then download. |
+| `events` | list | Platform event log. |
+| `permissions` | list | System-wide permissions (read-only). |
+| `conversation-config` | bridges, bridges-update | Configuration for transfer/handoff phrases. |
+| `dashboards` | list, fetch-info, ~~sessions~~, ~~session-events~~, ~~session-transfers~~, ~~session-summary~~ | The `sessions`, `session-events`, `session-transfers`, and `session-summary` endpoints are **deprecated** — use `list` and `fetch-info` instead. |
+| `organizations` | list (read-only) | Org listing — no create, update, or delete. |
 
 ---
 

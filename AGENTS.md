@@ -4,6 +4,79 @@ Machine-readable reference for AI agents using the Syllable CLI. The `syllable` 
 
 Binary location: `scripts/syllable-cli/syllable`
 
+---
+
+## Resource Overview
+
+Quick reference for every resource: what it is, key fields, and hard constraints.
+
+| Resource | Purpose | Key Fields | Constraints |
+|----------|---------|------------|-------------|
+| **Agents** | AI system that talks to users via a channel | prompt_id, timezone, opening_message, session_variables, tool_headers, voice_group_id | 1:1 with channel target — one agent per target. Test channel is auto-generated. |
+| **Prompts** | Natural language instructions defining agent behavior, backed by an LLM | name, provider, model, temperature, seed, tools, version | Every edit auto-creates a new version. Previous versions can be previewed and restored via `prompts history`. |
+| **Tools** | APIs agents call during sessions (look up data, transfer calls, schedule, etc.) | endpoint_url, method, function definition (name, description, JSON Schema params), service_id, static_params, dynamic vars (`{{ vars.field }}`) | Requires a Service for auth. Three types: agent, step, system. |
+| **Services** | Centralized credential store for tool authentication | name, auth_type (basic/bearer/custom), credentials | Credentials are masked and not stored by Syllable after configuration. Multiple tools may share one service. |
+| **Channels** | Communication modes (voice, SMS, chat) | name, service, is_system | System channels include Freeswitch Twilio (voice) and Syllable Webchat (chat). Twilio channels configurable via CLI; others via SDK. |
+| **Channel Targets** | Specific address (phone number or chat ID) where an agent operates | target (e.g., +18002832940 or chat-1-org-3), agent_id | 1:1 with agent — one agent per target. |
+| **Data Sources** | Text knowledge bases agents can search | name (no whitespace), description, content | Connect to agents via a tool — not directly. Content should start with contextual framing for better search. Lower latency than embedding knowledge in a prompt. |
+| **Sessions** | Individual voice or chat conversations | session_id, transcript, summary, tool_calls, duration, channel, user_id, labels, recording, is_test | Read-only. |
+| **Session Labels** | Manual annotations on sessions | session_id, rating (Bad/OK/Good/N/A), issue_category, notes | **Immutable — once added, a label cannot be updated or deleted.** |
+| **Outbound Campaigns** | Planned outreach efforts (agent makes calls) | name, channel_source, display_id (caller ID), rate_per_hour, operating_hours | — |
+| **Outbound Batches** | Contact lists within a campaign | reference_id (unique), target (E.164 phone), arbitrary columns (accessible as agent prompt variables) | CSV required. Status values: PENDING, INITIATED, CONNECTED, CALL_COMPLETED, FAILED. |
+| **Insights Workflows** | LLM-based automated evaluation of call sessions or recordings | name, type (Agent/Transfer/Folder), tools, sample_rate, duration_range, date_range | Types: Agent (AI portion), Transfer (includes post-transfer legs), Folder (uploaded recordings). |
+| **Custom Messages** | Opening greetings for agents | name, text | Configured per agent. |
+| **Voice Groups** | Voice configuration for agents | name, voices | Replaces language groups. |
+| **Language Groups** | Voice configuration (deprecated) | name | **DEPRECATED — use voice-groups instead.** |
+| **Users** | Platform accounts | email, role_id, first_name, last_name | `users me` returns the current authenticated user. |
+| **Directory** | Member/contact list for call routing and transfers | name, type, phone | Used by agents at runtime for transfer targets and contact lookups. |
+| **Roles** | User roles with associated permissions | name, permissions | — |
+| **Pronunciations** | Custom TTS pronunciation dictionary | word, pronunciation | Downloadable as CSV. |
+| **Dashboards** | Performance analytics | name | `sessions`, `session-events`, `session-transfers`, `session-summary` endpoints are **DEPRECATED** — use `list` and `fetch-info`. |
+| **Takeouts** | Data export jobs | job_id, status, file_name | Workflow: create → poll with get → download. |
+| **Incidents** | Platform incident tracking | name, status | — |
+| **Organizations** | Org listing | display_name | Read-only — no create, update, or delete. |
+| **Permissions** | System-wide permissions | name | Read-only. |
+| **Conversation Config (Bridges)** | Transfer/handoff phrase configuration | phrases | — |
+| **Schema** | Explore API request/response shapes from embedded OpenAPI spec | type name | No API call made. Use before create/update to find required fields. |
+
+---
+
+## Resource Dependencies
+
+Resources must be created in dependency order. You cannot reference a resource that does not yet exist.
+
+```
+Data Sources
+    └── referenced by Tools (data source tool points at the data source)
+            └── referenced by Prompts (tools listed in prompt definition)
+                    └── required by Agents (agent has a prompt_id)
+                            └── deployed on Channel Targets (target has an agent_id)
+                                    └── reached by Users via Channels
+
+Services
+    └── required by Tools (every tool has a service_id for auth)
+```
+
+**Dependency summary:**
+
+- **Agent** requires a **Prompt** (`prompt_id`).
+- **Prompt** can reference any number of **Tools** (by name/ID).
+- **Tool** requires a **Service** (`service_id`) for authentication.
+- **Data Source** connects to an agent via a **Tool** — create the data source, create a tool that references it, add that tool to a prompt, and attach the prompt to an agent.
+- **Channel Target** requires an **Agent** (`agent_id`).
+- **Outbound Batch** belongs to an **Outbound Campaign**.
+- **Insights Workflow** references **Insights Tool Configs** and **Tool Definitions**.
+- **User** requires a **Role** (`role_id`).
+
+**To fully set up a new agent from scratch:**
+1. Create a **Service** (credentials for any external APIs you need).
+2. Create **Tools** that use that service (and optionally reference Data Sources).
+3. Create (or update) a **Prompt** that includes those tools.
+4. Create an **Agent** with that prompt.
+5. Assign the agent to a **Channel Target**.
+
+---
+
 ## Setup — First Time and Any Config Changes
 
 Any time the user needs to configure the CLI — whether it's the first time, adding a new org, adding a new environment, or updating an API key — run the setup tool:
@@ -173,6 +246,7 @@ syllable completion powershell > syllable.ps1
 ## Commands
 
 ### Agents
+Agents are AI systems that communicate with users via channels. Configured with a prompt, timezone, optional opening message, session variables (`{vars.session_variable}` syntax), tool headers, and optional voice group. **Constraint: 1:1 with channel target.** A test channel is auto-generated for each agent.
 ```bash
 syllable agents list [--page N] [--limit N] [--search TEXT]
 syllable agents get <agent-id>
@@ -184,6 +258,7 @@ syllable agents delete <agent-id>
 **Table columns:** ID, NAME, TYPE, LABEL, DESCRIPTION, UPDATED
 
 ### Channels
+Channels define communication modes (voice, SMS, chat). Targets are the specific phone number or chat ID where an agent operates. **Constraint: 1:1 agent-to-target.** Twilio channels configurable via CLI; other channels via SDK.
 ```bash
 syllable channels list [--page N] [--limit N] [--search TEXT]
 syllable channels create --file channel.json
@@ -219,6 +294,7 @@ syllable conversations list [--page N] [--limit N] [--search TEXT] [--start-date
 **Date format:** ISO 8601 (e.g. `2024-01-01T00:00:00Z`)
 
 ### Prompts
+Natural language instruction sets defining agent behavior. Backed by an LLM (Azure OpenAI, Google, or OpenAI). Key fields: provider, model (e.g., `gpt-4o`, `gpt-4.1`, `gemini-2.0-flash`), temperature (0=deterministic), seed (integer for reproducible outputs), tools list. **Every edit auto-creates a new version.** Use `history` to view and restore previous versions.
 ```bash
 syllable prompts list [--page N] [--limit N] [--search TEXT]
 syllable prompts get <prompt-id>
@@ -231,6 +307,7 @@ syllable prompts supported-llms
 **Table columns:** ID, NAME, TYPE, VERSION, AGENTS, LAST_UPDATED
 
 ### Tools
+APIs agents call during sessions. Requires a Service for auth. Three types: agent tools (called during user sessions), step tools (structured multi-step workflows), system tools (pre-built: `hangup`, `transfer`, `web_search`, `summary-tool`). Dynamic variables use `{{ vars.field }}` syntax.
 ```bash
 syllable tools list [--page N] [--limit N] [--search TEXT]
 syllable tools get <tool-name>
@@ -242,6 +319,7 @@ syllable tools delete <tool-name>
 **Table columns:** ID, NAME, SERVICE, LAST_UPDATED, LAST_UPDATED_BY
 
 ### Sessions
+Individual voice or chat conversations. Captures transcript, AI summary, tool calls with arguments and API responses, duration, channel, user ID, labels, recording, and is_test flag. Read-only — no create/update/delete.
 ```bash
 syllable sessions list [--page N] [--limit N] [--start-date DATE] [--end-date DATE]
 syllable sessions get <session-id>
@@ -287,6 +365,7 @@ syllable users send-email <email>
 **Table columns:** ID, EMAIL, NAME, ROLE, STATUS, LAST_UPDATED
 
 ### Directory
+Member/contact list for call routing and agent-initiated transfers.
 ```bash
 syllable directory list [--page N] [--limit N] [--search TEXT]
 syllable directory get <member-id>
@@ -297,6 +376,7 @@ syllable directory delete <member-id>
 ```
 
 ### Insights
+Automated LLM-based evaluation of call sessions or recordings. Three workflow types: Agent (analyzes AI agent portion), Transfer (includes post-transfer legs), Folder (processes uploaded recordings). Produces structured outputs (boolean, string, integer, array) that appear in Dashboards.
 ```bash
 # Workflows
 syllable insights workflows list
@@ -327,6 +407,7 @@ syllable insights tool-definitions list
 ```
 
 ### Custom Messages
+Opening greetings for agents, configured per agent.
 ```bash
 syllable custom-messages list [--page N] [--limit N] [--search TEXT]
 syllable custom-messages get <message-id>
@@ -337,6 +418,7 @@ syllable custom-messages delete <message-id>
 ```
 
 ### Language Groups
+**DEPRECATED — use `voice-groups` instead.** Commands still functional for legacy resources.
 ```bash
 syllable language-groups list [--page N] [--limit N] [--search TEXT]
 syllable language-groups get <group-id>
@@ -347,6 +429,7 @@ syllable language-groups delete <group-id>
 ```
 
 ### Data Sources
+Text knowledge bases for agents. Name must have no whitespace. Content should start with contextual framing for better search. **Connect to agents via a tool — not directly.** Workflow: create data source → create tool referencing it → add tool to prompt → attach prompt to agent.
 ```bash
 syllable data-sources list [--page N] [--limit N] [--search TEXT]
 syllable data-sources get <data-source-id>
@@ -357,6 +440,7 @@ syllable data-sources delete <data-source-id>
 ```
 
 ### Voice Groups
+Voice configuration for agents. Replaces language groups.
 ```bash
 syllable voice-groups list
 syllable voice-groups get <voice-group-id>
@@ -366,6 +450,7 @@ syllable voice-groups delete <voice-group-id>
 ```
 
 ### Services
+Centralized credential store for tool authentication. Auth types: `basic` (username/password), `bearer` (token), `custom` (multiple key-value headers). Credentials are masked and not stored by Syllable after configuration. Multiple tools can share one service.
 ```bash
 syllable services list
 syllable services get <service-id>
@@ -395,6 +480,7 @@ syllable incidents organizations
 ```
 
 ### Pronunciations
+Custom TTS pronunciation dictionary. Downloadable as CSV.
 ```bash
 syllable pronunciations list
 syllable pronunciations get-csv
@@ -402,6 +488,7 @@ syllable pronunciations metadata
 ```
 
 ### Session Labels
+Manual annotations on sessions: rating (Bad/OK/Good/N/A), issue category, freetext notes. **CONSTRAINT: Immutable — once a label is added to a session, it cannot be updated or deleted.** There is no update or delete subcommand.
 ```bash
 syllable session-labels list
 syllable session-labels get <label-id>
@@ -416,6 +503,7 @@ syllable session-debug tool-result <session-id> <tool-result-id>
 ```
 
 ### Takeouts
+Data export jobs. Workflow: create → poll with get until complete → download file.
 ```bash
 syllable takeouts create --file takeout.json
 syllable takeouts get <job-id>
@@ -433,29 +521,32 @@ syllable permissions list
 ```
 
 ### Conversation Config
+Configuration for bridging/transfer phrases used when agents hand off to human agents.
 ```bash
 syllable conversation-config bridges
 syllable conversation-config bridges-update --file bridges.json
 ```
 
 ### Dashboards
+**DEPRECATION WARNING:** The `sessions`, `session-events`, `session-transfers`, and `session-summary` subcommands are deprecated. Use `list` and `fetch-info` instead.
 ```bash
 syllable dashboards list
+syllable dashboards fetch-info --name <dashboard-name>
+# Deprecated (still functional but do not use for new work):
 syllable dashboards sessions [--file query.json]
 syllable dashboards session-events [--file query.json]
 syllable dashboards session-transfers [--file query.json]
 syllable dashboards session-summary [--file query.json]
-syllable dashboards fetch-info --name <dashboard-name>
 ```
 
 ### Organizations
+Read-only — no create, update, or delete.
 ```bash
 syllable organizations list [--page N] [--limit N] [--search TEXT]
 ```
-Read-only — no create, update, or delete.
 
 ### Schema
-Explores API data structures from the embedded OpenAPI spec (no API call made):
+Explores API data structures from the embedded OpenAPI spec (no API call made). Use before create/update operations to discover required fields and body structure.
 ```bash
 syllable schema list
 syllable schema list --filter agent
