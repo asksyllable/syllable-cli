@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/syllable-ai/syllable-cli/internal/output"
+	"github.com/asksyllable/syllable-cli/internal/output"
 )
 
 func agentsCmd() *cobra.Command {

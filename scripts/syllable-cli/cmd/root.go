@@ -11,11 +11,11 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/syllable-ai/syllable-cli/internal/client"
-	"github.com/syllable-ai/syllable-cli/internal/output"
+	"github.com/asksyllable/syllable-cli/internal/client"
+	"github.com/asksyllable/syllable-cli/internal/output"
 )
 
-// Version is set at build time via -ldflags "-X github.com/syllable-ai/syllable-cli/cmd.Version=x.y.z"
+// Version is set at build time via -ldflags "-X github.com/asksyllable/syllable-cli/cmd.Version=x.y.z"
 var Version = "dev"
 
 var (

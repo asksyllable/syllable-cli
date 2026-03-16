@@ -1,4 +1,4 @@
-module github.com/syllable-ai/syllable-cli
+module github.com/asksyllable/syllable-cli
 
 go 1.21
 

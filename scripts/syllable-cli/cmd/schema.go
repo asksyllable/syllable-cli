@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/syllable-ai/syllable-cli/internal/output"
-	apispec "github.com/syllable-ai/syllable-cli/internal/spec"
+	"github.com/asksyllable/syllable-cli/internal/output"
+	apispec "github.com/asksyllable/syllable-cli/internal/spec"
 )
 
 func schemaCmd() *cobra.Command {

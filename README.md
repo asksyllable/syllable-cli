@@ -20,34 +20,29 @@ For deeper platform reference, see [docs.syllable.ai](https://docs.syllable.ai).
 
 ## Installation
 
-### Homebrew (macOS and Linux — recommended)
+### Install script (macOS and Linux — recommended)
 
 ```bash
-brew install syllable-ai/tap/syllable
+curl -fsSL https://github.com/asksyllable/syllable-cli/releases/latest/download/install.sh | sh
 ```
 
-### Direct download
+Installs to `/usr/local/bin/syllable`. If that directory isn't writable, falls back to `~/.local/bin/syllable`.
 
-Download the binary for your platform from the [latest release](https://github.com/syllable-ai/syllable-cli/releases/latest), extract it, and put `syllable` somewhere on your `$PATH`:
+To install a specific version:
 
 ```bash
-# macOS (Apple Silicon)
-curl -L https://github.com/syllable-ai/syllable-cli/releases/latest/download/syllable_latest_darwin_arm64.tar.gz | tar xz
-sudo mv syllable /usr/local/bin/
-
-# macOS (Intel)
-curl -L https://github.com/syllable-ai/syllable-cli/releases/latest/download/syllable_latest_darwin_amd64.tar.gz | tar xz
-sudo mv syllable /usr/local/bin/
-
-# Linux (amd64)
-curl -L https://github.com/syllable-ai/syllable-cli/releases/latest/download/syllable_latest_linux_amd64.tar.gz | tar xz
-sudo mv syllable /usr/local/bin/
+curl -fsSL https://github.com/asksyllable/syllable-cli/releases/latest/download/install.sh | sh -s v1.2.3
 ```
+
+### Manual download
+
+Download the archive for your platform from the [releases page](https://github.com/asksyllable/syllable-cli/releases/latest), verify the checksum, extract, and move `syllable` onto your `$PATH`.
 
 ### Build from source (requires Go 1.21+)
 
 ```bash
-cd scripts/syllable-cli
+git clone https://github.com/asksyllable/syllable-cli
+cd syllable-cli/scripts/syllable-cli
 go build -o syllable .
 ```
 

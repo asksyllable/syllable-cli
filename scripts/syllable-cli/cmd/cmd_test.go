@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/spf13/viper"
-	"github.com/syllable-ai/syllable-cli/internal/client"
+	"github.com/asksyllable/syllable-cli/internal/client"
 )
 
 // setupTestServer creates a test HTTP server and configures the global apiClient.

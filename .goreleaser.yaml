@@ -14,7 +14,7 @@ builds:
     binary: syllable
     ldflags:
       - -s -w
-      - -X github.com/syllable-ai/syllable-cli/cmd.Version={{.Version}}
+      - -X github.com/asksyllable/syllable-cli/cmd.Version={{.Version}}
     env:
       - CGO_ENABLED=0
     goos:
@@ -49,7 +49,7 @@ checksum:
 
 changelog:
   sort: asc
-  use: github
+  use: git
   filters:
     exclude:
       - "^docs:"
@@ -69,30 +69,7 @@ changelog:
 
 release:
   github:
-    owner: syllable-ai
+    owner: asksyllable
     name: syllable-cli
-  name_template: "v{{ .Version }}"
-  header: |
-    ## Syllable CLI v{{ .Version }}
-
-    Install via Homebrew:
-    ```bash
-    brew install syllable-ai/tap/syllable
-    ```
-
-    Or download the binary for your platform below.
-  footer: |
-    **Full Changelog**: https://github.com/syllable-ai/syllable-cli/compare/{{ .PreviousTag }}...{{ .Tag }}
-
-homebrew_casks:
-  - name: syllable
-    repository:
-      owner: syllable-ai
-      name: homebrew-tap
-      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    commit_author:
-      name: syllable-releasebot
-      email: eng@syllable.ai
-    homepage: https://syllable.ai
-    description: "CLI for managing the Syllable AI platform"
-    license: MIT
+  extra_files:
+    - glob: "install.sh"

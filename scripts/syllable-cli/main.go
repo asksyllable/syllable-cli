@@ -1,6 +1,6 @@
 package main
 
-import "github.com/syllable-ai/syllable-cli/cmd"
+import "github.com/asksyllable/syllable-cli/cmd"
 
 func main() {
 	cmd.Execute()
