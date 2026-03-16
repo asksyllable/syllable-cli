@@ -12,6 +12,14 @@ func sessionDebugCmd() *cobra.Command {
 		Use:   "session-debug",
 		Short: "Debug sessions",
 		Long:  "Get debug info for sessions by session ID, SID, or tool result.",
+		Example: `  # Get debug info by session ID
+  syllable session-debug by-session-id abc-123-def
+
+  # Get debug info by channel manager SID
+  syllable session-debug by-sid twilio CA1234567890abcdef
+
+  # Get tool result for a specific tool call in a session
+  syllable session-debug tool-result abc-123-def call-456`,
 	}
 
 	cmd.AddCommand(sessionDebugBySessionIDCmd())

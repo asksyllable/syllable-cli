@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/syllable-ai/syllable-cli/internal/output"
@@ -14,6 +13,29 @@ func usersCmd() *cobra.Command {
 		Use:   "users",
 		Short: "Manage users",
 		Long:  "List, get, create, update, and delete users.",
+		Example: `  # List all users
+  syllable users list
+
+  # Search users by email
+  syllable users list --search "alice@example.com"
+
+  # Get a specific user
+  syllable users get 10
+
+  # Get the currently authenticated user
+  syllable users me
+
+  # Create a user from a JSON file
+  syllable users create --file user.json
+
+  # Update a user
+  syllable users update 10 --file user.json
+
+  # Delete a user
+  syllable users delete 10
+
+  # Send a welcome/activation email to a user
+  syllable users send-email 10`,
 	}
 
 	cmd.AddCommand(usersListCmd())
@@ -89,7 +111,7 @@ func usersListCmd() *cobra.Command {
 					u.LastUpdated,
 				}
 			}
-			output.PrintTable(headers, rows)
+			printTable(headers, rows)
 			fmt.Printf("\nTotal: %d\n", result.TotalCount)
 			return nil
 		},
@@ -161,7 +183,7 @@ func usersGetCmd() *cobra.Command {
 				{"Last Updated By", lastUpdBy},
 				{"Last Session", u.LastSessionAt},
 			}
-			output.PrintTable([]string{"FIELD", "VALUE"}, rows)
+			printTable([]string{"FIELD", "VALUE"}, rows)
 			return nil
 		},
 	}
@@ -177,7 +199,7 @@ func usersCreateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				data, err := os.ReadFile(file)
+				data, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -226,7 +248,7 @@ func usersUpdateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				data, err := os.ReadFile(file)
+				data, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -332,7 +354,7 @@ func usersMeCmd() *cobra.Command {
 				{"Last Updated", u.LastUpdated},
 				{"Last Session", u.LastSessionAt},
 			}
-			output.PrintTable([]string{"FIELD", "VALUE"}, rows)
+			printTable([]string{"FIELD", "VALUE"}, rows)
 			return nil
 		},
 	}

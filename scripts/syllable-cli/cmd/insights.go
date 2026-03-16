@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/syllable-ai/syllable-cli/internal/output"
@@ -13,6 +12,29 @@ func insightsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "insights",
 		Short: "Manage insights",
+		Example: `  # List all insight workflows
+  syllable insights workflows list
+
+  # Get a specific workflow
+  syllable insights workflows get 8
+
+  # Create a workflow from a JSON file
+  syllable insights workflows create --file workflow.json
+
+  # Activate a workflow
+  syllable insights workflows activate 8
+
+  # Deactivate a workflow
+  syllable insights workflows inactivate 8
+
+  # List insight folders
+  syllable insights folders list
+
+  # List tool configurations
+  syllable insights tool-configs list
+
+  # List tool definitions
+  syllable insights tool-definitions`,
 	}
 
 	cmd.AddCommand(insightsWorkflowsCmd())
@@ -87,7 +109,7 @@ func insightsWorkflowsListCmd() *cobra.Command {
 			for i, w := range result.Items {
 				rows[i] = []string{w.ID.String(), w.Name, w.Source, w.Status, w.UpdatedAt}
 			}
-			output.PrintTable(headers, rows)
+			printTable(headers, rows)
 			fmt.Printf("\nTotal: %d\n", result.TotalCount)
 			return nil
 		},
@@ -141,7 +163,7 @@ func insightsWorkflowsGetCmd() *cobra.Command {
 				{"Updated At", w.UpdatedAt},
 				{"Last Updated By", w.LastUpdBy},
 			}
-			output.PrintTable([]string{"FIELD", "VALUE"}, rows)
+			printTable([]string{"FIELD", "VALUE"}, rows)
 			return nil
 		},
 	}
@@ -157,7 +179,7 @@ func insightsWorkflowsCreateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				fileData, err := os.ReadFile(file)
+				fileData, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -193,7 +215,7 @@ func insightsWorkflowsUpdateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				data, err := os.ReadFile(file)
+				data, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -249,7 +271,7 @@ func insightsWorkflowsActivateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				data, err := os.ReadFile(file)
+				data, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -356,7 +378,7 @@ func insightsFoldersListCmd() *cobra.Command {
 			for i, f := range result.Items {
 				rows[i] = []string{f.ID.String(), f.Name, f.Label, f.CreatedAt, f.UpdatedAt}
 			}
-			output.PrintTable(headers, rows)
+			printTable(headers, rows)
 			fmt.Printf("\nTotal: %d\n", result.TotalCount)
 			return nil
 		},
@@ -408,7 +430,7 @@ func insightsFoldersGetCmd() *cobra.Command {
 				{"Updated At", f.UpdatedAt},
 				{"Last Updated By", f.LastUpdBy},
 			}
-			output.PrintTable([]string{"FIELD", "VALUE"}, rows)
+			printTable([]string{"FIELD", "VALUE"}, rows)
 			return nil
 		},
 	}
@@ -424,7 +446,7 @@ func insightsFoldersCreateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				fileData, err := os.ReadFile(file)
+				fileData, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -460,7 +482,7 @@ func insightsFoldersUpdateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				data, err := os.ReadFile(file)
+				data, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -579,7 +601,7 @@ func insightsToolConfigsCreateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				fileData, err := os.ReadFile(file)
+				fileData, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -615,7 +637,7 @@ func insightsToolConfigsUpdateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				data, err := os.ReadFile(file)
+				data, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}

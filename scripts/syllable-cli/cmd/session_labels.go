@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/syllable-ai/syllable-cli/internal/output"
@@ -14,6 +13,17 @@ func sessionLabelsCmd() *cobra.Command {
 		Use:   "session-labels",
 		Short: "Manage session labels",
 		Long:  "List, get, and create session labels.",
+		Example: `  # List all session labels
+  syllable session-labels list
+
+  # Get a specific session label
+  syllable session-labels get 9
+
+  # Get a session label as JSON
+  syllable session-labels get 9 --output json
+
+  # Create a session label from a JSON file
+  syllable session-labels create --file label.json`,
 	}
 
 	cmd.AddCommand(sessionLabelsListCmd())
@@ -60,7 +70,7 @@ func sessionLabelsListCmd() *cobra.Command {
 			for i, l := range result.Items {
 				rows[i] = []string{l.ID.String(), l.SessionID.String(), l.Type, l.Code, l.UserEmail, output.Truncate(l.Comments, 30), l.Timestamp}
 			}
-			output.PrintTable(headers, rows)
+			printTable(headers, rows)
 			fmt.Printf("\nTotal: %d\n", result.TotalCount)
 			return nil
 		},
@@ -93,7 +103,7 @@ func sessionLabelsCreateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				fileData, err := os.ReadFile(file)
+				fileData, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}

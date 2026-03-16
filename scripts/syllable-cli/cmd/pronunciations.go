@@ -12,6 +12,17 @@ func pronunciationsCmd() *cobra.Command {
 		Use:   "pronunciations",
 		Short: "Manage pronunciations",
 		Long:  "List, download CSV, upload CSV, delete CSV, and get metadata for pronunciations.",
+		Example: `  # List all pronunciations
+  syllable pronunciations list
+
+  # Download pronunciations as a CSV file
+  syllable pronunciations get-csv
+
+  # Save the CSV to a file
+  syllable pronunciations get-csv > pronunciations.csv
+
+  # Get pronunciations metadata
+  syllable pronunciations metadata`,
 	}
 
 	cmd.AddCommand(pronunciationsListCmd())

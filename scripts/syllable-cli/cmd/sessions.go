@@ -13,6 +13,29 @@ func sessionsCmd() *cobra.Command {
 		Use:   "sessions",
 		Short: "Manage sessions",
 		Long:  "List, get, transcript, and summary for sessions.",
+		Example: `  # List all sessions
+  syllable sessions list
+
+  # Filter sessions by date range
+  syllable sessions list --start-date 2024-01-01 --end-date 2024-01-31
+
+  # Search sessions by agent name
+  syllable sessions list --search "support"
+
+  # Get a specific session
+  syllable sessions get abc-123-def
+
+  # Get the transcript for a session
+  syllable sessions transcript abc-123-def
+
+  # Get the summary for a session
+  syllable sessions summary abc-123-def
+
+  # Get latency information for a session
+  syllable sessions latency abc-123-def
+
+  # Get the recording for a session
+  syllable sessions recording abc-123-def`,
 	}
 
 	cmd.AddCommand(sessionsListCmd())
@@ -89,7 +112,7 @@ func sessionsListCmd() *cobra.Command {
 					isTest,
 				}
 			}
-			output.PrintTable(headers, rows)
+			printTable(headers, rows)
 			if result.TotalCount != nil {
 				fmt.Printf("\nTotal: %d\n", *result.TotalCount)
 			} else {
@@ -159,7 +182,7 @@ func sessionsGetCmd() *cobra.Command {
 				{"Target", s.Target},
 				{"Is Test", isTest},
 			}
-			output.PrintTable([]string{"FIELD", "VALUE"}, rows)
+			printTable([]string{"FIELD", "VALUE"}, rows)
 			return nil
 		},
 	}
@@ -200,7 +223,7 @@ func sessionsTranscriptCmd() *cobra.Command {
 			for i, t := range result.Transcription {
 				rows[i] = []string{t.Time, t.Role, output.Truncate(t.Content, 80)}
 			}
-			output.PrintTable(headers, rows)
+			printTable(headers, rows)
 			return nil
 		},
 	}
@@ -235,7 +258,7 @@ func sessionsSummaryCmd() *cobra.Command {
 				{"Rating", result.Rating},
 				{"Summary", result.Summary},
 			}
-			output.PrintTable([]string{"FIELD", "VALUE"}, rows)
+			printTable([]string{"FIELD", "VALUE"}, rows)
 			return nil
 		},
 	}

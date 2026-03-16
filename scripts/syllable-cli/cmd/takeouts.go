@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/syllable-ai/syllable-cli/internal/output"
@@ -14,6 +13,17 @@ func takeoutsCmd() *cobra.Command {
 		Use:   "takeouts",
 		Short: "Manage data takeouts",
 		Long:  "Create, get, and download data takeout exports.",
+		Example: `  # Create a data takeout from a JSON file
+  syllable takeouts create --file takeout-request.json
+
+  # Get the status of a takeout
+  syllable takeouts get abc-123
+
+  # Download a completed takeout
+  syllable takeouts download abc-123
+
+  # Download a takeout to a specific file
+  syllable takeouts download abc-123 --output takeout.zip`,
 	}
 
 	cmd.AddCommand(takeoutsCreateCmd())
@@ -33,7 +43,7 @@ func takeoutsCreateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				fileData, err := os.ReadFile(file)
+				fileData, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}

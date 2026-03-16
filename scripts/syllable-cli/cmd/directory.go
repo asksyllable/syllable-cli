@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/syllable-ai/syllable-cli/internal/output"
@@ -14,6 +13,23 @@ func directoryCmd() *cobra.Command {
 		Use:   "directory",
 		Short: "Manage directory members",
 		Long:  "List, get, create, update, and delete directory members.",
+		Example: `  # List all directory members
+  syllable directory list
+
+  # Search directory members by name
+  syllable directory list --search "billing"
+
+  # Get a specific directory member
+  syllable directory get 12
+
+  # Create a directory member from a JSON file
+  syllable directory create --file member.json
+
+  # Update a directory member
+  syllable directory update 12 --file member.json
+
+  # Delete a directory member
+  syllable directory delete 12`,
 	}
 
 	cmd.AddCommand(directoryListCmd())
@@ -68,7 +84,7 @@ func directoryListCmd() *cobra.Command {
 			for i, m := range result.Items {
 				rows[i] = []string{m.ID.String(), m.Name, m.Type, m.CreatedAt, m.UpdatedAt}
 			}
-			output.PrintTable(headers, rows)
+			printTable(headers, rows)
 			fmt.Printf("\nTotal: %d\n", result.TotalCount)
 			return nil
 		},
@@ -120,7 +136,7 @@ func directoryGetCmd() *cobra.Command {
 				{"Updated At", m.UpdatedAt},
 				{"Last Updated By", m.LastUpdBy},
 			}
-			output.PrintTable([]string{"FIELD", "VALUE"}, rows)
+			printTable([]string{"FIELD", "VALUE"}, rows)
 			return nil
 		},
 	}
@@ -136,7 +152,7 @@ func directoryCreateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				data, err := os.ReadFile(file)
+				data, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -181,7 +197,7 @@ func directoryUpdateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				data, err := os.ReadFile(file)
+				data, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}

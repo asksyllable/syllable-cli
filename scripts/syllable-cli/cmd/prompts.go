@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/syllable-ai/syllable-cli/internal/output"
@@ -14,6 +13,23 @@ func promptsCmd() *cobra.Command {
 		Use:   "prompts",
 		Short: "Manage prompts",
 		Long:  "List, get, create, update, and delete prompts.",
+		Example: `  # List all prompts
+  syllable prompts list
+
+  # Get a prompt and its current content
+  syllable prompts get 7
+
+  # See the edit history for a prompt
+  syllable prompts history 7
+
+  # List supported LLM models
+  syllable prompts supported-llms
+
+  # Create a prompt from a JSON file
+  syllable prompts create --file prompt.json
+
+  # Update a prompt
+  syllable prompts update 7 --file prompt.json`,
 	}
 
 	cmd.AddCommand(promptsListCmd())
@@ -80,7 +96,7 @@ func promptsListCmd() *cobra.Command {
 					p.LastUpdated,
 				}
 			}
-			output.PrintTable(headers, rows)
+			printTable(headers, rows)
 			fmt.Printf("\nTotal: %d\n", result.TotalCount)
 			return nil
 		},
@@ -136,7 +152,7 @@ func promptsGetCmd() *cobra.Command {
 				{"Last Updated By", p.LastUpdBy},
 				{"Context", output.Truncate(p.Context, 100)},
 			}
-			output.PrintTable([]string{"FIELD", "VALUE"}, rows)
+			printTable([]string{"FIELD", "VALUE"}, rows)
 			return nil
 		},
 	}
@@ -152,7 +168,7 @@ func promptsCreateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				data, err := os.ReadFile(file)
+				data, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -198,7 +214,7 @@ func promptsUpdateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				data, err := os.ReadFile(file)
+				data, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}

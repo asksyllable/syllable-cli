@@ -9,6 +9,11 @@ func permissionsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "permissions",
 		Short: "Manage permissions",
+		Example: `  # List all permissions
+  syllable permissions list
+
+  # List permissions as JSON
+  syllable permissions list --output json`,
 	}
 
 	cmd.AddCommand(permissionsListCmd())

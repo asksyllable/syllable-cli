@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/syllable-ai/syllable-cli/internal/output"
@@ -14,6 +13,23 @@ func dashboardsCmd() *cobra.Command {
 		Use:   "dashboards",
 		Short: "Query dashboard data",
 		Long:  "Query dashboard data for sessions, events, transfers, summaries, and more.",
+		Example: `  # List dashboard data with a JSON body file
+  syllable dashboards list --file query.json
+
+  # Get session data for the dashboard
+  syllable dashboards sessions --file query.json
+
+  # Get session events
+  syllable dashboards session-events --file query.json
+
+  # Get session transfer data
+  syllable dashboards session-transfers --file query.json
+
+  # Get session summary data
+  syllable dashboards session-summary --file query.json
+
+  # Fetch additional dashboard info
+  syllable dashboards fetch-info --file query.json`,
 	}
 
 	cmd.AddCommand(dashboardsListCmd())
@@ -36,7 +52,7 @@ func dashboardsListCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				fileData, err := os.ReadFile(file)
+				fileData, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -71,7 +87,7 @@ func dashboardsSessionsCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				fileData, err := os.ReadFile(file)
+				fileData, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -106,7 +122,7 @@ func dashboardsSessionEventsCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				fileData, err := os.ReadFile(file)
+				fileData, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -141,7 +157,7 @@ func dashboardsSessionTransfersCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				fileData, err := os.ReadFile(file)
+				fileData, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -176,7 +192,7 @@ func dashboardsSessionSummaryCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				fileData, err := os.ReadFile(file)
+				fileData, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}

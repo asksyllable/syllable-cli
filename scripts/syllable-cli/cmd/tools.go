@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/syllable-ai/syllable-cli/internal/output"
@@ -14,6 +13,20 @@ func toolsCmd() *cobra.Command {
 		Use:   "tools",
 		Short: "Manage tools",
 		Long:  "List, get, create, update, and delete tools.",
+		Example: `  # List all tools
+  syllable tools list
+
+  # Get a tool as JSON (inspect full config)
+  syllable tools get 5 --output json
+
+  # Create a tool from a JSON file
+  syllable tools create --file tool.json
+
+  # Update a tool
+  syllable tools update 5 --file tool.json
+
+  # Delete a tool
+  syllable tools delete 5`,
 	}
 
 	cmd.AddCommand(toolsListCmd())
@@ -75,7 +88,7 @@ func toolsListCmd() *cobra.Command {
 					t.LastUpdBy,
 				}
 			}
-			output.PrintTable(headers, rows)
+			printTable(headers, rows)
 			fmt.Printf("\nTotal: %d\n", result.TotalCount)
 			return nil
 		},
@@ -125,7 +138,7 @@ func toolsGetCmd() *cobra.Command {
 				{"Last Updated", t.LastUpdated},
 				{"Last Updated By", t.LastUpdBy},
 			}
-			output.PrintTable([]string{"FIELD", "VALUE"}, rows)
+			printTable([]string{"FIELD", "VALUE"}, rows)
 			return nil
 		},
 	}
@@ -141,7 +154,7 @@ func toolsCreateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				data, err := os.ReadFile(file)
+				data, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -187,7 +200,7 @@ func toolsUpdateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				data, err := os.ReadFile(file)
+				data, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}

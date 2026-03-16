@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/syllable-ai/syllable-cli/internal/output"
@@ -14,6 +13,35 @@ func channelsCmd() *cobra.Command {
 		Use:   "channels",
 		Short: "Manage channels",
 		Long:  "List, get, create, update, and delete channels.",
+		Example: `  # List all channels
+  syllable channels list
+
+  # Search channels by name
+  syllable channels list --search "support"
+
+  # Create a channel from a JSON file
+  syllable channels create --file channel.json
+
+  # Update a channel
+  syllable channels update 5 --file channel.json
+
+  # Delete a channel
+  syllable channels delete 5
+
+  # Get targets for a channel
+  syllable channels targets get 5
+
+  # Create a target for a channel
+  syllable channels targets create 5 --file target.json
+
+  # List available targets
+  syllable channels available-targets
+
+  # Get Twilio configuration for a channel
+  syllable channels twilio get 5
+
+  # List Twilio phone numbers for a channel
+  syllable channels twilio numbers-list 5`,
 	}
 
 	cmd.AddCommand(channelsListCmd())
@@ -73,7 +101,7 @@ func channelsListCmd() *cobra.Command {
 				}
 				rows[i] = []string{c.ID.String(), c.Name, c.ChannelService, isSystem}
 			}
-			output.PrintTable(headers, rows)
+			printTable(headers, rows)
 			fmt.Printf("\nTotal: %d\n", result.TotalCount)
 			return nil
 		},
@@ -96,7 +124,7 @@ func channelsCreateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				data, err := os.ReadFile(file)
+				data, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -142,7 +170,7 @@ func channelsUpdateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				data, err := os.ReadFile(file)
+				data, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -247,7 +275,7 @@ func channelsTargetsListCmd() *cobra.Command {
 				}
 				rows[i] = []string{t.ID.String(), t.ChannelName, t.Target, t.TargetMode, t.AgentID.String(), isTest}
 			}
-			output.PrintTable(headers, rows)
+			printTable(headers, rows)
 			fmt.Printf("\nTotal: %d\n", result.TotalCount)
 			return nil
 		},
@@ -287,7 +315,7 @@ func channelsTargetsCreateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				fileData, err := os.ReadFile(file)
+				fileData, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -324,7 +352,7 @@ func channelsTargetsUpdateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				fileData, err := os.ReadFile(file)
+				fileData, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -430,7 +458,7 @@ func channelsTwilioCreateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				fileData, err := os.ReadFile(file)
+				fileData, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -465,7 +493,7 @@ func channelsTwilioUpdateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				fileData, err := os.ReadFile(file)
+				fileData, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -517,7 +545,7 @@ func channelsTwilioNumbersAddCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				fileData, err := os.ReadFile(file)
+				fileData, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -553,7 +581,7 @@ func channelsTwilioNumbersUpdateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				fileData, err := os.ReadFile(file)
+				fileData, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}

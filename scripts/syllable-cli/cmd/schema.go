@@ -16,6 +16,17 @@ func schemaCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "schema",
 		Short: "Explore API data schemas",
+		Example: `  # List all available schemas
+  syllable schema list
+
+  # Filter schemas by name
+  syllable schema list --filter "agent"
+
+  # Get the full schema for a specific type
+  syllable schema get AgentResponse
+
+  # Get a schema as JSON (useful for scripting create/update bodies)
+  syllable schema get ChannelCreateRequest --output json`,
 	}
 	cmd.AddCommand(schemaListCmd())
 	cmd.AddCommand(schemaGetCmd())
@@ -56,7 +67,7 @@ func schemaListCmd() *cobra.Command {
 				}
 				rows[i] = []string{name, desc}
 			}
-			output.PrintTable([]string{"SCHEMA", "DESCRIPTION"}, rows)
+			printTable([]string{"SCHEMA", "DESCRIPTION"}, rows)
 			return nil
 		},
 	}

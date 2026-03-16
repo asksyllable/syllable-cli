@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/syllable-ai/syllable-cli/internal/output"
@@ -14,6 +13,23 @@ func languageGroupsCmd() *cobra.Command {
 		Use:   "language-groups",
 		Short: "Manage language groups",
 		Long:  "List, get, create, update, and delete language groups.",
+		Example: `  # List all language groups
+  syllable language-groups list
+
+  # Search language groups by name
+  syllable language-groups list --search "spanish"
+
+  # Get a specific language group
+  syllable language-groups get 2
+
+  # Create a language group from a JSON file
+  syllable language-groups create --file language-group.json
+
+  # Update a language group
+  syllable language-groups update 2 --file language-group.json
+
+  # Delete a language group
+  syllable language-groups delete 2`,
 	}
 
 	cmd.AddCommand(languageGroupsListCmd())
@@ -73,7 +89,7 @@ func languageGroupsListCmd() *cobra.Command {
 					g.UpdatedAt,
 				}
 			}
-			output.PrintTable(headers, rows)
+			printTable(headers, rows)
 			fmt.Printf("\nTotal: %d\n", result.TotalCount)
 			return nil
 		},
@@ -121,7 +137,7 @@ func languageGroupsGetCmd() *cobra.Command {
 				{"Updated At", g.UpdatedAt},
 				{"Last Updated By", g.LastUpdBy},
 			}
-			output.PrintTable([]string{"FIELD", "VALUE"}, rows)
+			printTable([]string{"FIELD", "VALUE"}, rows)
 			return nil
 		},
 	}
@@ -137,7 +153,7 @@ func languageGroupsCreateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				data, err := os.ReadFile(file)
+				data, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -182,7 +198,7 @@ func languageGroupsUpdateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				data, err := os.ReadFile(file)
+				data, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}

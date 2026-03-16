@@ -13,6 +13,20 @@ func conversationsCmd() *cobra.Command {
 		Use:   "conversations",
 		Short: "Manage conversations",
 		Long:  "List conversations.",
+		Example: `  # List all conversations
+  syllable conversations list
+
+  # List conversations with pagination
+  syllable conversations list --page 1 --limit 50
+
+  # Search conversations by agent name
+  syllable conversations list --search "support"
+
+  # Filter conversations by date range
+  syllable conversations list --start-date 2024-01-01 --end-date 2024-01-31
+
+  # List conversations as JSON
+  syllable conversations list --output json`,
 	}
 
 	cmd.AddCommand(conversationsListCmd())
@@ -76,7 +90,7 @@ func conversationsListCmd() *cobra.Command {
 					c.PromptName,
 				}
 			}
-			output.PrintTable(headers, rows)
+			printTable(headers, rows)
 			if result.TotalCount != nil {
 				fmt.Printf("\nTotal: %d\n", *result.TotalCount)
 			} else {

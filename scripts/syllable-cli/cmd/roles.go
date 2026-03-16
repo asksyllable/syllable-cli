@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/syllable-ai/syllable-cli/internal/output"
@@ -14,6 +13,26 @@ func rolesCmd() *cobra.Command {
 		Use:   "roles",
 		Short: "Manage roles",
 		Long:  "List, get, create, update, and delete roles.",
+		Example: `  # List all roles
+  syllable roles list
+
+  # Search roles by name
+  syllable roles list --search "admin"
+
+  # Get a specific role
+  syllable roles get 1
+
+  # Get a role as JSON
+  syllable roles get 1 --output json
+
+  # Create a role from a JSON file
+  syllable roles create --file role.json
+
+  # Update a role
+  syllable roles update 1 --file role.json
+
+  # Delete a role
+  syllable roles delete 1`,
 	}
 
 	cmd.AddCommand(rolesListCmd())
@@ -73,7 +92,7 @@ func rolesListCmd() *cobra.Command {
 					r.LastUpdated,
 				}
 			}
-			output.PrintTable(headers, rows)
+			printTable(headers, rows)
 			fmt.Printf("\nTotal: %d\n", result.TotalCount)
 			return nil
 		},
@@ -121,7 +140,7 @@ func rolesGetCmd() *cobra.Command {
 				{"Last Updated", r.LastUpdated},
 				{"Last Updated By", r.LastUpdBy},
 			}
-			output.PrintTable([]string{"FIELD", "VALUE"}, rows)
+			printTable([]string{"FIELD", "VALUE"}, rows)
 			return nil
 		},
 	}
@@ -137,7 +156,7 @@ func rolesCreateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				fileData, err := os.ReadFile(file)
+				fileData, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -180,7 +199,7 @@ func rolesUpdateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				data, err := os.ReadFile(file)
+				data, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}

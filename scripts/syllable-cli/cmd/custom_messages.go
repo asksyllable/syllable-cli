@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/syllable-ai/syllable-cli/internal/output"
@@ -14,6 +13,23 @@ func customMessagesCmd() *cobra.Command {
 		Use:   "custom-messages",
 		Short: "Manage custom messages",
 		Long:  "List, get, create, update, and delete custom messages.",
+		Example: `  # List all custom messages
+  syllable custom-messages list
+
+  # Search custom messages by name
+  syllable custom-messages list --search "greeting"
+
+  # Get a specific custom message
+  syllable custom-messages get 7
+
+  # Create a custom message from a JSON file
+  syllable custom-messages create --file message.json
+
+  # Update a custom message
+  syllable custom-messages update 7 --file message.json
+
+  # Delete a custom message
+  syllable custom-messages delete 7`,
 	}
 
 	cmd.AddCommand(customMessagesListCmd())
@@ -75,7 +91,7 @@ func customMessagesListCmd() *cobra.Command {
 					m.UpdatedAt,
 				}
 			}
-			output.PrintTable(headers, rows)
+			printTable(headers, rows)
 			fmt.Printf("\nTotal: %d\n", result.TotalCount)
 			return nil
 		},
@@ -129,7 +145,7 @@ func customMessagesGetCmd() *cobra.Command {
 				{"Updated At", m.UpdatedAt},
 				{"Last Updated By", m.LastUpdBy},
 			}
-			output.PrintTable([]string{"FIELD", "VALUE"}, rows)
+			printTable([]string{"FIELD", "VALUE"}, rows)
 			return nil
 		},
 	}
@@ -145,7 +161,7 @@ func customMessagesCreateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				data, err := os.ReadFile(file)
+				data, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -190,7 +206,7 @@ func customMessagesUpdateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				data, err := os.ReadFile(file)
+				data, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}

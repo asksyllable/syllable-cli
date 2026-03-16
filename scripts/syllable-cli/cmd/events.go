@@ -11,6 +11,14 @@ func eventsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "events",
 		Short: "Manage events",
+		Example: `  # List all events
+  syllable events list
+
+  # List events with pagination
+  syllable events list --page 0 --limit 50
+
+  # List events as JSON
+  syllable events list --output json`,
 	}
 
 	cmd.AddCommand(eventsListCmd())

@@ -12,6 +12,11 @@ func organizationsCmd() *cobra.Command {
 		Use:   "organizations",
 		Short: "Manage organizations",
 		Long:  "List organizations.",
+		Example: `  # List organizations
+  syllable organizations list
+
+  # List organizations as JSON
+  syllable organizations list --output json`,
 	}
 
 	cmd.AddCommand(organizationsListCmd())
@@ -56,7 +61,7 @@ func organizationsListCmd() *cobra.Command {
 			rows := [][]string{
 				{org.ID.String(), org.DisplayName, org.Slug, desc, org.LastUpdated},
 			}
-			output.PrintTable(headers, rows)
+			printTable(headers, rows)
 			return nil
 		},
 	}

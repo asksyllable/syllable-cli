@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/syllable-ai/syllable-cli/internal/output"
@@ -14,6 +13,29 @@ func agentsCmd() *cobra.Command {
 		Use:   "agents",
 		Short: "Manage agents",
 		Long:  "List, get, create, update, and delete agents.",
+		Example: `  # List all agents
+  syllable agents list
+
+  # Search agents by name
+  syllable agents list --search "support"
+
+  # Get a specific agent (table view)
+  syllable agents get 42
+
+  # Get a specific agent as JSON (useful for scripting)
+  syllable agents get 42 --output json
+
+  # Create an agent from a JSON file
+  syllable agents create --file agent.json
+
+  # Create an agent with inline flags
+  syllable agents create --name "Support Bot" --type voice --prompt-id 10 --timezone UTC
+
+  # Update an agent
+  syllable agents update 42 --file agent.json
+
+  # Delete an agent
+  syllable agents delete 42`,
 	}
 
 	cmd.AddCommand(agentsListCmd())
@@ -76,7 +98,7 @@ func agentsListCmd() *cobra.Command {
 					a.UpdatedAt,
 				}
 			}
-			output.PrintTable(headers, rows)
+			printTable(headers, rows)
 			fmt.Printf("\nTotal: %d\n", result.TotalCount)
 			return nil
 		},
@@ -132,7 +154,7 @@ func agentsGetCmd() *cobra.Command {
 				{"Updated At", a.UpdatedAt},
 				{"Last Updated By", a.LastUpdBy},
 			}
-			output.PrintTable([]string{"FIELD", "VALUE"}, rows)
+			printTable([]string{"FIELD", "VALUE"}, rows)
 			return nil
 		},
 	}
@@ -148,7 +170,7 @@ func agentsCreateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				data, err := os.ReadFile(file)
+				data, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -199,7 +221,7 @@ func agentsUpdateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				data, err := os.ReadFile(file)
+				data, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}

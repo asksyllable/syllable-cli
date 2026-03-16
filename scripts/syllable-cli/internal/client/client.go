@@ -7,15 +7,36 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 )
+
+// APIError represents an HTTP error response from the Syllable API.
+type APIError struct {
+	StatusCode int
+	Body       []byte
+}
+
+func (e *APIError) Error() string {
+	return fmt.Sprintf("API error (status %d): %s", e.StatusCode, string(e.Body))
+}
+
+// DryRunResult is returned instead of making a real HTTP call when DryRun is enabled.
+// It carries the JSON-encoded request details that would have been sent.
+type DryRunResult struct {
+	Output []byte
+}
+
+func (e *DryRunResult) Error() string { return "dry-run" }
 
 // Client is the HTTP client for the Syllable API.
 type Client struct {
 	BaseURL    string
 	APIKey     string
 	HTTPClient *http.Client
+	DryRun     bool
+	Verbose    bool
 }
 
 // New creates a new Client.
@@ -31,13 +52,32 @@ func New(baseURL, apiKey string) *Client {
 
 // Do performs an HTTP request and returns the response body, status code, and error.
 func (c *Client) Do(method, path string, body interface{}) ([]byte, int, error) {
-	var bodyReader io.Reader
+	var bodyBytes []byte
 	if body != nil {
-		b, err := json.Marshal(body)
+		var err error
+		bodyBytes, err = json.Marshal(body)
 		if err != nil {
 			return nil, 0, fmt.Errorf("marshaling request body: %w", err)
 		}
-		bodyReader = bytes.NewReader(b)
+	}
+
+	if c.DryRun {
+		out := map[string]interface{}{
+			"dry_run": true,
+			"method":  method,
+			"url":     c.BaseURL + path,
+		}
+		if bodyBytes != nil {
+			var bodyJSON json.RawMessage = bodyBytes
+			out["body"] = bodyJSON
+		}
+		data, _ := json.Marshal(out)
+		return nil, 0, &DryRunResult{Output: data}
+	}
+
+	var bodyReader io.Reader
+	if bodyBytes != nil {
+		bodyReader = bytes.NewReader(bodyBytes)
 	}
 
 	url := c.BaseURL + path
@@ -47,10 +87,23 @@ func (c *Client) Do(method, path string, body interface{}) ([]byte, int, error) 
 	}
 
 	req.Header.Set("Syllable-API-Key", c.APIKey)
-	if body != nil {
+	if bodyBytes != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
 	req.Header.Set("Accept", "application/json")
+
+	if c.Verbose {
+		fmt.Fprintf(os.Stderr, "> %s %s\n", method, c.BaseURL+path)
+		fmt.Fprintf(os.Stderr, "> Syllable-API-Key: %s\n", maskKey(c.APIKey))
+		if bodyBytes != nil {
+			fmt.Fprintf(os.Stderr, "> Content-Type: application/json\n")
+			var pretty bytes.Buffer
+			if json.Indent(&pretty, bodyBytes, "> ", "  ") == nil {
+				fmt.Fprintf(os.Stderr, ">\n> %s\n", pretty.String())
+			}
+		}
+		fmt.Fprintln(os.Stderr)
+	}
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
@@ -63,11 +116,29 @@ func (c *Client) Do(method, path string, body interface{}) ([]byte, int, error) 
 		return nil, resp.StatusCode, fmt.Errorf("reading response body: %w", err)
 	}
 
+	if c.Verbose {
+		fmt.Fprintf(os.Stderr, "< %d %s\n", resp.StatusCode, http.StatusText(resp.StatusCode))
+		fmt.Fprintf(os.Stderr, "< Content-Type: %s\n", resp.Header.Get("Content-Type"))
+		var pretty bytes.Buffer
+		if json.Indent(&pretty, data, "< ", "  ") == nil {
+			fmt.Fprintf(os.Stderr, "<\n< %s\n", pretty.String())
+		}
+		fmt.Fprintln(os.Stderr)
+	}
+
 	if resp.StatusCode >= 400 {
-		return data, resp.StatusCode, fmt.Errorf("API error (status %d): %s", resp.StatusCode, string(data))
+		return data, resp.StatusCode, &APIError{StatusCode: resp.StatusCode, Body: data}
 	}
 
 	return data, resp.StatusCode, nil
+}
+
+// maskKey returns the API key with the middle portion replaced by asterisks.
+func maskKey(key string) string {
+	if len(key) <= 8 {
+		return "****"
+	}
+	return key[:4] + strings.Repeat("*", len(key)-8) + key[len(key)-4:]
 }
 
 // Get performs a GET request.

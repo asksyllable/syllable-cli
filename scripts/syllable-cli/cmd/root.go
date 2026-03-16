@@ -1,36 +1,63 @@
 package cmd
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/syllable-ai/syllable-cli/internal/client"
+	"github.com/syllable-ai/syllable-cli/internal/output"
 )
 
+// Version is set at build time via -ldflags "-X github.com/syllable-ai/syllable-cli/cmd.Version=x.y.z"
+var Version = "dev"
+
 var (
-	cfgFile   string
-	apiKey    string
-	baseURL   string
-	orgName   string
-	envName   string
-	outputFmt string
-	apiClient *client.Client
+	cfgFile    string
+	apiKey     string
+	baseURL    string
+	orgName    string
+	envName    string
+	outputFmt  string
+	dryRun     bool
+	debugMode  bool
+	fieldsFlag string
+	apiClient  *client.Client
 )
 
 // rootCmd is the base command for the syllable CLI.
 var rootCmd = &cobra.Command{
-	Use:   "syllable",
-	Short: "Syllable CLI - manage your Syllable AI platform",
+	Use:          "syllable",
+	Version:      Version,
+	Short:        "Syllable CLI - manage your Syllable AI platform",
+	SilenceUsage: true,
 	Long: `syllable is a CLI tool for managing your Syllable AI platform resources.
 
 It supports agents, channels, conversations, prompts, tools, sessions,
 outbound campaigns, users, directory, insights, custom messages, language groups, and organizations.`,
+	Example: `  # List agents
+  syllable agents list
+
+  # Get JSON output for scripting
+  syllable agents get 42 --output json
+
+  # Use a specific org and environment
+  syllable --org acme --env staging agents list
+
+  # Enable shell completion (bash)
+  syllable completion bash > /etc/bash_completion.d/syllable
+
+  # Enable shell completion (zsh)
+  syllable completion zsh > "${fpath[1]}/_syllable"`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		// Skip for commands that don't need auth
-		if cmd.Name() == "help" || cmd.Name() == "completion" {
+		if cmd.Name() == "help" || cmd.Name() == "completion" || cmd.Name() == "version" {
 			return nil
 		}
 		initClient()
@@ -40,10 +67,101 @@ outbound campaigns, users, directory, insights, custom messages, language groups
 
 // Execute runs the root command.
 func Execute() {
+	rootCmd.SilenceErrors = true
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		var dryRun *client.DryRunResult
+		if errors.As(err, &dryRun) {
+			output.PrintJSON(dryRun.Output)
+			return
+		}
+		printError(err)
 		os.Exit(1)
 	}
+}
+
+func printError(err error) {
+	hint := hintForError(err)
+	if getOutputFmt() == "json" {
+		var apiErr *client.APIError
+		if errors.As(err, &apiErr) {
+			var detail json.RawMessage
+			if json.Unmarshal(apiErr.Body, &detail) == nil {
+				obj := map[string]interface{}{
+					"status_code": apiErr.StatusCode,
+					"detail":      detail,
+				}
+				if hint != "" {
+					obj["hint"] = hint
+				}
+				out, _ := json.Marshal(map[string]interface{}{"error": obj})
+				fmt.Fprintln(os.Stderr, string(out))
+				return
+			}
+		}
+		obj := map[string]interface{}{"message": err.Error()}
+		if hint != "" {
+			obj["hint"] = hint
+		}
+		out, _ := json.Marshal(map[string]interface{}{"error": obj})
+		fmt.Fprintln(os.Stderr, string(out))
+		return
+	}
+	fmt.Fprintln(os.Stderr, "Error:", err)
+	if hint != "" {
+		fmt.Fprintln(os.Stderr, "Hint: "+hint)
+	}
+}
+
+// hintForError returns an actionable suggestion for common errors.
+func hintForError(err error) string {
+	// Non-API errors: missing required flags
+	msg := err.Error()
+	if strings.Contains(msg, "required flags") || strings.Contains(msg, "use --file") {
+		return "Use `syllable schema list` to browse schemas, then `syllable schema get <TypeName>` to see all fields."
+	}
+
+	var apiErr *client.APIError
+	if !errors.As(err, &apiErr) {
+		return ""
+	}
+
+	switch apiErr.StatusCode {
+	case 401:
+		return "Your API key may be invalid or expired. Verify it with: syllable users me"
+	case 403:
+		return "You don't have permission for this action. Check: syllable permissions list"
+	case 404:
+		return "Resource not found. Use the `list` subcommand to find valid IDs."
+	case 409:
+		return "A resource with this name already exists. Use the `list` subcommand to find it."
+	case 422, 400:
+		return hint422(apiErr.Body)
+	case 500, 502, 503, 504:
+		return "Server error. This may be temporary — try again shortly."
+	}
+	return ""
+}
+
+// hint422 parses a FastAPI validation error body and returns a field-specific hint.
+func hint422(body []byte) string {
+	var resp struct {
+		Detail []struct {
+			Loc []string `json:"loc"`
+			Msg string   `json:"msg"`
+		} `json:"detail"`
+	}
+	if json.Unmarshal(body, &resp) == nil && len(resp.Detail) > 0 {
+		var fields []string
+		for _, d := range resp.Detail {
+			if len(d.Loc) > 0 {
+				fields = append(fields, d.Loc[len(d.Loc)-1])
+			}
+		}
+		if len(fields) > 0 {
+			return fmt.Sprintf("Validation failed on: %s. Use `syllable schema list` to find the schema, then `syllable schema get <TypeName>` to see required fields.", strings.Join(fields, ", "))
+		}
+	}
+	return "Validation failed. Use `syllable schema list` to find the schema for this resource, then `syllable schema get <TypeName>` to see required fields."
 }
 
 func init() {
@@ -56,6 +174,9 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&orgName, "org", "", "Organization name (e.g. sandbox, memorialcare)")
 	rootCmd.PersistentFlags().StringVar(&envName, "env", "", "Named environment (e.g. prod, staging, dev) — sets base URL from config")
 	rootCmd.PersistentFlags().StringVarP(&outputFmt, "output", "o", "table", "Output format: table or json")
+	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "Print the request that would be sent without executing it")
+	rootCmd.PersistentFlags().BoolVar(&debugMode, "debug", false, "Print HTTP request and response details to stderr")
+	rootCmd.PersistentFlags().StringVar(&fieldsFlag, "fields", "", "Comma-separated columns to show in table output (e.g. id,name,type)")
 
 	// Bind flags to viper
 	viper.BindPFlag("api_key", rootCmd.PersistentFlags().Lookup("api-key"))
@@ -132,6 +253,8 @@ func initClient() {
 	}
 
 	apiClient = client.New(url, key)
+	apiClient.DryRun = dryRun
+	apiClient.Verbose = debugMode
 }
 
 // resolveAPIKey determines the API key to use.
@@ -231,4 +354,21 @@ func resolveBaseURL() string {
 
 func getOutputFmt() string {
 	return viper.GetString("output")
+}
+
+// readFile reads a file by path, or reads from stdin if path is "-".
+func readFile(path string) ([]byte, error) {
+	if path == "-" {
+		return io.ReadAll(os.Stdin)
+	}
+	return os.ReadFile(path)
+}
+
+// printTable prints a table, applying --fields column filtering if set.
+func printTable(headers []string, rows [][]string) {
+	if fieldsFlag != "" {
+		fields := strings.Split(fieldsFlag, ",")
+		headers, rows = output.FilterColumns(headers, rows, fields)
+	}
+	output.PrintTable(headers, rows)
 }

@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/syllable-ai/syllable-cli/internal/output"
@@ -13,6 +12,14 @@ func conversationConfigCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "conversation-config",
 		Short: "Manage conversation configuration",
+		Example: `  # Get the current bridge configuration
+  syllable conversation-config bridges
+
+  # Get bridge configuration as JSON
+  syllable conversation-config bridges --output json
+
+  # Update the bridge configuration from a JSON file
+  syllable conversation-config bridges-update --file bridges.json`,
 	}
 
 	cmd.AddCommand(conversationConfigBridgesGetCmd())
@@ -46,7 +53,7 @@ func conversationConfigBridgesUpdateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				fileData, err := os.ReadFile(file)
+				fileData, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}

@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/syllable-ai/syllable-cli/internal/output"
@@ -14,6 +13,26 @@ func servicesCmd() *cobra.Command {
 		Use:   "services",
 		Short: "Manage services",
 		Long:  "List, get, create, update, and delete services.",
+		Example: `  # List all services
+  syllable services list
+
+  # Search services by name
+  syllable services list --search "weather"
+
+  # Get a specific service
+  syllable services get 6
+
+  # Get a service as JSON
+  syllable services get 6 --output json
+
+  # Create a service from a JSON file
+  syllable services create --file service.json
+
+  # Update a service
+  syllable services update 6 --file service.json
+
+  # Delete a service
+  syllable services delete 6`,
 	}
 
 	cmd.AddCommand(servicesListCmd())
@@ -73,7 +92,7 @@ func servicesListCmd() *cobra.Command {
 					s.LastUpdated,
 				}
 			}
-			output.PrintTable(headers, rows)
+			printTable(headers, rows)
 			fmt.Printf("\nTotal: %d\n", result.TotalCount)
 			return nil
 		},
@@ -121,7 +140,7 @@ func servicesGetCmd() *cobra.Command {
 				{"Last Updated", s.LastUpdated},
 				{"Last Updated By", s.LastUpdBy},
 			}
-			output.PrintTable([]string{"FIELD", "VALUE"}, rows)
+			printTable([]string{"FIELD", "VALUE"}, rows)
 			return nil
 		},
 	}
@@ -137,7 +156,7 @@ func servicesCreateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				fileData, err := os.ReadFile(file)
+				fileData, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -181,7 +200,7 @@ func servicesUpdateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				data, err := os.ReadFile(file)
+				data, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}

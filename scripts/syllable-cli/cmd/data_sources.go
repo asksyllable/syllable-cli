@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/syllable-ai/syllable-cli/internal/output"
@@ -14,6 +13,26 @@ func dataSourcesCmd() *cobra.Command {
 		Use:   "data-sources",
 		Short: "Manage data sources",
 		Long:  "List, get, create, update, and delete data sources.",
+		Example: `  # List all data sources
+  syllable data-sources list
+
+  # Search data sources by name
+  syllable data-sources list --search "crm"
+
+  # Get a specific data source
+  syllable data-sources get 3
+
+  # Get a data source as JSON
+  syllable data-sources get 3 --output json
+
+  # Create a data source from a JSON file
+  syllable data-sources create --file datasource.json
+
+  # Update a data source
+  syllable data-sources update 3 --file datasource.json
+
+  # Delete a data source
+  syllable data-sources delete 3`,
 	}
 
 	cmd.AddCommand(dataSourcesListCmd())
@@ -73,7 +92,7 @@ func dataSourcesListCmd() *cobra.Command {
 					d.LastUpdated,
 				}
 			}
-			output.PrintTable(headers, rows)
+			printTable(headers, rows)
 			fmt.Printf("\nTotal: %d\n", result.TotalCount)
 			return nil
 		},
@@ -123,7 +142,7 @@ func dataSourcesGetCmd() *cobra.Command {
 				{"Last Updated", d.LastUpdated},
 				{"Last Updated By", d.LastUpdBy},
 			}
-			output.PrintTable([]string{"FIELD", "VALUE"}, rows)
+			printTable([]string{"FIELD", "VALUE"}, rows)
 			return nil
 		},
 	}
@@ -139,7 +158,7 @@ func dataSourcesCreateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				fileData, err := os.ReadFile(file)
+				fileData, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -185,7 +204,7 @@ func dataSourcesUpdateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				data, err := os.ReadFile(file)
+				data, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}

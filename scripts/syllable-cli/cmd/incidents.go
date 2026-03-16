@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/syllable-ai/syllable-cli/internal/output"
@@ -14,6 +13,26 @@ func incidentsCmd() *cobra.Command {
 		Use:   "incidents",
 		Short: "Manage incidents",
 		Long:  "List, get, create, update, and delete incidents.",
+		Example: `  # List all incidents
+  syllable incidents list
+
+  # Search incidents by title
+  syllable incidents list --search "outage"
+
+  # Get a specific incident
+  syllable incidents get 4
+
+  # Create an incident from a JSON file
+  syllable incidents create --file incident.json
+
+  # Update an incident
+  syllable incidents update 4 --file incident.json
+
+  # Delete an incident
+  syllable incidents delete 4
+
+  # List organizations affected by an incident
+  syllable incidents organizations 4`,
 	}
 
 	cmd.AddCommand(incidentsListCmd())
@@ -77,7 +96,7 @@ func incidentsListCmd() *cobra.Command {
 					inc.CreatedAt,
 				}
 			}
-			output.PrintTable(headers, rows)
+			printTable(headers, rows)
 			fmt.Printf("\nTotal: %d\n", result.TotalCount)
 			return nil
 		},
@@ -116,7 +135,7 @@ func incidentsCreateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				fileData, err := os.ReadFile(file)
+				fileData, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -151,7 +170,7 @@ func incidentsUpdateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				data, err := os.ReadFile(file)
+				data, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}

@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/syllable-ai/syllable-cli/internal/output"
@@ -14,6 +13,26 @@ func voiceGroupsCmd() *cobra.Command {
 		Use:   "voice-groups",
 		Short: "Manage voice groups",
 		Long:  "List, get, create, update, and delete voice groups.",
+		Example: `  # List all voice groups
+  syllable voice-groups list
+
+  # Search voice groups by name
+  syllable voice-groups list --search "english"
+
+  # Get a specific voice group
+  syllable voice-groups get 3
+
+  # Get a voice group as JSON
+  syllable voice-groups get 3 --output json
+
+  # Create a voice group from a JSON file
+  syllable voice-groups create --file voice-group.json
+
+  # Update a voice group
+  syllable voice-groups update 3 --file voice-group.json
+
+  # Delete a voice group
+  syllable voice-groups delete 3`,
 	}
 
 	cmd.AddCommand(voiceGroupsListCmd())
@@ -73,7 +92,7 @@ func voiceGroupsListCmd() *cobra.Command {
 					v.UpdatedAt,
 				}
 			}
-			output.PrintTable(headers, rows)
+			printTable(headers, rows)
 			fmt.Printf("\nTotal: %d\n", result.TotalCount)
 			return nil
 		},
@@ -121,7 +140,7 @@ func voiceGroupsGetCmd() *cobra.Command {
 				{"Updated At", v.UpdatedAt},
 				{"Last Updated By", v.LastUpdBy},
 			}
-			output.PrintTable([]string{"FIELD", "VALUE"}, rows)
+			printTable([]string{"FIELD", "VALUE"}, rows)
 			return nil
 		},
 	}
@@ -137,7 +156,7 @@ func voiceGroupsCreateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				fileData, err := os.ReadFile(file)
+				fileData, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -180,7 +199,7 @@ func voiceGroupsUpdateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				data, err := os.ReadFile(file)
+				data, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}

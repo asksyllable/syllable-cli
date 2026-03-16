@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/syllable-ai/syllable-cli/internal/output"
@@ -13,6 +12,29 @@ func outboundCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "outbound",
 		Short: "Manage outbound campaigns and batches",
+		Example: `  # List all outbound batches
+  syllable outbound batches list
+
+  # Get a specific batch
+  syllable outbound batches get abc-123
+
+  # Create a batch from a JSON file
+  syllable outbound batches create --file batch.json
+
+  # Get results for a batch
+  syllable outbound batches results abc-123
+
+  # Get requests in a batch
+  syllable outbound batches requests abc-123
+
+  # Remove requests from a batch
+  syllable outbound batches remove-requests abc-123 --file request-ids.json
+
+  # List all outbound campaigns
+  syllable outbound campaigns list
+
+  # Create a campaign from a JSON file
+  syllable outbound campaigns create --file campaign.json`,
 	}
 
 	cmd.AddCommand(outboundBatchesCmd())
@@ -96,7 +118,7 @@ func outboundBatchesListCmd() *cobra.Command {
 					b.CreatedAt,
 				}
 			}
-			output.PrintTable(headers, rows)
+			printTable(headers, rows)
 			fmt.Printf("\nTotal: %d\n", result.TotalCount)
 			return nil
 		},
@@ -156,7 +178,7 @@ func outboundBatchesGetCmd() *cobra.Command {
 				{"Last Updated By", b.LastUpdatedBy},
 				{"Error Message", b.ErrorMessage},
 			}
-			output.PrintTable([]string{"FIELD", "VALUE"}, rows)
+			printTable([]string{"FIELD", "VALUE"}, rows)
 			return nil
 		},
 	}
@@ -173,7 +195,7 @@ func outboundBatchesCreateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				data, err := os.ReadFile(file)
+				data, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -220,7 +242,7 @@ func outboundBatchesUpdateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				data, err := os.ReadFile(file)
+				data, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -292,7 +314,7 @@ func outboundBatchesRequestsCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				fileData, err := os.ReadFile(file)
+				fileData, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -328,7 +350,7 @@ func outboundBatchesRemoveRequestsCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				fileData, err := os.ReadFile(file)
+				fileData, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -421,7 +443,7 @@ func outboundCampaignsListCmd() *cobra.Command {
 					c.UpdatedAt,
 				}
 			}
-			output.PrintTable(headers, rows)
+			printTable(headers, rows)
 			fmt.Printf("\nTotal: %d\n", result.TotalCount)
 			return nil
 		},
@@ -479,7 +501,7 @@ func outboundCampaignsGetCmd() *cobra.Command {
 				{"Updated At", c.UpdatedAt},
 				{"Last Updated By", c.LastUpdBy},
 			}
-			output.PrintTable([]string{"FIELD", "VALUE"}, rows)
+			printTable([]string{"FIELD", "VALUE"}, rows)
 			return nil
 		},
 	}
@@ -495,7 +517,7 @@ func outboundCampaignsCreateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				data, err := os.ReadFile(file)
+				data, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -542,7 +564,7 @@ func outboundCampaignsUpdateCmd() *cobra.Command {
 			var body interface{}
 
 			if file != "" {
-				data, err := os.ReadFile(file)
+				data, err := readFile(file)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
