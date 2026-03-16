@@ -40,7 +40,9 @@ var rootCmd = &cobra.Command{
 	Long: `syllable is a CLI tool for managing your Syllable AI platform resources.
 
 It supports agents, channels, conversations, prompts, tools, sessions,
-outbound campaigns, users, directory, insights, custom messages, language groups, and organizations.`,
+outbound campaigns, users, directory, insights, custom messages, language groups, and organizations.
+
+Feedback: https://github.com/asksyllable/syllable-cli/issues`,
 	Example: `  # List agents
   syllable agents list
 
