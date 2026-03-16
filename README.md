@@ -69,7 +69,7 @@ Run the setup tool to configure orgs, API keys, and environments:
 
 ```bash
 cd scripts/syllable-setup
-./syllable-setup
+go run .
 ```
 
 This opens a browser UI. Use it any time you need to add an org, add an environment, or rotate a key. Do not edit `~/.syllable/config.yaml` by hand.

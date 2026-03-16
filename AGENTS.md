@@ -82,7 +82,7 @@ Services
 Any time the user needs to configure the CLI — whether it's the first time, adding a new org, adding a new environment, or updating an API key — run the setup tool:
 
 ```bash
-cd scripts/syllable-setup && ./syllable-setup
+cd scripts/syllable-setup && go run .
 ```
 
 This opens a browser UI where the user can safely manage all orgs, API keys, and environments. Always use this tool for config changes — never edit `~/.syllable/config.yaml` directly or ask the user to paste API keys into the terminal.
@@ -102,7 +102,7 @@ cat ~/.syllable/config.yaml 2>/dev/null || echo "not configured"
 
 ## Quick Start
 
-The CLI binary (`syllable`) is pre-built and checked into the repo — no compilation needed:
+Run the CLI from source or a release (no binary is checked in):
 
 ```bash
 cd scripts/syllable-cli && go run . --help
