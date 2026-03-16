@@ -20,24 +20,35 @@ For deeper platform reference, see [docs.syllable.ai](https://docs.syllable.ai).
 
 ## Installation
 
-The pre-built binary is included in the repo. No compilation needed:
+### Homebrew (macOS and Linux — recommended)
 
 ```bash
-# Add the binary to your PATH, or run it directly:
-./scripts/syllable-cli/syllable --help
+brew install syllable-ai/tap/syllable
 ```
 
-To rebuild from source (requires Go 1.21+):
+### Direct download
+
+Download the binary for your platform from the [latest release](https://github.com/syllable-ai/syllable-cli/releases/latest), extract it, and put `syllable` somewhere on your `$PATH`:
+
+```bash
+# macOS (Apple Silicon)
+curl -L https://github.com/syllable-ai/syllable-cli/releases/latest/download/syllable_latest_darwin_arm64.tar.gz | tar xz
+sudo mv syllable /usr/local/bin/
+
+# macOS (Intel)
+curl -L https://github.com/syllable-ai/syllable-cli/releases/latest/download/syllable_latest_darwin_amd64.tar.gz | tar xz
+sudo mv syllable /usr/local/bin/
+
+# Linux (amd64)
+curl -L https://github.com/syllable-ai/syllable-cli/releases/latest/download/syllable_latest_linux_amd64.tar.gz | tar xz
+sudo mv syllable /usr/local/bin/
+```
+
+### Build from source (requires Go 1.21+)
 
 ```bash
 cd scripts/syllable-cli
 go build -o syllable .
-```
-
-To build with a version string embedded:
-
-```bash
-go build -ldflags "-X github.com/syllable-ai/syllable-cli/cmd.Version=1.2.3" -o syllable .
 ```
 
 ### Shell Completion

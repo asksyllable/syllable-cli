@@ -1,0 +1,98 @@
+version: 2
+
+project_name: syllable
+
+before:
+  hooks:
+    - sh -c "cd scripts/syllable-cli && go mod tidy"
+    - sh -c "cd scripts/syllable-cli && go test ./..."
+
+builds:
+  - id: syllable
+    dir: scripts/syllable-cli
+    main: .
+    binary: syllable
+    ldflags:
+      - -s -w
+      - -X github.com/syllable-ai/syllable-cli/cmd.Version={{.Version}}
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - id: syllable
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - AGENTS.md
+      - CLAUDE.md
+      - LICENSE
+
+checksum:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
+  algorithm: sha256
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - Merge pull request
+      - Merge branch
+  groups:
+    - title: "New Features"
+      regexp: "^feat"
+      order: 0
+    - title: "Bug Fixes"
+      regexp: "^fix"
+      order: 1
+    - title: "Improvements"
+      order: 2
+
+release:
+  github:
+    owner: syllable-ai
+    name: syllable-cli
+  name_template: "v{{ .Version }}"
+  header: |
+    ## Syllable CLI v{{ .Version }}
+
+    Install via Homebrew:
+    ```bash
+    brew install syllable-ai/tap/syllable
+    ```
+
+    Or download the binary for your platform below.
+  footer: |
+    **Full Changelog**: https://github.com/syllable-ai/syllable-cli/compare/{{ .PreviousTag }}...{{ .Tag }}
+
+homebrew_casks:
+  - name: syllable
+    repository:
+      owner: syllable-ai
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    commit_author:
+      name: syllable-releasebot
+      email: eng@syllable.ai
+    homepage: https://syllable.ai
+    description: "CLI for managing the Syllable AI platform"
+    license: MIT
