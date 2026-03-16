@@ -84,7 +84,12 @@ homebrew_casks:
     repository:
       owner: asksyllable
       name: syllable-cli
+      branch: "goreleaser/syllable-{{ .Tag }}"
       token: "{{ .Env.GITHUB_TOKEN }}"
+      # Push to branch above and open a PR to default branch. Satisfies branch
+      # protection that requires changes via pull request.
+      pull_request:
+        enabled: true
     commit_author:
       name: goreleaserbot
       email: bot@goreleaser.com
