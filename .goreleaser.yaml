@@ -73,3 +73,21 @@ release:
     name: syllable-cli
   extra_files:
     - glob: "install.sh"
+
+brews:
+  - name: syllable
+    repository:
+      owner: asksyllable
+      name: syllable-cli
+      token: "{{ .Env.GITHUB_TOKEN }}"
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    commit_msg_template: "chore: update Homebrew formula for {{ .ProjectName }} {{ .Tag }}"
+    homepage: "https://github.com/asksyllable/syllable-cli"
+    description: "CLI for the Syllable AI platform"
+    license: "MIT"
+    install: |
+      bin.install "syllable"
+    test: |
+      system "#{bin}/syllable", "--version"

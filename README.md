@@ -20,7 +20,20 @@ For deeper platform reference, see [docs.syllable.ai](https://docs.syllable.ai).
 
 ## Installation
 
-### Install script (macOS and Linux — recommended)
+### Homebrew (macOS and Linux — recommended)
+
+```bash
+brew tap asksyllable/syllable-cli https://github.com/asksyllable/syllable-cli
+brew install syllable
+```
+
+Upgrades are handled by Homebrew in the usual way:
+
+```bash
+brew upgrade syllable
+```
+
+### Install script (macOS and Linux)
 
 ```bash
 curl -fsSL https://github.com/asksyllable/syllable-cli/releases/latest/download/install.sh | sh
