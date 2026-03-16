@@ -2,7 +2,7 @@
 
 Machine-readable reference for AI agents using the Syllable CLI. The `syllable` binary manages all resources on the Syllable AI platform: agents, channels, prompts, tools, sessions, outbound campaigns/batches, users, directory, insights, custom messages, language groups, organizations, data sources, voice groups, services, roles, incidents, pronunciations, session labels, session debug, takeouts, events, permissions, conversation config, and dashboards.
 
-Binary location: `scripts/syllable-cli/syllable`
+Run via: `cd scripts/syllable-cli && go run .` or build with `go build -o syllable .` (no binary is checked in; use releases or local build).
 
 ---
 
@@ -105,7 +105,7 @@ cat ~/.syllable/config.yaml 2>/dev/null || echo "not configured"
 The CLI binary (`syllable`) is pre-built and checked into the repo — no compilation needed:
 
 ```bash
-scripts/syllable-cli/syllable --help
+cd scripts/syllable-cli && go run . --help
 ```
 
 If you need to rebuild after modifying source:

@@ -1,1 +1,4 @@
 dist/
+
+# Local build of CLI (use releases or go build)
+scripts/syllable-cli/syllable
