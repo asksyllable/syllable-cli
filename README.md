@@ -24,14 +24,13 @@ For deeper platform reference, see [docs.syllable.ai](https://docs.syllable.ai).
 ### Homebrew (macOS and Linux — recommended)
 
 ```bash
-brew tap asksyllable/syllable-cli https://github.com/asksyllable/syllable-cli
-brew install syllable
+brew install --cask asksyllable/syllable-cli/syllable
 ```
 
 Upgrades are handled by Homebrew in the usual way:
 
 ```bash
-brew upgrade syllable
+brew upgrade --cask syllable
 ```
 
 ### Install script (macOS and Linux)
@@ -79,11 +78,10 @@ syllable completion fish > ~/.config/fish/completions/syllable.fish
 
 ## Configuration
 
-Run the setup tool to configure orgs, API keys, and environments:
+Run the setup command to configure orgs, API keys, and environments:
 
 ```bash
-cd scripts/syllable-setup
-./syllable-setup
+syllable setup
 ```
 
 This opens a browser UI. Use it any time you need to add an org, add an environment, or rotate a key. Do not edit `~/.syllable/config.yaml` by hand.
@@ -513,7 +511,7 @@ The `--search` flag filters on different fields per resource:
 ## Troubleshooting
 
 **Auth errors (401)**
-Run `syllable users me` to verify your API key is working. Re-run `syllable-setup` to update it.
+Run `syllable users me` to verify your API key is working. Re-run `syllable setup` to update it.
 
 **Permission errors (403)**
 Run `syllable permissions list` to see what your key can access.
