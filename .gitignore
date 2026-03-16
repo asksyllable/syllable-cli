@@ -1,4 +1,5 @@
 dist/
 
-# Local build of CLI (use releases or go build)
+# Local builds (use releases or go build)
 scripts/syllable-cli/syllable
+scripts/syllable-setup/syllable-setup
