@@ -114,7 +114,7 @@ cd scripts/syllable-cli
 go build -o syllable .
 
 # Build with a version string:
-go build -ldflags "-X github.com/syllable-ai/syllable-cli/cmd.Version=1.2.3" -o syllable .
+go build -ldflags "-X github.com/asksyllable/syllable-cli/cmd.Version=1.2.3" -o syllable .
 ```
 
 Run the tests:
