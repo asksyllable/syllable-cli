@@ -57,7 +57,7 @@ outbound campaigns, users, directory, insights, custom messages, language groups
   syllable completion zsh > "${fpath[1]}/_syllable"`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		// Skip for commands that don't need auth
-		if cmd.Name() == "help" || cmd.Name() == "completion" || cmd.Name() == "version" {
+		if cmd.Name() == "help" || cmd.Name() == "completion" || cmd.Name() == "version" || cmd.Name() == "setup" {
 			return nil
 		}
 		initClient()
@@ -186,6 +186,7 @@ func init() {
 	viper.BindPFlag("output", rootCmd.PersistentFlags().Lookup("output"))
 
 	// Register subcommands
+	rootCmd.AddCommand(setupCmd())
 	rootCmd.AddCommand(agentsCmd())
 	rootCmd.AddCommand(channelsCmd())
 	rootCmd.AddCommand(conversationsCmd())
