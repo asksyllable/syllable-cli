@@ -4,12 +4,14 @@ This repo contains the Syllable CLI — a Go tool for managing the Syllable AI p
 
 ## Binary
 
-Pre-built binary is at `scripts/syllable-cli/syllable`. Run it directly — no compilation needed.
+Run the CLI by building locally or from a release:
 
-To rebuild:
+**From source (no pre-built binary checked in):**
 ```bash
-cd scripts/syllable-cli && go build -o syllable .
+cd scripts/syllable-cli && go build -o syllable . && ./syllable --help
 ```
+
+Or install a release: `curl -fsSL https://github.com/asksyllable/syllable-cli/releases/latest/download/install.sh | sh`
 
 To run tests:
 ```bash
