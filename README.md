@@ -15,6 +15,7 @@ For deeper platform reference, see [docs.syllable.ai](https://docs.syllable.ai).
 - [Scripting and Automation](#scripting-and-automation)
 - [Commands](#commands)
 - [Troubleshooting](#troubleshooting)
+- [Feedback](#feedback)
 
 ---
 
@@ -532,3 +533,9 @@ cd scripts/syllable-cli
 go build -o syllable .
 go test ./...
 ```
+
+---
+
+## Feedback
+
+Bugs, feature requests, or questions about the CLI? [Open an issue](https://github.com/asksyllable/syllable-cli/issues) on GitHub.
