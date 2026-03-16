@@ -74,8 +74,13 @@ release:
   extra_files:
     - glob: "install.sh"
 
-brews:
+homebrew_casks:
   - name: syllable
+    binaries:
+      - syllable
+    directory: Casks
+    url:
+      verified: github.com/asksyllable/syllable-cli
     repository:
       owner: asksyllable
       name: syllable-cli
@@ -83,11 +88,12 @@ brews:
     commit_author:
       name: goreleaserbot
       email: bot@goreleaser.com
-    commit_msg_template: "chore: update Homebrew formula for {{ .ProjectName }} {{ .Tag }}"
+    commit_msg_template: "chore: update Homebrew cask for {{ .ProjectName }} {{ .Tag }}"
     homepage: "https://github.com/asksyllable/syllable-cli"
     description: "CLI for the Syllable AI platform"
-    license: "MIT"
-    install: |
-      bin.install "syllable"
-    test: |
-      system "#{bin}/syllable", "--version"
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/syllable"]
+          end
