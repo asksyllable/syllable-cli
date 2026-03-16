@@ -20,7 +20,7 @@ cd scripts/syllable-cli && go test ./...
 
 ## Configuration
 
-Run `scripts/syllable-setup/syllable-setup` to open the browser-based config UI. This manages orgs, API keys, and environments in `~/.syllable/config.yaml`. Never edit that file directly or ask the user to paste keys into the terminal.
+Run `syllable setup` to open the browser-based config UI. This manages orgs, API keys, and environments in `~/.syllable/config.yaml`. Never edit that file directly or ask the user to paste keys into the terminal.
 
 ## Key Flags
 
