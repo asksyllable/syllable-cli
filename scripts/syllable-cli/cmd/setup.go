@@ -148,7 +148,6 @@ func setupConfigFilePath() (string, error) {
 
 func setupLoadConfig(path string) *setupConfig {
 	cfg := &setupConfig{
-		DefaultEnv:   "prod",
 		Environments: map[string]setupEnv{},
 		Orgs:         map[string]setupOrg{},
 	}
@@ -319,6 +318,8 @@ section h2 { font-size: 12px; font-weight: 600; text-transform: uppercase; lette
 .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: var(--accent); color: #0f1117; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px; opacity: 0; transition: opacity .3s; pointer-events: none; white-space: nowrap; }
 .toast.show { opacity: 1; }
 .empty-state { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
+input.input-warn { border-color: var(--warn) !important; }
+input.input-warn:focus { border-color: var(--warn) !important; }
 </style>
 </head>
 <body>
@@ -330,7 +331,7 @@ section h2 { font-size: 12px; font-weight: 600; text-transform: uppercase; lette
 
   <section>
     <h2>Environments</h2>
-    <p class="hint" style="margin-bottom:16px">Builtins <span class="badge">prod</span><span class="badge">staging</span><span class="badge">dev</span> work without config. Add entries here only for custom URLs.</p>
+    <p class="hint" style="margin-bottom:16px">Production is always available. Add entries here only for alternate environments.</p>
     <div id="envs-list"></div>
     <button class="btn btn-ghost" onclick="addEnvRow()">+ Add environment</button>
   </section>
@@ -350,7 +351,7 @@ section h2 { font-size: 12px; font-weight: 600; text-transform: uppercase; lette
       </div>
       <div class="field">
         <label>Default environment</label>
-        <input id="default-env" type="text" placeholder="prod" />
+        <input id="default-env" type="text" placeholder="(none)" />
       </div>
     </div>
   </section>
@@ -372,10 +373,18 @@ var EXISTING = '__existing__';
 var state = %%INIT_CONFIG%%;
 if (!state.environments) state.environments = {};
 if (!state.orgs) state.orgs = {};
-if (!state.default_env) state.default_env = 'prod';
+if (!state.default_env) state.default_env = '';
 
+// Migrate orgs: if an org has a top-level api_key but no envs, move the key
+// into envs[default_env || 'prod'] so the UI always shows explicit env rows.
 Object.keys(state.orgs).forEach(function(n) {
-  if (!state.orgs[n].envs) state.orgs[n].envs = {};
+  var org = state.orgs[n];
+  if (!org.envs) org.envs = {};
+  if (org.api_key && Object.keys(org.envs).length === 0) {
+    var target = state.default_env || 'prod';
+    org.envs[target] = {api_key: org.api_key};
+    org.api_key = '';
+  }
 });
 
 function render() { renderEnvs(); renderOrgs(); renderDefaults(); }
@@ -429,6 +438,16 @@ function pwField(labelText, storedValue) {
   return field;
 }
 
+function warnIfEmpty(input) {
+  var check = function() {
+    var v = input.value.trim();
+    input.classList.toggle('input-warn', v === '');
+  };
+  check();
+  input.addEventListener('input', check);
+  input.addEventListener('change', check);
+}
+
 function rmBtn(onclick) {
   var b = mk('button', 'btn-rm'); b.title = 'Remove'; b.textContent = '\u00D7';
   b.onclick = onclick; return b;
@@ -437,12 +456,20 @@ function rmBtn(onclick) {
 function renderEnvs() {
   var list = document.getElementById('envs-list');
   list.innerHTML = '';
-  var keys = Object.keys(state.environments);
-  if (keys.length === 0) {
-    var e = mk('p', 'empty-state'); e.textContent = 'No custom environments configured.';
-    list.appendChild(e);
-    return;
-  }
+
+  // Always show locked production row
+  var prodRow = mk('div');
+  prodRow.style.cssText = 'display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:flex-end;margin-bottom:10px;opacity:0.6';
+  var prodName = inp('text', 'prod', ''); prodName.disabled = true;
+  var prodURL = inp('text', 'https://api.syllable.cloud', ''); prodURL.disabled = true;
+  var prodLock = mk('span'); prodLock.style.cssText = 'padding:8px 6px;color:var(--muted);font-size:14px;align-self:flex-end'; prodLock.textContent = '\uD83D\uDD12';
+  prodRow.appendChild(labeled('Name', prodName));
+  prodRow.appendChild(labeled('Base URL', prodURL));
+  prodRow.appendChild(prodLock);
+  list.appendChild(prodRow);
+
+  var keys = Object.keys(state.environments).filter(function(k) { return k !== 'prod'; });
+  if (keys.length === 0) return;
   keys.forEach(function(name) {
     var env = state.environments[name];
     var saved = {name: name};
@@ -489,10 +516,7 @@ function renderOrgs() {
 }
 
 function buildOrgCard(orgName) {
-  var org = state.orgs[orgName];
   var saved = {name: orgName};
-  var hasEnvKeys = org.envs && Object.keys(org.envs).length > 0;
-  var mode = hasEnvKeys ? 'env' : 'single';
 
   var card = mk('div', 'org-card');
 
@@ -510,28 +534,9 @@ function buildOrgCard(orgName) {
   header.appendChild(rmBtn(function() { delete state.orgs[saved.name]; renderOrgs(); }));
   card.appendChild(header);
 
-  var tabSingle = mk('button', 'tab' + (mode === 'single' ? ' active' : ''));
-  tabSingle.textContent = 'Single API key';
-  tabSingle.onclick = function() { setOrgMode(saved.name, 'single'); };
-
-  var tabEnv = mk('button', 'tab' + (mode === 'env' ? ' active' : ''));
-  tabEnv.textContent = 'Per-environment keys';
-  tabEnv.onclick = function() { setOrgMode(saved.name, 'env'); };
-
-  var tabs = mk('div', 'tabs');
-  tabs.appendChild(tabSingle); tabs.appendChild(tabEnv);
-  card.appendChild(tabs);
-
   var body = mk('div');
-  if (mode === 'single') {
-    var kf = pwField('API key', org.api_key || '');
-    kf._keyInput = kf.querySelector('input');
-    body.appendChild(kf);
-    body._getKey = function() { return kf.querySelector('input')._getValue(); };
-  } else {
-    buildEnvKeyRows(body, saved);
-  }
   body.id = 'org-body-' + orgName;
+  buildEnvKeyRows(body, saved);
   card.appendChild(body);
   return card;
 }
@@ -545,7 +550,8 @@ function buildEnvKeyRows(container, saved) {
     var envSaved = {name: envName};
     var row = mk('div', 'envkey-row');
 
-    var envInp = inp('text', envName, 'environment');
+    var envInp = inp('text', envName, 'environment name');
+    warnIfEmpty(envInp);
     envInp.addEventListener('change', function() {
       var old = envSaved.name; var n = envInp.value.trim();
       if (!n || n === old) return;
@@ -556,6 +562,7 @@ function buildEnvKeyRows(container, saved) {
 
     var kf = pwField('API key', envs[envName].api_key || '');
     var ki = kf.querySelector('input');
+    if (envs[envName].api_key !== EXISTING) warnIfEmpty(ki);
 
     row.appendChild(labeled('Environment', envInp));
     row.appendChild(kf);
@@ -577,19 +584,9 @@ function buildEnvKeyRows(container, saved) {
   container.appendChild(addBtn);
 }
 
-function setOrgMode(orgName, mode) {
-  var org = state.orgs[orgName];
-  if (mode === 'single') { org.envs = {}; }
-  else {
-    org.api_key = '';
-    if (!org.envs || Object.keys(org.envs).length === 0) org.envs = {prod: {api_key: ''}};
-  }
-  renderOrgs();
-}
-
 function addOrg() {
   var n = 'new-org-' + (Object.keys(state.orgs).length + 1);
-  state.orgs[n] = {api_key: '', envs: {}}; renderOrgs();
+  state.orgs[n] = {envs: {'prod': {api_key: ''}}}; renderOrgs();
 }
 
 function addOrgEnv(orgName) {
@@ -612,23 +609,26 @@ function renderDefaultOrgSelect() {
 
 function renderDefaults() {
   renderDefaultOrgSelect();
-  document.getElementById('default-env').value = state.default_env || 'prod';
+  document.getElementById('default-env').value = state.default_env || '';
 }
 
 function collectState() {
+  // Env key inputs update state.orgs via their own change listeners;
+  // nothing extra to collect here now that single-key mode is gone.
+}
+
+function validate() {
+  var errors = [];
   Object.keys(state.orgs).forEach(function(orgName) {
-    var org = state.orgs[orgName];
-    var hasEnvKeys = org.envs && Object.keys(org.envs).length > 0;
-    if (!hasEnvKeys) {
-      var bodyEl = document.getElementById('org-body-' + orgName);
-      if (bodyEl) {
-        var ki = bodyEl.querySelector('input[type=password], input[type=text]');
-        if (ki && ki._getValue) { org.api_key = ki._getValue(); }
-        else if (ki) { org.api_key = ki.value.trim() || (org.api_key === EXISTING ? EXISTING : ''); }
-      }
-    }
-    state.orgs[orgName] = org;
+    if (!orgName.trim()) { errors.push('An org is missing a name.'); return; }
+    var envs = state.orgs[orgName].envs || {};
+    Object.keys(envs).forEach(function(envName) {
+      if (!envName.trim()) errors.push('Org "' + orgName + '": an environment is missing a name.');
+      var key = envs[envName].api_key;
+      if (!key || key.trim() === '') errors.push('Org "' + orgName + '", env "' + envName + '": API key is required.');
+    });
   });
+  return errors;
 }
 
 function save(exit) {
@@ -636,16 +636,26 @@ function save(exit) {
   state.default_org = document.getElementById('default-org').value;
   state.default_env = document.getElementById('default-env').value;
 
+  var errors = validate();
+  if (errors.length > 0) { alert('Please fix the following before saving:\n\n' + errors.join('\n')); return; }
+
   var envsClean = {};
   Object.keys(state.environments).forEach(function(k) {
-    if (k && state.environments[k].base_url) envsClean[k] = state.environments[k];
+    if (k && k !== 'prod' && state.environments[k].base_url) envsClean[k] = state.environments[k];
+  });
+
+  // Strip top-level api_key from orgs — always save as explicit env rows.
+  var orgsClean = {};
+  Object.keys(state.orgs).forEach(function(n) {
+    var org = state.orgs[n];
+    orgsClean[n] = {envs: org.envs || {}};
   });
 
   var payload = {
     default_org: state.default_org,
     default_env: state.default_env,
     environments: envsClean,
-    orgs: state.orgs
+    orgs: orgsClean
   };
 
   fetch('/save?exit=' + (exit ? 'true' : 'false'), {

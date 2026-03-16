@@ -317,9 +317,7 @@ func resolveEnvName() string {
 
 // builtinEnvURLs are recognized environment names that work without any config entry.
 var builtinEnvURLs = map[string]string{
-	"prod":    "https://api.syllable.cloud",
-	"staging": "https://staging.syllable.cloud",
-	"dev":     "https://dev.syllable.cloud",
+	"prod": "https://api.syllable.cloud",
 }
 
 // resolveBaseURL determines the base URL to use.
@@ -346,7 +344,7 @@ func resolveBaseURL() string {
 			return u
 		}
 		// Unknown env — exit with a clear error
-		fmt.Fprintf(os.Stderr, "Error: environment %q not found in ~/.syllable/config.yaml and is not a builtin (prod, staging, dev)\n", env)
+		fmt.Fprintf(os.Stderr, "Error: environment %q not found in ~/.syllable/config.yaml — add it with `syllable setup`\n", env)
 		os.Exit(1)
 	}
 
