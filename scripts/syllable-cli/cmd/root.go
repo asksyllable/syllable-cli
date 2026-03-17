@@ -58,8 +58,17 @@ Feedback: https://github.com/asksyllable/syllable-cli/issues`,
   # Enable shell completion (zsh)
   syllable completion zsh > "${fpath[1]}/_syllable"`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		// Skip for commands that don't need auth
-		if cmd.Name() == "help" || cmd.Name() == "completion" || cmd.Name() == "version" || cmd.Name() == "setup" {
+		if cmd == nil {
+			return nil
+		}
+		// Skip for commands that don't need auth. Cobra invokes this for each command in
+		// the chain (root → completion → zsh); for the leaf we see cmd.Name()=="zsh", so
+		// check this command and all ancestors. Also skip when root runs with no args
+		// (e.g. "syllable" or "syllable --version").
+		if cmdRequiresNoAuth(cmd) {
+			return nil
+		}
+		if cmd.Root() == cmd && len(args) == 0 {
 			return nil
 		}
 		initClient()
@@ -164,6 +173,23 @@ func hint422(body []byte) string {
 		}
 	}
 	return "Validation failed. Use `syllable schema list` to find the schema for this resource, then `syllable schema get <TypeName>` to see required fields."
+}
+
+// noAuthCommandNames is the set of Cobra command names that run without API config.
+var noAuthCommandNames = map[string]struct{}{
+	"help": {}, "completion": {}, "version": {}, "setup": {},
+}
+
+// cmdRequiresNoAuth reports whether the command or any ancestor is a no-auth command
+// (help, completion, version, setup). Used so that e.g. "syllable completion zsh" works
+// without ~/.syllable/config.yaml or SYLLABLE_API_KEY.
+func cmdRequiresNoAuth(cmd *cobra.Command) bool {
+	for c := cmd; c != nil; c = c.Parent() {
+		if _, ok := noAuthCommandNames[c.Name()]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 func init() {
