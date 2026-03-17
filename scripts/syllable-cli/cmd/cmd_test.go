@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/asksyllable/syllable-cli/internal/client"
 )
@@ -38,6 +39,43 @@ func captureStdout(fn func()) string {
 }
 
 // --- Command structure tests ---
+
+func TestCmdRequiresNoAuth(t *testing.T) {
+	// nil: guard avoids panic; treat as no auth required
+	if cmdRequiresNoAuth(nil) {
+		t.Error("cmdRequiresNoAuth(nil) should be false")
+	}
+
+	// Root name is "syllable", not in noAuthCommandNames
+	if cmdRequiresNoAuth(rootCmd) {
+		t.Error("root command should require auth")
+	}
+
+	// Subcommands that require auth (e.g. agents)
+	var agentsCmd *cobra.Command
+	for _, c := range rootCmd.Commands() {
+		if c.Name() == "agents" {
+			agentsCmd = c
+			break
+		}
+	}
+	if agentsCmd != nil && cmdRequiresNoAuth(agentsCmd) {
+		t.Error("agents command should require auth")
+	}
+
+	// Completion subtree (Cobra adds it by default): all children should skip auth
+	for _, c := range rootCmd.Commands() {
+		if c.Name() != "completion" {
+			continue
+		}
+		for _, sub := range c.Commands() {
+			if !cmdRequiresNoAuth(sub) {
+				t.Errorf("completion %s should not require auth", sub.Name())
+			}
+		}
+		return
+	}
+}
 
 func TestRootCommandHasSubcommands(t *testing.T) {
 	expected := []string{
