@@ -175,9 +175,9 @@ func hint422(body []byte) string {
 	return "Validation failed. Use `syllable schema list` to find the schema for this resource, then `syllable schema get <TypeName>` to see required fields."
 }
 
-// noAuthCommandNames are Cobra command names that run without API config (completion, help, etc.).
-var noAuthCommandNames = map[string]bool{
-	"help": true, "completion": true, "version": true, "setup": true,
+// noAuthCommandNames is the set of Cobra command names that run without API config.
+var noAuthCommandNames = map[string]struct{}{
+	"help": {}, "completion": {}, "version": {}, "setup": {},
 }
 
 // cmdRequiresNoAuth reports whether the command or any ancestor is a no-auth command
@@ -185,7 +185,7 @@ var noAuthCommandNames = map[string]bool{
 // without ~/.syllable/config.yaml or SYLLABLE_API_KEY.
 func cmdRequiresNoAuth(cmd *cobra.Command) bool {
 	for c := cmd; c != nil; c = c.Parent() {
-		if noAuthCommandNames[c.Name()] {
+		if _, ok := noAuthCommandNames[c.Name()]; ok {
 			return true
 		}
 	}
