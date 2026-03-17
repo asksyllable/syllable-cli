@@ -24,7 +24,8 @@ For deeper platform reference, see [docs.syllable.ai](https://docs.syllable.ai).
 ### Homebrew (macOS and Linux — recommended)
 
 ```bash
-brew install --cask asksyllable/syllable-cli/syllable
+brew tap asksyllable/syllable-cli https://github.com/asksyllable/syllable-cli
+brew install --cask syllable
 ```
 
 Upgrades are handled by Homebrew in the usual way:
