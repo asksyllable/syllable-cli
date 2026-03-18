@@ -166,3 +166,68 @@ func (c *Client) Delete(path string) ([]byte, int, error) {
 	}
 	return c.Do(http.MethodDelete, path, nil)
 }
+
+// DeleteWithBody performs a DELETE request with a JSON body.
+func (c *Client) DeleteWithBody(path string, body interface{}) ([]byte, int, error) {
+	return c.Do(http.MethodDelete, path, body)
+}
+
+// DeleteWithForm performs a DELETE request with an application/x-www-form-urlencoded body.
+func (c *Client) DeleteWithForm(path string, fields map[string]string) ([]byte, int, error) {
+	form := url.Values{}
+	for k, v := range fields {
+		form.Set(k, v)
+	}
+	encoded := form.Encode()
+
+	if c.DryRun {
+		out := map[string]interface{}{
+			"dry_run": true,
+			"method":  http.MethodDelete,
+			"url":     c.BaseURL + path,
+			"body":    encoded,
+		}
+		data, _ := json.Marshal(out)
+		return nil, 0, &DryRunResult{Output: data}
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, c.BaseURL+path, strings.NewReader(encoded))
+	if err != nil {
+		return nil, 0, fmt.Errorf("creating request: %w", err)
+	}
+	req.Header.Set("Syllable-API-Key", c.APIKey)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
+
+	if c.Verbose {
+		fmt.Fprintf(os.Stderr, "> %s %s\n", http.MethodDelete, c.BaseURL+path)
+		fmt.Fprintf(os.Stderr, "> Syllable-API-Key: %s\n", maskKey(c.APIKey))
+		fmt.Fprintf(os.Stderr, "> Content-Type: application/x-www-form-urlencoded\n>\n> %s\n\n", encoded)
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, 0, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, resp.StatusCode, fmt.Errorf("reading response body: %w", err)
+	}
+
+	if c.Verbose {
+		fmt.Fprintf(os.Stderr, "< %d %s\n", resp.StatusCode, http.StatusText(resp.StatusCode))
+		fmt.Fprintf(os.Stderr, "< Content-Type: %s\n", resp.Header.Get("Content-Type"))
+		var pretty bytes.Buffer
+		if json.Indent(&pretty, data, "< ", "  ") == nil {
+			fmt.Fprintf(os.Stderr, "<\n< %s\n", pretty.String())
+		}
+		fmt.Fprintln(os.Stderr)
+	}
+
+	if resp.StatusCode >= 400 {
+		return data, resp.StatusCode, &APIError{StatusCode: resp.StatusCode, Body: data}
+	}
+	return data, resp.StatusCode, nil
+}
