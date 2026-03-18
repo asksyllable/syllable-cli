@@ -207,9 +207,9 @@ func sessionsTranscriptCmd() *cobra.Command {
 			var result struct {
 				SessionID    string `json:"session_id"`
 				Transcription []struct {
-					Role    string `json:"role"`
-					Content string `json:"content"`
-					Time    string `json:"time"`
+					Source    string `json:"source"`
+					Text      string `json:"text"`
+					Timestamp string `json:"timestamp"`
 				} `json:"transcription"`
 			}
 			if err := json.Unmarshal(data, &result); err != nil {
@@ -218,10 +218,10 @@ func sessionsTranscriptCmd() *cobra.Command {
 			}
 
 			fmt.Printf("Session: %s\n\n", result.SessionID)
-			headers := []string{"TIME", "ROLE", "CONTENT"}
+			headers := []string{"TIME", "SOURCE", "TEXT"}
 			rows := make([][]string, len(result.Transcription))
 			for i, t := range result.Transcription {
-				rows[i] = []string{t.Time, t.Role, output.Truncate(t.Content, 80)}
+				rows[i] = []string{t.Timestamp, t.Source, output.Truncate(t.Text, 80)}
 			}
 			printTable(headers, rows)
 			return nil
