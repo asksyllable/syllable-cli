@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 
 	"github.com/spf13/cobra"
 	"github.com/asksyllable/syllable-cli/internal/output"
@@ -49,7 +50,7 @@ func agentsCmd() *cobra.Command {
 
 func agentsListCmd() *cobra.Command {
 	var page, limit int
-	var search string
+	var search, searchField string
 
 	cmd := &cobra.Command{
 		Use:   "list",
@@ -57,7 +58,7 @@ func agentsListCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			path := fmt.Sprintf("/api/v1/agents/?page=%d&limit=%d", page, limit)
 			if search != "" {
-				path += fmt.Sprintf("&search_fields=name&search_field_values=%s", search)
+				path += fmt.Sprintf("&search_fields=%s&search_field_values=%s", searchField, url.QueryEscape(search))
 			}
 
 			data, _, err := apiClient.Get(path)
@@ -107,6 +108,7 @@ func agentsListCmd() *cobra.Command {
 	cmd.Flags().IntVar(&page, "page", 0, "Page number (0-based)")
 	cmd.Flags().IntVar(&limit, "limit", 25, "Max items to return")
 	cmd.Flags().StringVar(&search, "search", "", "Search by name")
+	cmd.Flags().StringVar(&searchField, "search-field", "name", "Field to search on (see API docs for valid values)")
 
 	return cmd
 }
