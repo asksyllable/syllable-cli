@@ -270,12 +270,13 @@ func outboundBatchesUpdateCmd() *cobra.Command {
 }
 
 func outboundBatchesDeleteCmd() *cobra.Command {
-	return &cobra.Command{
+	var reason string
+	cmd := &cobra.Command{
 		Use:   "delete <batch-id>",
 		Short: "Delete an outbound batch",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Delete("/api/v1/outbound/batches/" + args[0])
+			data, _, err := apiClient.DeleteWithForm("/api/v1/outbound/batches/"+args[0], map[string]string{"delete_reason": reason})
 			if err != nil {
 				return err
 			}
@@ -287,6 +288,8 @@ func outboundBatchesDeleteCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().StringVar(&reason, "reason", "deleted via cli", "Reason for deletion")
+	return cmd
 }
 
 func outboundBatchesResultsCmd() *cobra.Command {
