@@ -522,8 +522,9 @@ function buildOrgCard(orgName) {
 
   var nameInp = inp('text', orgName, 'org-name');
   nameInp.addEventListener('change', function() {
-    var old = saved.name; var n = nameInp.value.trim();
+    var old = saved.name; var n = nameInp.value.trim().toLowerCase();
     if (!n || n === old) return;
+    nameInp.value = n;
     var v = state.orgs[old]; delete state.orgs[old];
     state.orgs[n] = v;
     if (state.default_org === old) state.default_org = n;
@@ -645,10 +646,11 @@ function save(exit) {
   });
 
   // Strip top-level api_key from orgs — always save as explicit env rows.
+  // Force org names to lowercase for case-insensitive matching with --org flag.
   var orgsClean = {};
   Object.keys(state.orgs).forEach(function(n) {
     var org = state.orgs[n];
-    orgsClean[n] = {envs: org.envs || {}};
+    orgsClean[n.toLowerCase()] = {envs: org.envs || {}};
   });
 
   var payload = {

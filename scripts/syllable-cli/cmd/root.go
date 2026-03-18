@@ -290,9 +290,9 @@ func initClient() {
 // Priority (when --org is set): orgs.<org>.envs.<env>.api_key > orgs.<org>.api_key
 // Priority (no --org):          --api-key flag > SYLLABLE_API_KEY env var
 func resolveAPIKey() string {
-	org := viper.GetString("org")
+	org := strings.ToLower(viper.GetString("org"))
 	if org == "" {
-		org = viper.GetString("default_org")
+		org = strings.ToLower(viper.GetString("default_org"))
 	}
 
 	if org != "" {
