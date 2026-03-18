@@ -3,7 +3,7 @@ cask "syllable" do
   name "syllable"
   desc "CLI for the Syllable AI platform"
   homepage "https://github.com/asksyllable/syllable-cli"
-  version "1.0.5"
+  version "1.0.6"
 
   livecheck do
     skip "Auto-generated on release."
@@ -15,12 +15,12 @@ cask "syllable" do
     on_intel do
       url "https://github.com/asksyllable/syllable-cli/releases/download/v#{version}/syllable_#{version}_darwin_amd64.tar.gz",
         verified: "github.com/asksyllable/syllable-cli"
-      sha256 "1a428b3289d876d9429528ac9075357a29952e22209615bbc83473d08464bc49"
+      sha256 "c73de331633f3ef450651074a55517e98ca086b4ca099fdef71c6f082748216a"
     end
     on_arm do
       url "https://github.com/asksyllable/syllable-cli/releases/download/v#{version}/syllable_#{version}_darwin_arm64.tar.gz",
         verified: "github.com/asksyllable/syllable-cli"
-      sha256 "9a75ff2a6dd1502b7a2faddca9913673cf734fcf3ab4f0a50d8bcbc8dd4f3fec"
+      sha256 "cabcf72446ecbf03863fc28e6d7595a9378d36d3adce17637a72ca343bafd07b"
     end
   end
 
@@ -28,12 +28,12 @@ cask "syllable" do
     on_intel do
       url "https://github.com/asksyllable/syllable-cli/releases/download/v#{version}/syllable_#{version}_linux_amd64.tar.gz",
         verified: "github.com/asksyllable/syllable-cli"
-      sha256 "a0846eaeff21e2ff2343776e85b0d340f4a7dde5c27252552dbcb4a8e9a1107c"
+      sha256 "c192485733b9b9c11ee97d45016aa470bb53b6780312158c27eb6095b515fbcc"
     end
     on_arm do
       url "https://github.com/asksyllable/syllable-cli/releases/download/v#{version}/syllable_#{version}_linux_arm64.tar.gz",
         verified: "github.com/asksyllable/syllable-cli"
-      sha256 "4f5b102c1dd8f0f66de11f2602792379985cf2b951085207576983d06eef3be6"
+      sha256 "c80209e509f47a99915c088ea92b1edb8c40ed2a8d111e354d7975ee4c28adc8"
     end
   end
 
