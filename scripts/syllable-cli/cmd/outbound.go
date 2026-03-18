@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 
 	"github.com/spf13/cobra"
 	"github.com/asksyllable/syllable-cli/internal/output"
@@ -65,7 +66,7 @@ func outboundBatchesCmd() *cobra.Command {
 
 func outboundBatchesListCmd() *cobra.Command {
 	var page, limit int
-	var search string
+	var search, searchField string
 
 	cmd := &cobra.Command{
 		Use:   "list",
@@ -73,7 +74,7 @@ func outboundBatchesListCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			path := fmt.Sprintf("/api/v1/outbound/batches?page=%d&limit=%d", page, limit)
 			if search != "" {
-				path += fmt.Sprintf("&search_fields=batch_id&search_field_values=%s", search)
+				path += fmt.Sprintf("&search_fields=%s&search_field_values=%s", searchField, url.QueryEscape(search))
 			}
 
 			data, _, err := apiClient.Get(path)
@@ -127,6 +128,7 @@ func outboundBatchesListCmd() *cobra.Command {
 	cmd.Flags().IntVar(&page, "page", 0, "Page number (0-based)")
 	cmd.Flags().IntVar(&limit, "limit", 25, "Max items to return")
 	cmd.Flags().StringVar(&search, "search", "", "Search by batch ID")
+	cmd.Flags().StringVar(&searchField, "search-field", "batch_id", "Field to search on (see API docs for valid values)")
 
 	return cmd
 }
@@ -399,7 +401,7 @@ func outboundCampaignsCmd() *cobra.Command {
 
 func outboundCampaignsListCmd() *cobra.Command {
 	var page, limit int
-	var search string
+	var search, searchField string
 
 	cmd := &cobra.Command{
 		Use:   "list",
@@ -407,7 +409,7 @@ func outboundCampaignsListCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			path := fmt.Sprintf("/api/v1/outbound/campaigns?page=%d&limit=%d", page, limit)
 			if search != "" {
-				path += fmt.Sprintf("&search_fields=campaign_name&search_field_values=%s", search)
+				path += fmt.Sprintf("&search_fields=%s&search_field_values=%s", searchField, url.QueryEscape(search))
 			}
 
 			data, _, err := apiClient.Get(path)
@@ -457,6 +459,7 @@ func outboundCampaignsListCmd() *cobra.Command {
 	cmd.Flags().IntVar(&page, "page", 0, "Page number (0-based)")
 	cmd.Flags().IntVar(&limit, "limit", 25, "Max items to return")
 	cmd.Flags().StringVar(&search, "search", "", "Search by campaign name")
+	cmd.Flags().StringVar(&searchField, "search-field", "campaign_name", "Field to search on (see API docs for valid values)")
 
 	return cmd
 }

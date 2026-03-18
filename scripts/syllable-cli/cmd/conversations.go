@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 
 	"github.com/spf13/cobra"
 	"github.com/asksyllable/syllable-cli/internal/output"
@@ -36,7 +37,7 @@ func conversationsCmd() *cobra.Command {
 
 func conversationsListCmd() *cobra.Command {
 	var page, limit int
-	var search, startDate, endDate string
+	var search, searchField, startDate, endDate string
 
 	cmd := &cobra.Command{
 		Use:   "list",
@@ -44,7 +45,7 @@ func conversationsListCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			path := fmt.Sprintf("/api/v1/conversations/?page=%d&limit=%d", page, limit)
 			if search != "" {
-				path += fmt.Sprintf("&search_fields=agent_name&search_field_values=%s", search)
+				path += fmt.Sprintf("&search_fields=%s&search_field_values=%s", searchField, url.QueryEscape(search))
 			}
 			if startDate != "" {
 				path += fmt.Sprintf("&start_datetime=%s", startDate)
@@ -103,6 +104,7 @@ func conversationsListCmd() *cobra.Command {
 	cmd.Flags().IntVar(&page, "page", 0, "Page number (0-based)")
 	cmd.Flags().IntVar(&limit, "limit", 25, "Max items to return")
 	cmd.Flags().StringVar(&search, "search", "", "Search by agent name")
+	cmd.Flags().StringVar(&searchField, "search-field", "agent_name", "Field to search on (see API docs for valid values)")
 	cmd.Flags().StringVar(&startDate, "start-date", "", "Start datetime filter (e.g. 2024-01-01T00:00:00Z)")
 	cmd.Flags().StringVar(&endDate, "end-date", "", "End datetime filter")
 
