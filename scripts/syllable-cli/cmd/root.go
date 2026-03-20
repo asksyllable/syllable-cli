@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -312,7 +313,17 @@ func resolveAPIKey() string {
 	// org-level key
 	k, _ := orgMap["api_key"].(string)
 	if k == "" {
-		fmt.Fprintf(os.Stderr, "Error: no api_key found for org %q in ~/.syllable/config.yaml — run `syllable setup` to configure it\n", org)
+		// If the org has per-env keys but no env was specified, give a targeted error.
+		if envs, ok := orgMap["envs"].(map[string]interface{}); ok && len(envs) > 0 {
+			names := make([]string, 0, len(envs))
+			for e := range envs {
+				names = append(names, e)
+			}
+			sort.Strings(names)
+			fmt.Fprintf(os.Stderr, "Error: org %q has per-environment keys (%s) but no environment was specified.\nUse --env <name> or set default_env in `syllable setup`.\n", org, strings.Join(names, ", "))
+		} else {
+			fmt.Fprintf(os.Stderr, "Error: no api_key found for org %q — run `syllable setup` to configure it\n", org)
+		}
 		os.Exit(1)
 	}
 	return k
