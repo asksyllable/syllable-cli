@@ -20,8 +20,6 @@ var Version = "dev"
 
 var (
 	cfgFile    string
-	apiKey     string
-	baseURL    string
 	orgName    string
 	envName    string
 	outputFmt  string
@@ -177,7 +175,7 @@ func hint422(body []byte) string {
 
 // noAuthCommandNames is the set of Cobra command names that run without API config.
 var noAuthCommandNames = map[string]struct{}{
-	"help": {}, "completion": {}, "version": {}, "setup": {},
+	"help": {}, "completion": {}, "version": {}, "setup": {}, "status": {},
 }
 
 // cmdRequiresNoAuth reports whether the command or any ancestor is a no-auth command
@@ -197,24 +195,21 @@ func init() {
 
 	// Global flags
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default: ~/.syllable/config.yaml)")
-	rootCmd.PersistentFlags().StringVar(&apiKey, "api-key", "", "Syllable API key (overrides org lookup)")
-	rootCmd.PersistentFlags().StringVar(&baseURL, "base-url", "", "Syllable API base URL (overrides --env)")
 	rootCmd.PersistentFlags().StringVar(&orgName, "org", "", "Organization name (e.g. sandbox, memorialcare)")
-	rootCmd.PersistentFlags().StringVar(&envName, "env", "", "Named environment (e.g. prod, staging, dev) — sets base URL from config")
+	rootCmd.PersistentFlags().StringVar(&envName, "env", "", "Named environment — sets base URL from config (default: prod)")
 	rootCmd.PersistentFlags().StringVarP(&outputFmt, "output", "o", "table", "Output format: table or json")
 	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "Print the request that would be sent without executing it")
 	rootCmd.PersistentFlags().BoolVar(&debugMode, "debug", false, "Print HTTP request and response details to stderr")
 	rootCmd.PersistentFlags().StringVar(&fieldsFlag, "fields", "", "Comma-separated columns to show in table output (e.g. id,name,type)")
 
 	// Bind flags to viper
-	viper.BindPFlag("api_key", rootCmd.PersistentFlags().Lookup("api-key"))
-	viper.BindPFlag("base_url", rootCmd.PersistentFlags().Lookup("base-url"))
 	viper.BindPFlag("org", rootCmd.PersistentFlags().Lookup("org"))
 	viper.BindPFlag("env", rootCmd.PersistentFlags().Lookup("env"))
 	viper.BindPFlag("output", rootCmd.PersistentFlags().Lookup("output"))
 
 	// Register subcommands
 	rootCmd.AddCommand(setupCmd())
+	rootCmd.AddCommand(statusCmd())
 	rootCmd.AddCommand(agentsCmd())
 	rootCmd.AddCommand(channelsCmd())
 	rootCmd.AddCommand(conversationsCmd())
@@ -257,15 +252,7 @@ func initConfig() {
 		}
 	}
 
-	// Environment variables
-	viper.SetEnvPrefix("")
-	viper.BindEnv("api_key", "SYLLABLE_API_KEY")
-	viper.BindEnv("base_url", "SYLLABLE_BASE_URL")
-	viper.BindEnv("env", "SYLLABLE_ENV")
-	viper.AutomaticEnv()
-
 	// Defaults
-	viper.SetDefault("base_url", "https://api.syllable.cloud")
 	viper.SetDefault("output", "table")
 
 	// Read config file (ignore errors if not found)
@@ -277,7 +264,7 @@ func initClient() {
 	key := resolveAPIKey()
 
 	if key == "" {
-		fmt.Fprintln(os.Stderr, "Error: API key not set. Use --api-key, --org <name>, SYLLABLE_API_KEY, or configure orgs in ~/.syllable/config.yaml")
+		fmt.Fprintln(os.Stderr, "Error: not configured. Run `syllable setup` to configure orgs and API keys, then use --org <name> to select one.")
 		os.Exit(1)
 	}
 
@@ -286,50 +273,49 @@ func initClient() {
 	apiClient.Verbose = debugMode
 }
 
-// resolveAPIKey determines the API key to use.
-// Priority (when --org is set): orgs.<org>.envs.<env>.api_key > orgs.<org>.api_key
-// Priority (no --org):          --api-key flag > SYLLABLE_API_KEY env var
+// resolveAPIKey determines the API key to use from config.
+// Priority: orgs.<org>.envs.<env>.api_key > orgs.<org>.api_key
+// Org is taken from --org flag or default_org in config.
 func resolveAPIKey() string {
 	org := strings.ToLower(viper.GetString("org"))
 	if org == "" {
 		org = strings.ToLower(viper.GetString("default_org"))
 	}
 
-	if org != "" {
-		orgs := viper.GetStringMap("orgs")
-		orgData, ok := orgs[org]
-		if !ok {
-			fmt.Fprintf(os.Stderr, "Error: org %q not found in ~/.syllable/config.yaml\n", org)
-			os.Exit(1)
-		}
-		orgMap, ok := orgData.(map[string]interface{})
-		if !ok {
-			fmt.Fprintf(os.Stderr, "Error: invalid config for org %q in ~/.syllable/config.yaml\n", org)
-			os.Exit(1)
-		}
+	if org == "" {
+		return ""
+	}
 
-		// env-specific key: orgs.<org>.envs.<env>.api_key
-		if env := resolveEnvName(); env != "" {
-			if envs, ok := orgMap["envs"].(map[string]interface{}); ok {
-				if envData, ok := envs[env].(map[string]interface{}); ok {
-					if k, _ := envData["api_key"].(string); k != "" {
-						return k
-					}
+	orgs := viper.GetStringMap("orgs")
+	orgData, ok := orgs[org]
+	if !ok {
+		fmt.Fprintf(os.Stderr, "Error: org %q not found in ~/.syllable/config.yaml — run `syllable setup` to add it\n", org)
+		os.Exit(1)
+	}
+	orgMap, ok := orgData.(map[string]interface{})
+	if !ok {
+		fmt.Fprintf(os.Stderr, "Error: invalid config for org %q in ~/.syllable/config.yaml\n", org)
+		os.Exit(1)
+	}
+
+	// env-specific key: orgs.<org>.envs.<env>.api_key
+	if env := resolveEnvName(); env != "" {
+		if envs, ok := orgMap["envs"].(map[string]interface{}); ok {
+			if envData, ok := envs[env].(map[string]interface{}); ok {
+				if k, _ := envData["api_key"].(string); k != "" {
+					return k
 				}
 			}
 		}
-
-		// org-level key
-		k, _ := orgMap["api_key"].(string)
-		if k == "" {
-			fmt.Fprintf(os.Stderr, "Error: no api_key found for org %q in ~/.syllable/config.yaml\n", org)
-			os.Exit(1)
-		}
-		return k
 	}
 
-	// No org — fall back to --api-key flag or SYLLABLE_API_KEY env var
-	return viper.GetString("api_key")
+	// org-level key
+	k, _ := orgMap["api_key"].(string)
+	if k == "" {
+		fmt.Fprintf(os.Stderr, "Error: no api_key found for org %q in ~/.syllable/config.yaml — run `syllable setup` to configure it\n", org)
+		os.Exit(1)
+	}
+	return k
 }
 
 // resolveEnvName returns the active environment name from --env flag, SYLLABLE_ENV,
@@ -341,19 +327,9 @@ func resolveEnvName() string {
 	return viper.GetString("default_env")
 }
 
-// builtinEnvURLs are recognized environment names that work without any config entry.
-var builtinEnvURLs = map[string]string{
-	"prod": "https://api.syllable.cloud",
-}
-
-// resolveBaseURL determines the base URL to use.
-// Priority: --base-url flag > --env config lookup > --env builtin alias > https://api.syllable.cloud
+// resolveBaseURL determines the base URL from config.
+// Priority: --env config lookup > --env builtin alias (prod) > https://api.syllable.cloud
 func resolveBaseURL() string {
-	// --base-url wins unconditionally
-	if baseURL != "" {
-		return baseURL
-	}
-
 	env := resolveEnvName()
 	if env != "" {
 		// Check config-defined environments first
@@ -365,17 +341,15 @@ func resolveBaseURL() string {
 				}
 			}
 		}
-		// Fall back to builtin aliases
-		if u, ok := builtinEnvURLs[env]; ok {
-			return u
+		// Built-in alias: prod
+		if env == "prod" {
+			return "https://api.syllable.cloud"
 		}
 		// Unknown env — exit with a clear error
 		fmt.Fprintf(os.Stderr, "Error: environment %q not found in ~/.syllable/config.yaml — add it with `syllable setup`\n", env)
 		os.Exit(1)
 	}
 
-	// No env specified — use the hardcoded production default.
-	// We intentionally do NOT use SYLLABLE_BASE_URL here to avoid shell env bleed.
 	return "https://api.syllable.cloud"
 }
 

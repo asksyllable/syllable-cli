@@ -97,8 +97,9 @@ This opens a browser UI where the user can safely manage all orgs, API keys, and
 
 **Check if setup is needed:**
 ```bash
-cat ~/.syllable/config.yaml 2>/dev/null || echo "not configured"
+syllable status
 ```
+Exits 0 if at least one org is configured, exits 1 if not. Never cat the config file directly.
 
 ## Quick Start
 
@@ -138,18 +139,18 @@ If `default_org` is set in `~/.syllable/config.yaml`, it's used when `--org` is 
 
 ## Global Flags
 
-| Flag | Env Var | Default | Description |
-|------|---------|---------|-------------|
-| `--org` | — | `default_org` in config | Org name to look up API key |
-| `--env` | `SYLLABLE_ENV` | `default_env` in config | Named environment: `prod`, `staging`, `dev` |
-| `--api-key` | `SYLLABLE_API_KEY` | — | API key directly (overrides `--org`) |
-| `--base-url` | — | `https://api.syllable.cloud` | API base URL (overrides `--env`) |
-| `--output` / `-o` | — | `table` | Output format: `table` or `json` |
-| `--fields` | — | — | Comma-separated columns to show in table output (e.g. `id,name,type`) |
-| `--dry-run` | — | `false` | Print the HTTP request that would be sent without executing it |
-| `--debug` | — | `false` | Print HTTP request and response details to stderr |
-| `--config` | — | `~/.syllable/config.yaml` | Config file path |
-| `--version` / `-v` | — | — | Print the CLI version and exit |
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--org` | `default_org` in config | Org name — selects the API key from config |
+| `--env` | `default_env` in config (or `prod`) | Named environment — selects base URL from config |
+| `--output` / `-o` | `table` | Output format: `table` or `json` |
+| `--fields` | — | Comma-separated columns to show in table output (e.g. `id,name,type`) |
+| `--dry-run` | `false` | Print the HTTP request that would be sent without executing it |
+| `--debug` | `false` | Print HTTP request and response details to stderr |
+| `--config` | `~/.syllable/config.yaml` | Config file path |
+| `--version` / `-v` | — | Print the CLI version and exit |
+
+Auth and base URL are always sourced from `~/.syllable/config.yaml` — there are no env-var or direct key overrides. Use `--org` and `--env` to select the right credentials. Run `syllable status` to see what is configured.
 
 ## Common List Flags
 
