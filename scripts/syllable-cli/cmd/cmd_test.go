@@ -617,7 +617,7 @@ func TestSchemaGetCaseInsensitive(t *testing.T) {
 func TestGlobalFlags(t *testing.T) {
 	flags := rootCmd.PersistentFlags()
 
-	expectedFlags := []string{"config", "api-key", "base-url", "org", "output"}
+	expectedFlags := []string{"config", "org", "env", "output"}
 	for _, name := range expectedFlags {
 		f := flags.Lookup(name)
 		if f == nil {
