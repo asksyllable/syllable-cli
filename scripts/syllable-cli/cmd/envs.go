@@ -51,6 +51,19 @@ func envsCmd() *cobra.Command {
 				return nil
 			}
 
+			// Print defaults header.
+			defaultOrg := viper.GetString("default_org")
+			defaultEnv := viper.GetString("default_env")
+			if defaultOrg == "" {
+				defaultOrg = "(none)"
+			}
+			if defaultEnv == "" {
+				defaultEnv = "prod"
+			}
+			fmt.Printf("Default org: %s\n", defaultOrg)
+			fmt.Printf("Default env: %s\n\n", defaultEnv)
+
+
 			sortedEnvs := make([]string, 0, len(envSet))
 			for e := range envSet {
 				sortedEnvs = append(sortedEnvs, e)
@@ -75,14 +88,21 @@ func envsCmd() *cobra.Command {
 				orgsForEnv := envOrgs[envName]
 				sort.Strings(orgsForEnv)
 
+				// Mark the active default env with an asterisk.
+				label := envName
+				if envName == defaultEnv {
+					label = envName + " *"
+				}
+
 				rows = append(rows, []string{
-					envName,
+					label,
 					baseURL,
 					strings.Join(orgsForEnv, ", "),
 				})
 			}
 
 			output.PrintTable(headers, rows)
+			fmt.Println("\n* = default environment")
 			return nil
 		},
 	}
