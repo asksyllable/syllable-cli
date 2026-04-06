@@ -24,6 +24,7 @@ import (
 type setupConfig struct {
 	DefaultOrg   string                `yaml:"default_org,omitempty"   json:"default_org"`
 	DefaultEnv   string                `yaml:"default_env,omitempty"   json:"default_env"`
+	Email        string                `yaml:"email,omitempty"         json:"email"`
 	Environments map[string]setupEnv   `yaml:"environments,omitempty"  json:"environments"`
 	Orgs         map[string]setupOrg   `yaml:"orgs,omitempty"          json:"orgs"`
 }
@@ -186,6 +187,7 @@ func setupMaskKeys(cfg *setupConfig) *setupConfig {
 	out := &setupConfig{
 		DefaultOrg:   cfg.DefaultOrg,
 		DefaultEnv:   cfg.DefaultEnv,
+		Email:        cfg.Email,
 		Environments: cfg.Environments,
 		Orgs:         map[string]setupOrg{},
 	}
@@ -352,6 +354,13 @@ input.input-warn:focus { border-color: var(--warn) !important; }
       <div class="field">
         <label>Default environment</label>
         <input id="default-env" type="text" placeholder="(none)" />
+      </div>
+    </div>
+    <div style="margin-top:12px">
+      <div class="field">
+        <label>Your email address</label>
+        <input id="user-email" type="email" placeholder="you@example.com" autocomplete="off" />
+        <div class="hint" style="margin-top:4px">Used by <code>syllable users me</code> to look up your account.</div>
       </div>
     </div>
   </section>
@@ -611,6 +620,7 @@ function renderDefaultOrgSelect() {
 function renderDefaults() {
   renderDefaultOrgSelect();
   document.getElementById('default-env').value = state.default_env || '';
+  document.getElementById('user-email').value = state.email || '';
 }
 
 function collectState() {
@@ -636,6 +646,7 @@ function save(exit) {
   collectState();
   state.default_org = document.getElementById('default-org').value;
   state.default_env = document.getElementById('default-env').value;
+  state.email = document.getElementById('user-email').value.trim();
 
   var errors = validate();
   if (errors.length > 0) { alert('Please fix the following before saving:\n\n' + errors.join('\n')); return; }
@@ -656,6 +667,7 @@ function save(exit) {
   var payload = {
     default_org: state.default_org,
     default_env: state.default_env,
+    email: state.email || '',
     environments: envsClean,
     orgs: orgsClean
   };
