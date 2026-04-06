@@ -41,11 +41,88 @@ func insightsCmd() *cobra.Command {
   syllable insights tool-definitions`,
 	}
 
+	cmd.AddCommand(insightsListCmd())
 	cmd.AddCommand(insightsWorkflowsCmd())
 	cmd.AddCommand(insightsFoldersCmd())
 	cmd.AddCommand(insightsToolConfigsCmd())
 	cmd.AddCommand(insightsToolDefinitionsCmd())
 
+	return cmd
+}
+
+// ── Insights Results ──────────────────────────────────────────────────────────
+
+func insightsListCmd() *cobra.Command {
+	var page, limit int
+	var folderID, workflowID, uploadFileID string
+
+	cmd := &cobra.Command{
+		Use:   "list",
+		Short: "List insight results",
+		Example: `  # List all insight results
+  syllable insights list
+
+  # Filter by folder
+  syllable insights list --folder-id 124
+
+  # Filter by workflow
+  syllable insights list --workflow-id 263`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			path := fmt.Sprintf("/api/v1/insights/?page=%d&limit=%d", page, limit)
+
+			if folderID != "" {
+				path += "&search_fields=upload_folder_id&search_field_values=" + url.QueryEscape(folderID)
+			} else if workflowID != "" {
+				path += "&search_fields=workflow_id&search_field_values=" + url.QueryEscape(workflowID)
+			} else if uploadFileID != "" {
+				path += "&search_fields=upload_file_id&search_field_values=" + url.QueryEscape(uploadFileID)
+			}
+
+			data, _, err := apiClient.Get(path)
+			if err != nil {
+				return err
+			}
+
+			if getOutputFmt() == "json" {
+				output.PrintJSON(data)
+				return nil
+			}
+
+			var result struct {
+				Items []struct {
+					ID            json.Number     `json:"id"`
+					UploadFileID  *json.Number    `json:"upload_file_id"`
+					InsightToolID json.Number     `json:"insight_tool_id"`
+					InsightKey    string          `json:"insight_key"`
+					JsonValue     json.RawMessage `json:"json_value"`
+					CreatedAt     string          `json:"created_at"`
+				} `json:"items"`
+			}
+			if err := json.Unmarshal(data, &result); err != nil {
+				output.PrintJSON(data)
+				return nil
+			}
+
+			headers := []string{"ID", "UPLOAD_FILE_ID", "TOOL_ID", "KEY", "CREATED_AT"}
+			rows := make([][]string, len(result.Items))
+			for i, r := range result.Items {
+				fileID := ""
+				if r.UploadFileID != nil {
+					fileID = r.UploadFileID.String()
+				}
+				rows[i] = []string{r.ID.String(), fileID, r.InsightToolID.String(), r.InsightKey, r.CreatedAt}
+			}
+			printTable(headers, rows)
+			fmt.Printf("\nShowing %d results\n", len(result.Items))
+			return nil
+		},
+	}
+
+	cmd.Flags().IntVar(&page, "page", 0, "Page number (0-based)")
+	cmd.Flags().IntVar(&limit, "limit", 25, "Max items to return")
+	cmd.Flags().StringVar(&folderID, "folder-id", "", "Filter by upload folder ID")
+	cmd.Flags().StringVar(&workflowID, "workflow-id", "", "Filter by workflow ID")
+	cmd.Flags().StringVar(&uploadFileID, "upload-file-id", "", "Filter by upload file ID")
 	return cmd
 }
 
