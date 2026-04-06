@@ -176,7 +176,7 @@ func hint422(body []byte) string {
 
 // noAuthCommandNames is the set of Cobra command names that run without API config.
 var noAuthCommandNames = map[string]struct{}{
-	"help": {}, "completion": {}, "version": {}, "setup": {}, "status": {},
+	"help": {}, "completion": {}, "version": {}, "setup": {}, "status": {}, "envs": {},
 }
 
 // cmdRequiresNoAuth reports whether the command or any ancestor is a no-auth command
@@ -211,6 +211,7 @@ func init() {
 	// Register subcommands
 	rootCmd.AddCommand(setupCmd())
 	rootCmd.AddCommand(statusCmd())
+	rootCmd.AddCommand(envsCmd())
 	rootCmd.AddCommand(agentsCmd())
 	rootCmd.AddCommand(channelsCmd())
 	rootCmd.AddCommand(conversationsCmd())
