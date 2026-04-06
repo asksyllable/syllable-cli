@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -170,6 +172,83 @@ func (c *Client) Delete(path string) ([]byte, int, error) {
 // DeleteWithBody performs a DELETE request with a JSON body.
 func (c *Client) DeleteWithBody(path string, body interface{}) ([]byte, int, error) {
 	return c.Do(http.MethodDelete, path, body)
+}
+
+// PostMultipart performs a multipart/form-data POST, uploading a local file as the named field.
+// Large files may require more than the default 30s client timeout — callers should be aware.
+func (c *Client) PostMultipart(path, fieldName, filePath string) ([]byte, int, error) {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return nil, 0, fmt.Errorf("opening file: %w", err)
+	}
+	defer f.Close()
+
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+
+	part, err := w.CreateFormFile(fieldName, filepath.Base(filePath))
+	if err != nil {
+		return nil, 0, fmt.Errorf("creating form file: %w", err)
+	}
+	if _, err := io.Copy(part, f); err != nil {
+		return nil, 0, fmt.Errorf("copying file to form: %w", err)
+	}
+	w.Close()
+
+	if c.DryRun {
+		out := map[string]interface{}{
+			"dry_run":     true,
+			"method":      http.MethodPost,
+			"url":         c.BaseURL + path,
+			"field":       fieldName,
+			"file":        filePath,
+			"content_type": w.FormDataContentType(),
+		}
+		data, _ := json.Marshal(out)
+		return nil, 0, &DryRunResult{Output: data}
+	}
+
+	req, err := http.NewRequest(http.MethodPost, c.BaseURL+path, &buf)
+	if err != nil {
+		return nil, 0, fmt.Errorf("creating request: %w", err)
+	}
+	req.Header.Set("Syllable-API-Key", c.APIKey)
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	req.Header.Set("Accept", "application/json")
+
+	if c.Verbose {
+		fmt.Fprintf(os.Stderr, "> %s %s\n", http.MethodPost, c.BaseURL+path)
+		fmt.Fprintf(os.Stderr, "> Syllable-API-Key: %s\n", maskKey(c.APIKey))
+		fmt.Fprintf(os.Stderr, "> Content-Type: %s\n", w.FormDataContentType())
+		fmt.Fprintf(os.Stderr, "> (multipart file: %s, field: %s)\n\n", filePath, fieldName)
+	}
+
+	// Use a longer timeout for file uploads
+	uploadClient := &http.Client{Timeout: 5 * time.Minute}
+	resp, err := uploadClient.Do(req)
+	if err != nil {
+		return nil, 0, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, resp.StatusCode, fmt.Errorf("reading response body: %w", err)
+	}
+
+	if c.Verbose {
+		fmt.Fprintf(os.Stderr, "< %d %s\n", resp.StatusCode, http.StatusText(resp.StatusCode))
+		var pretty bytes.Buffer
+		if json.Indent(&pretty, data, "< ", "  ") == nil {
+			fmt.Fprintf(os.Stderr, "<\n< %s\n", pretty.String())
+		}
+		fmt.Fprintln(os.Stderr)
+	}
+
+	if resp.StatusCode >= 400 {
+		return data, resp.StatusCode, &APIError{StatusCode: resp.StatusCode, Body: data}
+	}
+	return data, resp.StatusCode, nil
 }
 
 // DeleteWithForm performs a DELETE request with an application/x-www-form-urlencoded body.

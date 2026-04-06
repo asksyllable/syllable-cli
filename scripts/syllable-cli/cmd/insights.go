@@ -31,6 +31,9 @@ func insightsCmd() *cobra.Command {
   # List insight folders
   syllable insights folders list
 
+  # Upload a file to an insight folder
+  syllable insights folders upload-file 42 --file /path/to/recording.mp3
+
   # List tool configurations
   syllable insights tool-configs list
 
@@ -333,6 +336,7 @@ func insightsFoldersCmd() *cobra.Command {
 	cmd.AddCommand(insightsFoldersUpdateCmd())
 	cmd.AddCommand(insightsFoldersDeleteCmd())
 	cmd.AddCommand(insightsFoldersFilesCmd())
+	cmd.AddCommand(insightsFoldersUploadFileCmd())
 
 	return cmd
 }
@@ -543,6 +547,35 @@ func insightsFoldersFilesCmd() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func insightsFoldersUploadFileCmd() *cobra.Command {
+	var filePath string
+
+	cmd := &cobra.Command{
+		Use:   "upload-file <folder-id>",
+		Short: "Upload a file to an insight folder",
+		Args:  cobra.ExactArgs(1),
+		Example: `  # Upload a single recording to folder 42
+  syllable insights folders upload-file 42 --file /path/to/recording.mp3`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if filePath == "" {
+				return fmt.Errorf("required flag: --file")
+			}
+
+			path := fmt.Sprintf("/api/v1/insights/folders/%s/upload-file", args[0])
+			data, _, err := apiClient.PostMultipart(path, "file", filePath)
+			if err != nil {
+				return err
+			}
+
+			output.PrintJSON(data)
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&filePath, "file", "", "Path to local file to upload")
+	return cmd
 }
 
 // ── Tool Configurations ──────────────────────────────────────────────────────
