@@ -31,6 +31,9 @@ func insightsCmd() *cobra.Command {
   # List insight folders
   syllable insights folders list
 
+  # Upload a file to an insight folder
+  syllable insights folders upload-file 42 --file /path/to/recording.mp3
+
   # List tool configurations
   syllable insights tool-configs list
 
@@ -38,11 +41,88 @@ func insightsCmd() *cobra.Command {
   syllable insights tool-definitions`,
 	}
 
+	cmd.AddCommand(insightsListCmd())
 	cmd.AddCommand(insightsWorkflowsCmd())
 	cmd.AddCommand(insightsFoldersCmd())
 	cmd.AddCommand(insightsToolConfigsCmd())
 	cmd.AddCommand(insightsToolDefinitionsCmd())
 
+	return cmd
+}
+
+// ── Insights Results ──────────────────────────────────────────────────────────
+
+func insightsListCmd() *cobra.Command {
+	var page, limit int
+	var folderID, workflowID, uploadFileID string
+
+	cmd := &cobra.Command{
+		Use:   "list",
+		Short: "List insight results",
+		Example: `  # List all insight results
+  syllable insights list
+
+  # Filter by folder
+  syllable insights list --folder-id 124
+
+  # Filter by workflow
+  syllable insights list --workflow-id 263`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			path := fmt.Sprintf("/api/v1/insights/?page=%d&limit=%d", page, limit)
+
+			if folderID != "" {
+				path += "&search_fields=upload_folder_id&search_field_values=" + url.QueryEscape(folderID)
+			} else if workflowID != "" {
+				path += "&search_fields=workflow_id&search_field_values=" + url.QueryEscape(workflowID)
+			} else if uploadFileID != "" {
+				path += "&search_fields=upload_file_id&search_field_values=" + url.QueryEscape(uploadFileID)
+			}
+
+			data, _, err := apiClient.Get(path)
+			if err != nil {
+				return err
+			}
+
+			if getOutputFmt() == "json" {
+				output.PrintJSON(data)
+				return nil
+			}
+
+			var result struct {
+				Items []struct {
+					ID            json.Number     `json:"id"`
+					UploadFileID  *json.Number    `json:"upload_file_id"`
+					InsightToolID json.Number     `json:"insight_tool_id"`
+					InsightKey    string          `json:"insight_key"`
+					JsonValue     json.RawMessage `json:"json_value"`
+					CreatedAt     string          `json:"created_at"`
+				} `json:"items"`
+			}
+			if err := json.Unmarshal(data, &result); err != nil {
+				output.PrintJSON(data)
+				return nil
+			}
+
+			headers := []string{"ID", "UPLOAD_FILE_ID", "TOOL_ID", "KEY", "CREATED_AT"}
+			rows := make([][]string, len(result.Items))
+			for i, r := range result.Items {
+				fileID := ""
+				if r.UploadFileID != nil {
+					fileID = r.UploadFileID.String()
+				}
+				rows[i] = []string{r.ID.String(), fileID, r.InsightToolID.String(), r.InsightKey, r.CreatedAt}
+			}
+			printTable(headers, rows)
+			fmt.Printf("\nShowing %d results\n", len(result.Items))
+			return nil
+		},
+	}
+
+	cmd.Flags().IntVar(&page, "page", 0, "Page number (0-based)")
+	cmd.Flags().IntVar(&limit, "limit", 25, "Max items to return")
+	cmd.Flags().StringVar(&folderID, "folder-id", "", "Filter by upload folder ID")
+	cmd.Flags().StringVar(&workflowID, "workflow-id", "", "Filter by workflow ID")
+	cmd.Flags().StringVar(&uploadFileID, "upload-file-id", "", "Filter by upload file ID")
 	return cmd
 }
 
@@ -263,27 +343,26 @@ func insightsWorkflowsDeleteCmd() *cobra.Command {
 }
 
 func insightsWorkflowsActivateCmd() *cobra.Command {
-	var file string
-
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:   "activate <workflow-id>",
 		Short: "Activate an insight workflow",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var body interface{}
+			// Fetch the current workflow to get the exact estimate the API requires.
+			wfData, _, err := apiClient.Get("/api/v1/insights/workflows/" + args[0])
+			if err != nil {
+				return fmt.Errorf("fetching workflow: %w", err)
+			}
+			var wf struct {
+				Estimate json.RawMessage `json:"estimate"`
+			}
+			if err := json.Unmarshal(wfData, &wf); err != nil {
+				return fmt.Errorf("parsing workflow: %w", err)
+			}
 
-			if file != "" {
-				data, err := readFile(file)
-				if err != nil {
-					return fmt.Errorf("reading file: %w", err)
-				}
-				if err := json.Unmarshal(data, &body); err != nil {
-					return fmt.Errorf("parsing JSON file: %w", err)
-				}
-			} else {
-				body = map[string]interface{}{
-					"is_acknowledged": true,
-				}
+			body := map[string]interface{}{
+				"is_acknowledged": true,
+				"estimate":        wf.Estimate,
 			}
 
 			path := fmt.Sprintf("/api/v1/insights/workflows/%s/activate", args[0])
@@ -296,9 +375,6 @@ func insightsWorkflowsActivateCmd() *cobra.Command {
 			return nil
 		},
 	}
-
-	cmd.Flags().StringVar(&file, "file", "", "Path to JSON body file")
-	return cmd
 }
 
 func insightsWorkflowsInactivateCmd() *cobra.Command {
@@ -333,6 +409,7 @@ func insightsFoldersCmd() *cobra.Command {
 	cmd.AddCommand(insightsFoldersUpdateCmd())
 	cmd.AddCommand(insightsFoldersDeleteCmd())
 	cmd.AddCommand(insightsFoldersFilesCmd())
+	cmd.AddCommand(insightsFoldersUploadFileCmd())
 
 	return cmd
 }
@@ -543,6 +620,70 @@ func insightsFoldersFilesCmd() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func insightsFoldersUploadFileCmd() *cobra.Command {
+	var filePath, callID, agentNumber, customerNumber, startTime, endTime, metadata string
+	var duration float64
+
+	cmd := &cobra.Command{
+		Use:   "upload-file <folder-id>",
+		Short: "Upload a file to an insight folder",
+		Args:  cobra.ExactArgs(1),
+		Example: `  # Upload a recording with a call ID
+  syllable insights folders upload-file 42 --file /path/to/recording.mp3 --call-id my-call-001
+
+  # Upload with optional metadata
+  syllable insights folders upload-file 42 --file recording.mp3 --call-id call-001 --agent-number +15551234567 --customer-number +15559876543`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if filePath == "" {
+				return fmt.Errorf("required flag: --file")
+			}
+			if callID == "" {
+				return fmt.Errorf("required flag: --call-id")
+			}
+
+			params := url.Values{}
+			params.Set("call_id", callID)
+			if agentNumber != "" {
+				params.Set("agent_number", agentNumber)
+			}
+			if customerNumber != "" {
+				params.Set("customer_number", customerNumber)
+			}
+			if startTime != "" {
+				params.Set("start_time", startTime)
+			}
+			if endTime != "" {
+				params.Set("end_time", endTime)
+			}
+			if duration > 0 {
+				params.Set("duration", fmt.Sprintf("%g", duration))
+			}
+			if metadata != "" {
+				params.Set("metadata", metadata)
+			}
+
+			path := fmt.Sprintf("/api/v1/insights/folders/%s/upload-file?%s", args[0], params.Encode())
+			data, _, err := apiClient.PostMultipart(path, "file", filePath)
+			if err != nil {
+				return err
+			}
+
+			output.PrintJSON(data)
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&filePath, "file", "", "Path to local file to upload")
+	cmd.Flags().StringVar(&callID, "call-id", "", "Unique identifier for the call (required)")
+	cmd.Flags().StringVar(&agentNumber, "agent-number", "", "Phone number or ID of the agent")
+	cmd.Flags().StringVar(&customerNumber, "customer-number", "", "Phone number or ID of the customer")
+	cmd.Flags().StringVar(&startTime, "start-time", "", "Call start timestamp (ISO 8601)")
+	cmd.Flags().StringVar(&endTime, "end-time", "", "Call end timestamp (ISO 8601)")
+	cmd.Flags().Float64Var(&duration, "duration", 0, "Call duration in seconds")
+	cmd.Flags().StringVar(&metadata, "metadata", "", "Additional metadata string")
+	return cmd
 }
 
 // ── Tool Configurations ──────────────────────────────────────────────────────
