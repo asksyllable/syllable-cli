@@ -42,6 +42,7 @@ func organizationsListCmd() *cobra.Command {
 			// The API returns a single organization object, not a paginated list.
 			var org struct {
 				ID          json.Number `json:"id"`
+				Name        string      `json:"name"`
 				DisplayName string      `json:"display_name"`
 				Slug        string      `json:"slug"`
 				Description *string     `json:"description"`
@@ -57,9 +58,9 @@ func organizationsListCmd() *cobra.Command {
 				desc = output.Truncate(*org.Description, 50)
 			}
 
-			headers := []string{"ID", "DISPLAY_NAME", "SLUG", "DESCRIPTION", "LAST_UPDATED"}
+			headers := []string{"ID", "NAME", "DISPLAY_NAME", "SLUG", "DESCRIPTION", "LAST_UPDATED"}
 			rows := [][]string{
-				{org.ID.String(), org.DisplayName, org.Slug, desc, org.LastUpdated},
+				{org.ID.String(), org.Name, org.DisplayName, org.Slug, desc, org.LastUpdated},
 			}
 			printTable(headers, rows)
 			return nil

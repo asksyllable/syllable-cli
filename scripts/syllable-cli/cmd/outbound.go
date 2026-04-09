@@ -491,6 +491,13 @@ func outboundCampaignsGetCmd() *cobra.Command {
 				RetryCount   int    `json:"retry_count"`
 				UpdatedAt    string `json:"updated_at"`
 				LastUpdBy    string `json:"last_updated_by"`
+				Webhooks     []struct {
+					ID              int      `json:"id"`
+					URL             string   `json:"url"`
+					RequestMethod   string   `json:"request_method"`
+					TriggerStatuses []string `json:"trigger_statuses"`
+					AuthValueKeys   []string `json:"auth_value_keys"`
+				} `json:"webhooks"`
 			}
 			if err := json.Unmarshal(data, &c); err != nil {
 				output.PrintJSON(data)
@@ -508,6 +515,19 @@ func outboundCampaignsGetCmd() *cobra.Command {
 				{"Retry Count", fmt.Sprintf("%d", c.RetryCount)},
 				{"Updated At", c.UpdatedAt},
 				{"Last Updated By", c.LastUpdBy},
+			}
+			for i, wh := range c.Webhooks {
+				statuses := ""
+				for j, s := range wh.TriggerStatuses {
+					if j > 0 {
+						statuses += ", "
+					}
+					statuses += s
+				}
+				rows = append(rows, []string{
+					fmt.Sprintf("Webhook %d", i+1),
+					fmt.Sprintf("[%d] %s %s [%s]", wh.ID, wh.RequestMethod, output.Truncate(wh.URL, 50), statuses),
+				})
 			}
 			printTable([]string{"FIELD", "VALUE"}, rows)
 			return nil
