@@ -226,6 +226,7 @@ func insightsWorkflowsGetCmd() *cobra.Command {
 				Description string `json:"description"`
 				Source      string `json:"source"`
 				Status      string `json:"status"`
+				FailedCount *int   `json:"failed_count"`
 				CreatedAt   string `json:"created_at"`
 				UpdatedAt   string `json:"updated_at"`
 				LastUpdBy   string `json:"last_updated_by"`
@@ -235,12 +236,18 @@ func insightsWorkflowsGetCmd() *cobra.Command {
 				return nil
 			}
 
+			failedCount := ""
+			if w.FailedCount != nil {
+				failedCount = fmt.Sprintf("%d", *w.FailedCount)
+			}
+
 			rows := [][]string{
 				{"ID", w.ID.String()},
 				{"Name", w.Name},
 				{"Description", w.Description},
 				{"Source", w.Source},
 				{"Status", w.Status},
+				{"Failed Count", failedCount},
 				{"Created At", w.CreatedAt},
 				{"Updated At", w.UpdatedAt},
 				{"Last Updated By", w.LastUpdBy},

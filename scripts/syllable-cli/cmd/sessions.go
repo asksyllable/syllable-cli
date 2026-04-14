@@ -155,17 +155,18 @@ func sessionsGetCmd() *cobra.Command {
 			}
 
 			var s struct {
-				SessionID      string  `json:"session_id"`
-				ConversationID string  `json:"conversation_id"`
-				Timestamp      string  `json:"timestamp"`
-				AgentName      string  `json:"agent_name"`
-				AgentType      string  `json:"agent_type"`
-				AgentTimezone  string  `json:"agent_timezone"`
-				PromptName     string  `json:"prompt_name"`
-				Duration       float64 `json:"duration"`
-				Source         string  `json:"source"`
-				Target         string  `json:"target"`
-				IsTest         bool    `json:"is_test"`
+				SessionID                  string   `json:"session_id"`
+				ConversationID             string   `json:"conversation_id"`
+				Timestamp                  string   `json:"timestamp"`
+				AgentName                  string   `json:"agent_name"`
+				AgentType                  string   `json:"agent_type"`
+				AgentTimezone              string   `json:"agent_timezone"`
+				PromptName                 string   `json:"prompt_name"`
+				Duration                   float64  `json:"duration"`
+				Source                     string   `json:"source"`
+				Target                     string   `json:"target"`
+				IsTest                     bool     `json:"is_test"`
+				TransferVoicemailDetected  *bool    `json:"transfer_voicemail_detected"`
 			}
 			if err := json.Unmarshal(data, &s); err != nil {
 				output.PrintJSON(data)
@@ -175,6 +176,14 @@ func sessionsGetCmd() *cobra.Command {
 			isTest := "no"
 			if s.IsTest {
 				isTest = "yes"
+			}
+			transferVoicemail := ""
+			if s.TransferVoicemailDetected != nil {
+				if *s.TransferVoicemailDetected {
+					transferVoicemail = "yes"
+				} else {
+					transferVoicemail = "no"
+				}
 			}
 			rows := [][]string{
 				{"Session ID", s.SessionID},
@@ -188,6 +197,7 @@ func sessionsGetCmd() *cobra.Command {
 				{"Source", s.Source},
 				{"Target", s.Target},
 				{"Is Test", isTest},
+				{"Transfer Voicemail", transferVoicemail},
 			}
 			printTable([]string{"FIELD", "VALUE"}, rows)
 			return nil
