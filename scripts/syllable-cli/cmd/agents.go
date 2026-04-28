@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/asksyllable/syllable-cli/internal/output"
@@ -44,6 +45,7 @@ func agentsCmd() *cobra.Command {
 	cmd.AddCommand(agentsCreateCmd())
 	cmd.AddCommand(agentsUpdateCmd())
 	cmd.AddCommand(agentsDeleteCmd())
+	cmd.AddCommand(agentsSendTestMessageCmd())
 
 	return cmd
 }
@@ -266,4 +268,88 @@ func agentsDeleteCmd() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func agentsSendTestMessageCmd() *cobra.Command {
+	var testID, text, serviceName, source string
+	var sessionStart bool
+	var timeout int
+
+	cmd := &cobra.Command{
+		Use:   "send-test-message <agent-id>",
+		Short: "Send a test message to an agent via the conversation test API",
+		Long: `Send a test message to an agent using the conversation test API.
+
+This calls POST /api/v1/agents/test/messages to exchange a single turn with
+the agent under test. Use --session-start on the first call to begin a new
+test session, then omit it for follow-up turns in the same session (reuse
+the same --test-id).`,
+		Example: `  # Start a new test session
+  syllable agents send-test-message 42 --test-id my-test-1 --session-start --text "Hi, I need help"
+
+  # Send a follow-up message in the same session
+  syllable agents send-test-message 42 --test-id my-test-1 --text "Yes, that's correct"
+
+  # Start a session with no caller text (agent speaks first)
+  syllable agents send-test-message 42 --test-id my-test-1 --session-start`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			agentID := args[0]
+
+			body := map[string]interface{}{
+				"agent_id":      agentID,
+				"test_id":       testID,
+				"service_name":  serviceName,
+				"source":        source,
+				"session_start": sessionStart,
+			}
+			if text != "" {
+				body["text"] = text
+			}
+
+			data, _, err := apiClient.PostWithTimeout(
+				"/api/v1/agents/test/messages",
+				body,
+				time.Duration(timeout)*time.Second,
+			)
+			if err != nil {
+				return err
+			}
+
+			if getOutputFmt() == "json" {
+				output.PrintJSON(data)
+				return nil
+			}
+
+			var resp struct {
+				TestID       string          `json:"test_id"`
+				AgentID      string          `json:"agent_id"`
+				ResponseText string          `json:"response_text"`
+				Text         string          `json:"text"`
+				Response     json.RawMessage `json:"response"`
+			}
+			if err := json.Unmarshal(data, &resp); err != nil {
+				output.PrintJSON(data)
+				return nil
+			}
+
+			rows := [][]string{
+				{"Test ID", resp.TestID},
+				{"Agent ID", resp.AgentID},
+				{"Response Text", resp.ResponseText},
+			}
+			printTable([]string{"FIELD", "VALUE"}, rows)
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&testID, "test-id", "", "Test session identifier (required)")
+	cmd.Flags().StringVar(&text, "text", "", "Message text to send to the agent")
+	cmd.Flags().BoolVar(&sessionStart, "session-start", false, "Start a new test session")
+	cmd.Flags().StringVar(&serviceName, "service-name", "test", "Service name for the test")
+	cmd.Flags().StringVar(&source, "source", "tester@syllable.ai", "Source identifier for the test caller")
+	cmd.Flags().IntVar(&timeout, "timeout", 90, "Request timeout in seconds")
+	cmd.MarkFlagRequired("test-id")
+
+	return cmd
 }
