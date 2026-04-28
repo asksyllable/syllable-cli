@@ -174,11 +174,13 @@ func (c *Client) DeleteWithBody(path string, body interface{}) ([]byte, int, err
 	return c.Do(http.MethodDelete, path, body)
 }
 
-// PostWithTimeout performs a POST request with a custom timeout (overrides the default 30s).
+// PostWithTimeout performs a POST request with a custom timeout.
+// It uses a temporary http.Client rather than mutating the shared one,
+// so it is safe to call concurrently.
 func (c *Client) PostWithTimeout(path string, body interface{}, timeout time.Duration) ([]byte, int, error) {
-	orig := c.HTTPClient.Timeout
-	c.HTTPClient.Timeout = timeout
-	defer func() { c.HTTPClient.Timeout = orig }()
+	orig := c.HTTPClient
+	c.HTTPClient = &http.Client{Timeout: timeout}
+	defer func() { c.HTTPClient = orig }()
 	return c.Do(http.MethodPost, path, body)
 }
 

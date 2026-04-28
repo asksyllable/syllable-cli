@@ -537,6 +537,35 @@ func TestAgentsSendTestMessageNoTextOmitsField(t *testing.T) {
 	}
 }
 
+func TestAgentsSendTestMessageEmptyTextSendsField(t *testing.T) {
+	var receivedBody map[string]interface{}
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		json.Unmarshal(body, &receivedBody)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"test_id":  "test-silence",
+			"agent_id": "5",
+		})
+	})
+	defer server.Close()
+
+	cmd := agentsSendTestMessageCmd()
+	cmd.SetArgs([]string{"5", "--test-id", "test-silence", "--session-start", "--text", ""})
+	captureStdout(func() {
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	val, exists := receivedBody["text"]
+	if !exists {
+		t.Fatal("text field should be present when --text is explicitly set to empty string")
+	}
+	if val != "" {
+		t.Errorf("expected text='', got %v", val)
+	}
+}
+
 // --- Tools functional tests ---
 
 func TestToolsList(t *testing.T) {

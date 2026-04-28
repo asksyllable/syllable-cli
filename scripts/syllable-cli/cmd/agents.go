@@ -303,7 +303,7 @@ the same --test-id).`,
 				"source":        source,
 				"session_start": sessionStart,
 			}
-			if text != "" {
+			if cmd.Flags().Changed("text") {
 				body["text"] = text
 			}
 
@@ -349,7 +349,7 @@ the same --test-id).`,
 	cmd.Flags().StringVar(&serviceName, "service-name", "test", "Service name for the test")
 	cmd.Flags().StringVar(&source, "source", "tester@syllable.ai", "Source identifier for the test caller")
 	cmd.Flags().IntVar(&timeout, "timeout", 90, "Request timeout in seconds")
-	cmd.MarkFlagRequired("test-id")
+	_ = cmd.MarkFlagRequired("test-id")
 
 	return cmd
 }
