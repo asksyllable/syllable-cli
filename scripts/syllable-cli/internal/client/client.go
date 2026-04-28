@@ -174,6 +174,14 @@ func (c *Client) DeleteWithBody(path string, body interface{}) ([]byte, int, err
 	return c.Do(http.MethodDelete, path, body)
 }
 
+// PostWithTimeout performs a POST request with a custom timeout (overrides the default 30s).
+func (c *Client) PostWithTimeout(path string, body interface{}, timeout time.Duration) ([]byte, int, error) {
+	orig := c.HTTPClient.Timeout
+	c.HTTPClient.Timeout = timeout
+	defer func() { c.HTTPClient.Timeout = orig }()
+	return c.Do(http.MethodPost, path, body)
+}
+
 // PostMultipart performs a multipart/form-data POST, uploading a local file as the named field.
 // Large files may require more than the default 30s client timeout — callers should be aware.
 func (c *Client) PostMultipart(path, fieldName, filePath string) ([]byte, int, error) {

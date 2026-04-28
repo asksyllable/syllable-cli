@@ -102,7 +102,7 @@ func TestRootCommandHasSubcommands(t *testing.T) {
 
 func TestAgentsCommandHasSubcommands(t *testing.T) {
 	cmd := agentsCmd()
-	expected := []string{"list", "get", "create", "update", "delete"}
+	expected := []string{"list", "get", "create", "update", "delete", "send-test-message"}
 	subs := make(map[string]bool)
 	for _, c := range cmd.Commands() {
 		subs[c.Name()] = true
@@ -394,6 +394,146 @@ func TestAgentsDelete(t *testing.T) {
 	}
 	if path != "/api/v1/agents/42" {
 		t.Errorf("expected path /api/v1/agents/42, got %s", path)
+	}
+}
+
+// --- Agents send-test-message tests ---
+
+func TestAgentsSendTestMessage(t *testing.T) {
+	var method, requestPath string
+	var receivedBody map[string]interface{}
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		requestPath = r.URL.Path
+		body, _ := io.ReadAll(r.Body)
+		json.Unmarshal(body, &receivedBody)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"test_id":       "test-123",
+			"agent_id":      "42",
+			"response_text": "Hello, how can I help you?",
+			"text":          "Hi there",
+			"response":      map[string]interface{}{"content": map[string]interface{}{"session_id": "sess-1"}},
+		})
+	})
+	defer server.Close()
+
+	cmd := agentsSendTestMessageCmd()
+	cmd.SetArgs([]string{"42", "--test-id", "test-123", "--session-start", "--text", "Hi there"})
+	out := captureStdout(func() {
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	if method != "POST" {
+		t.Errorf("expected POST method, got %s", method)
+	}
+	if requestPath != "/api/v1/agents/test/messages" {
+		t.Errorf("unexpected request path: %s", requestPath)
+	}
+	if receivedBody["agent_id"] != "42" {
+		t.Errorf("expected agent_id=42, got %v", receivedBody["agent_id"])
+	}
+	if receivedBody["test_id"] != "test-123" {
+		t.Errorf("expected test_id=test-123, got %v", receivedBody["test_id"])
+	}
+	if receivedBody["session_start"] != true {
+		t.Errorf("expected session_start=true, got %v", receivedBody["session_start"])
+	}
+	if receivedBody["text"] != "Hi there" {
+		t.Errorf("expected text='Hi there', got %v", receivedBody["text"])
+	}
+	if receivedBody["service_name"] != "test" {
+		t.Errorf("expected service_name=test, got %v", receivedBody["service_name"])
+	}
+	if receivedBody["source"] != "tester@syllable.ai" {
+		t.Errorf("expected source=tester@syllable.ai, got %v", receivedBody["source"])
+	}
+	if !strings.Contains(out, "test-123") {
+		t.Errorf("output should contain test_id, got: %s", out)
+	}
+}
+
+func TestAgentsSendTestMessageJSONOutput(t *testing.T) {
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"test_id":       "test-456",
+			"agent_id":      "10",
+			"response_text": "Welcome!",
+			"response":      map[string]interface{}{"content": map[string]interface{}{"session_id": "sess-2", "action": "none"}},
+		})
+	})
+	defer server.Close()
+
+	cmd := agentsSendTestMessageCmd()
+	cmd.SetArgs([]string{"10", "--test-id", "test-456", "--session-start"})
+	out := captureStdout(func() {
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	// setupTestServer sets output to json
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(out), &parsed); err != nil {
+		t.Fatalf("expected valid JSON output, got: %s", out)
+	}
+	if parsed["test_id"] != "test-456" {
+		t.Errorf("expected test_id=test-456 in JSON output, got %v", parsed["test_id"])
+	}
+	resp, ok := parsed["response"].(map[string]interface{})
+	if !ok {
+		t.Fatal("expected response object in JSON output")
+	}
+	content, ok := resp["content"].(map[string]interface{})
+	if !ok {
+		t.Fatal("expected response.content object in JSON output")
+	}
+	if content["session_id"] != "sess-2" {
+		t.Errorf("expected session_id=sess-2, got %v", content["session_id"])
+	}
+}
+
+func TestAgentsSendTestMessageRequiresTestID(t *testing.T) {
+	cmd := agentsSendTestMessageCmd()
+	cmd.SetArgs([]string{"42"})
+	err := cmd.Execute()
+	if err == nil {
+		t.Error("expected error when --test-id is missing")
+	}
+}
+
+func TestAgentsSendTestMessageRequiresAgentID(t *testing.T) {
+	cmd := agentsSendTestMessageCmd()
+	cmd.SetArgs([]string{"--test-id", "test-1"})
+	err := cmd.Execute()
+	if err == nil {
+		t.Error("expected error when agent-id argument is missing")
+	}
+}
+
+func TestAgentsSendTestMessageNoTextOmitsField(t *testing.T) {
+	var receivedBody map[string]interface{}
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		json.Unmarshal(body, &receivedBody)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"test_id":  "test-789",
+			"agent_id": "5",
+		})
+	})
+	defer server.Close()
+
+	cmd := agentsSendTestMessageCmd()
+	cmd.SetArgs([]string{"5", "--test-id", "test-789", "--session-start"})
+	captureStdout(func() {
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	if _, exists := receivedBody["text"]; exists {
+		t.Errorf("text field should be omitted when --text is not provided, got %v", receivedBody["text"])
 	}
 }
 
