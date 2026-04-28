@@ -52,6 +52,7 @@ func sessionsCmd() *cobra.Command {
 func sessionsListCmd() *cobra.Command {
 	var page, limit int
 	var search, searchField, startDate, endDate string
+	var includeTest bool
 
 	cmd := &cobra.Command{
 		Use:   "list",
@@ -66,6 +67,9 @@ func sessionsListCmd() *cobra.Command {
 			}
 			if endDate != "" {
 				path += fmt.Sprintf("&end_datetime=%s", endDate)
+			}
+			if includeTest {
+				path += "&search_fields=is_test&search_field_values=true"
 			}
 
 			data, _, err := apiClient.Get(path)
@@ -129,6 +133,7 @@ func sessionsListCmd() *cobra.Command {
 	cmd.Flags().StringVar(&searchField, "search-field", "agent_name", "Field to search on (see API docs for valid values)")
 	cmd.Flags().StringVar(&startDate, "start-date", "", "Start datetime filter (e.g. 2024-01-01T00:00:00Z)")
 	cmd.Flags().StringVar(&endDate, "end-date", "", "End datetime filter")
+	cmd.Flags().BoolVar(&includeTest, "include-test", false, "Include test sessions (sessions on channel targets marked is_test=true, e.g. SIP test channels)")
 
 	return cmd
 }
@@ -150,17 +155,18 @@ func sessionsGetCmd() *cobra.Command {
 			}
 
 			var s struct {
-				SessionID      string  `json:"session_id"`
-				ConversationID string  `json:"conversation_id"`
-				Timestamp      string  `json:"timestamp"`
-				AgentName      string  `json:"agent_name"`
-				AgentType      string  `json:"agent_type"`
-				AgentTimezone  string  `json:"agent_timezone"`
-				PromptName     string  `json:"prompt_name"`
-				Duration       float64 `json:"duration"`
-				Source         string  `json:"source"`
-				Target         string  `json:"target"`
-				IsTest         bool    `json:"is_test"`
+				SessionID                  string   `json:"session_id"`
+				ConversationID             string   `json:"conversation_id"`
+				Timestamp                  string   `json:"timestamp"`
+				AgentName                  string   `json:"agent_name"`
+				AgentType                  string   `json:"agent_type"`
+				AgentTimezone              string   `json:"agent_timezone"`
+				PromptName                 string   `json:"prompt_name"`
+				Duration                   float64  `json:"duration"`
+				Source                     string   `json:"source"`
+				Target                     string   `json:"target"`
+				IsTest                     bool     `json:"is_test"`
+				TransferVoicemailDetected  *bool    `json:"transfer_voicemail_detected"`
 			}
 			if err := json.Unmarshal(data, &s); err != nil {
 				output.PrintJSON(data)
@@ -170,6 +176,14 @@ func sessionsGetCmd() *cobra.Command {
 			isTest := "no"
 			if s.IsTest {
 				isTest = "yes"
+			}
+			transferVoicemail := ""
+			if s.TransferVoicemailDetected != nil {
+				if *s.TransferVoicemailDetected {
+					transferVoicemail = "yes"
+				} else {
+					transferVoicemail = "no"
+				}
 			}
 			rows := [][]string{
 				{"Session ID", s.SessionID},
@@ -183,6 +197,7 @@ func sessionsGetCmd() *cobra.Command {
 				{"Source", s.Source},
 				{"Target", s.Target},
 				{"Is Test", isTest},
+				{"Transfer Voicemail", transferVoicemail},
 			}
 			printTable([]string{"FIELD", "VALUE"}, rows)
 			return nil

@@ -120,6 +120,7 @@ func directoryGetCmd() *cobra.Command {
 				Name      string `json:"name"`
 				Type      string `json:"type"`
 				Comments  string `json:"comments"`
+				CreatedBy string `json:"created_by"`
 				CreatedAt string `json:"created_at"`
 				UpdatedAt string `json:"updated_at"`
 				LastUpdBy string `json:"last_updated_by"`
@@ -134,6 +135,7 @@ func directoryGetCmd() *cobra.Command {
 				{"Name", m.Name},
 				{"Type", m.Type},
 				{"Comments", m.Comments},
+				{"Created By", m.CreatedBy},
 				{"Created At", m.CreatedAt},
 				{"Updated At", m.UpdatedAt},
 				{"Last Updated By", m.LastUpdBy},
