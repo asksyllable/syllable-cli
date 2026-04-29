@@ -305,6 +305,8 @@ the same --test-id).`,
 			}
 			if cmd.Flags().Changed("text") {
 				body["text"] = text
+			} else if sessionStart {
+				body["text"] = ""
 			}
 
 			data, _, err := apiClient.PostWithTimeout(
