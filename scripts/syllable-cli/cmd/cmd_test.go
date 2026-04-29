@@ -525,7 +525,7 @@ func TestAgentsSendTestMessageNoTextOmitsField(t *testing.T) {
 	defer server.Close()
 
 	cmd := agentsSendTestMessageCmd()
-	cmd.SetArgs([]string{"5", "--test-id", "test-789", "--session-start"})
+	cmd.SetArgs([]string{"5", "--test-id", "test-789"})
 	captureStdout(func() {
 		if err := cmd.Execute(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -533,7 +533,36 @@ func TestAgentsSendTestMessageNoTextOmitsField(t *testing.T) {
 	})
 
 	if _, exists := receivedBody["text"]; exists {
-		t.Errorf("text field should be omitted when --text is not provided, got %v", receivedBody["text"])
+		t.Errorf("text field should be omitted on follow-up turns when --text is not provided, got %v", receivedBody["text"])
+	}
+}
+
+func TestAgentsSendTestMessageSessionStartNoTextSendsEmpty(t *testing.T) {
+	var receivedBody map[string]interface{}
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		json.Unmarshal(body, &receivedBody)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"test_id":  "test-greet",
+			"agent_id": "5",
+		})
+	})
+	defer server.Close()
+
+	cmd := agentsSendTestMessageCmd()
+	cmd.SetArgs([]string{"5", "--test-id", "test-greet", "--session-start"})
+	captureStdout(func() {
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	val, exists := receivedBody["text"]
+	if !exists {
+		t.Fatal("text field should be present (as empty string) when --session-start is set without --text")
+	}
+	if val != "" {
+		t.Errorf("expected text='' on session start without --text, got %v", val)
 	}
 }
 
