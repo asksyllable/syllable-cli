@@ -37,7 +37,16 @@ func directoryCmd() *cobra.Command {
   syllable directory upload --file members.csv
 
   # Export all directory members as CSV
-  syllable directory download > members.csv`,
+  syllable directory download > members.csv
+
+  # Show version history for a directory member
+  syllable directory history 12
+
+  # Restore a soft-deleted directory member
+  syllable directory restore 12
+
+  # Test extension lookup for a directory member
+  syllable directory test 12`,
 	}
 
 	cmd.AddCommand(directoryListCmd())
@@ -47,6 +56,9 @@ func directoryCmd() *cobra.Command {
 	cmd.AddCommand(directoryDeleteCmd())
 	cmd.AddCommand(directoryUploadCmd())
 	cmd.AddCommand(directoryDownloadCmd())
+	cmd.AddCommand(directoryHistoryCmd())
+	cmd.AddCommand(directoryRestoreCmd())
+	cmd.AddCommand(directoryTestCmd())
 
 	return cmd
 }
@@ -305,4 +317,56 @@ func directoryDownloadCmd() *cobra.Command {
 
 	cmd.Flags().StringVar(&format, "format", "normalized", "Response format: normalized or raw")
 	return cmd
+}
+
+func directoryHistoryCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "history <member-id>",
+		Short: "Show version history for a directory member",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			data, _, err := apiClient.Get("/api/v1/directory_members/" + args[0] + "/history")
+			if err != nil {
+				return err
+			}
+			output.PrintJSON(data)
+			return nil
+		},
+	}
+}
+
+func directoryRestoreCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "restore <member-id>",
+		Short: "Restore a soft-deleted directory member",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			data, _, err := apiClient.Put("/api/v1/directory_members/"+args[0]+"/restore", nil)
+			if err != nil {
+				return err
+			}
+			if len(data) > 0 {
+				output.PrintJSON(data)
+			} else {
+				fmt.Printf("Directory member %s restored.\n", args[0])
+			}
+			return nil
+		},
+	}
+}
+
+func directoryTestCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "test <member-id>",
+		Short: "Test extension lookup for a directory member",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			data, _, err := apiClient.Get("/api/v1/directory_members/" + args[0] + "/test")
+			if err != nil {
+				return err
+			}
+			output.PrintJSON(data)
+			return nil
+		},
+	}
 }

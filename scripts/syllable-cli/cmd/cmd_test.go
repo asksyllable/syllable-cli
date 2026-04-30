@@ -1345,6 +1345,75 @@ func TestDirectoryDownload(t *testing.T) {
 	}
 }
 
+func TestDirectoryHistory(t *testing.T) {
+	var method, requestPath string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		requestPath = r.URL.Path
+		json.NewEncoder(w).Encode([]interface{}{})
+	})
+	defer server.Close()
+
+	cmd := directoryHistoryCmd()
+	cmd.SetArgs([]string{"42"})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "GET" {
+		t.Errorf("expected GET method, got %s", method)
+	}
+	if requestPath != "/api/v1/directory_members/42/history" {
+		t.Errorf("unexpected request path: %s", requestPath)
+	}
+}
+
+func TestDirectoryRestore(t *testing.T) {
+	var method, requestPath string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		requestPath = r.URL.Path
+		w.WriteHeader(http.StatusNoContent)
+	})
+	defer server.Close()
+
+	cmd := directoryRestoreCmd()
+	cmd.SetArgs([]string{"42"})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "PUT" {
+		t.Errorf("expected PUT method, got %s", method)
+	}
+	if requestPath != "/api/v1/directory_members/42/restore" {
+		t.Errorf("unexpected request path: %s", requestPath)
+	}
+}
+
+func TestDirectoryTest(t *testing.T) {
+	var method, requestPath string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		requestPath = r.URL.Path
+		json.NewEncoder(w).Encode(map[string]interface{}{"extension": "1234"})
+	})
+	defer server.Close()
+
+	cmd := directoryTestCmd()
+	cmd.SetArgs([]string{"42"})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "GET" {
+		t.Errorf("expected GET method, got %s", method)
+	}
+	if requestPath != "/api/v1/directory_members/42/test" {
+		t.Errorf("unexpected request path: %s", requestPath)
+	}
+}
+
 func TestOutboundBatchesUpload(t *testing.T) {
 	tmp, err := os.CreateTemp("", "contacts-*.csv")
 	if err != nil {
