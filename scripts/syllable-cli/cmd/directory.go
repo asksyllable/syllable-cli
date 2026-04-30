@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/asksyllable/syllable-cli/internal/output"
@@ -297,7 +298,7 @@ func directoryDownloadCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Print(string(data))
+			os.Stdout.Write(data)
 			return nil
 		},
 	}

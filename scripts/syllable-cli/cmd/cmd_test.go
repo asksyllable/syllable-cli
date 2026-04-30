@@ -1264,6 +1264,49 @@ func TestDirectoryUploadStdin(t *testing.T) {
 	}
 }
 
+func TestInsightsFoldersUploadFileStdin(t *testing.T) {
+	// Locks in the side-benefit fix: doMultipart now honors --file - on every
+	// caller, including the long-broken insights folders upload-file command.
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("creating pipe: %v", err)
+	}
+	go func() {
+		w.WriteString("audio-bytes")
+		w.Close()
+	}()
+	origStdin := os.Stdin
+	os.Stdin = r
+	defer func() { os.Stdin = origStdin }()
+
+	var method, path, body string
+	server := setupTestServer(t, func(w http.ResponseWriter, req *http.Request) {
+		method = req.Method
+		path = req.URL.Path
+		buf, _ := io.ReadAll(req.Body)
+		body = string(buf)
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("{}"))
+	})
+	defer server.Close()
+
+	cmd := insightsFoldersUploadFileCmd()
+	cmd.SetArgs([]string{"folder-1", "--file", "-", "--call-id", "call-1"})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "POST" {
+		t.Errorf("expected POST method, got %s", method)
+	}
+	if path != "/api/v1/insights/folders/folder-1/upload-file" {
+		t.Errorf("unexpected path: %s", path)
+	}
+	if !strings.Contains(body, "audio-bytes") {
+		t.Errorf("expected stdin contents in multipart body, got: %s", body)
+	}
+}
+
 func TestDirectoryDownload(t *testing.T) {
 	var method, path, query string
 	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
