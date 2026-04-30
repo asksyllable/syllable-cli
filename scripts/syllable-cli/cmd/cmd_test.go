@@ -1831,6 +1831,213 @@ func TestSessionsRecordingStreamRequiresToken(t *testing.T) {
 	}
 }
 
+func TestOrganizationsGet(t *testing.T) {
+	var method, path string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		path = r.URL.Path
+		json.NewEncoder(w).Encode(map[string]interface{}{"id": "1", "name": "Acme", "display_name": "Acme Inc."})
+	})
+	defer server.Close()
+
+	cmd := organizationsGetCmd()
+	cmd.SetArgs([]string{})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "GET" {
+		t.Errorf("expected GET, got %s", method)
+	}
+	if path != "/api/v1/organizations/" {
+		t.Errorf("unexpected path: %s", path)
+	}
+}
+
+func TestOrganizationsListAliasStillWorks(t *testing.T) {
+	var path string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		path = r.URL.Path
+		json.NewEncoder(w).Encode(map[string]interface{}{"id": "1"})
+	})
+	defer server.Close()
+
+	cmd := organizationsListCmd()
+	if !cmd.Hidden {
+		t.Error("organizations list alias should be Hidden")
+	}
+	cmd.SetArgs([]string{})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if path != "/api/v1/organizations/" {
+		t.Errorf("alias should hit same endpoint, got: %s", path)
+	}
+}
+
+func TestOrganizationsCreate(t *testing.T) {
+	logo, _ := os.CreateTemp("", "logo-*.png")
+	logo.Write([]byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a})
+	logo.Close()
+	defer os.Remove(logo.Name())
+
+	var method, path, contentType string
+	var displayName, description, domains string
+	var sawLogoPart bool
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		path = r.URL.Path
+		contentType = r.Header.Get("Content-Type")
+		if err := r.ParseMultipartForm(1 << 20); err != nil {
+			t.Fatalf("ParseMultipartForm: %v", err)
+		}
+		displayName = r.MultipartForm.Value["display_name"][0]
+		if v := r.MultipartForm.Value["description"]; len(v) > 0 {
+			description = v[0]
+		}
+		if v := r.MultipartForm.Value["domains"]; len(v) > 0 {
+			domains = v[0]
+		}
+		_, sawLogoPart = r.MultipartForm.File["logo"]
+		w.Write([]byte(`{}`))
+	})
+	defer server.Close()
+
+	cmd := organizationsCreateCmd()
+	cmd.SetArgs([]string{
+		"--display-name", "Acme Inc.",
+		"--logo", logo.Name(),
+		"--description", "Test desc",
+		"--domains", "acme.com",
+	})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "POST" {
+		t.Errorf("expected POST, got %s", method)
+	}
+	if path != "/api/v1/organizations/" {
+		t.Errorf("unexpected path: %s", path)
+	}
+	if !strings.HasPrefix(contentType, "multipart/form-data") {
+		t.Errorf("expected multipart/form-data, got %s", contentType)
+	}
+	if displayName != "Acme Inc." {
+		t.Errorf("expected display_name=Acme Inc., got %q", displayName)
+	}
+	if description != "Test desc" {
+		t.Errorf("expected description=Test desc, got %q", description)
+	}
+	if domains != "acme.com" {
+		t.Errorf("expected domains=acme.com, got %q", domains)
+	}
+	if !sawLogoPart {
+		t.Error("expected logo file part in multipart body")
+	}
+}
+
+func TestOrganizationsCreateRequiresDisplayName(t *testing.T) {
+	cmd := organizationsCreateCmd()
+	cmd.SetArgs([]string{"--logo", "/tmp/x.png"})
+	if err := cmd.Execute(); err == nil {
+		t.Error("expected error when --display-name missing")
+	}
+}
+
+func TestOrganizationsCreateRequiresLogo(t *testing.T) {
+	cmd := organizationsCreateCmd()
+	cmd.SetArgs([]string{"--display-name", "Acme"})
+	if err := cmd.Execute(); err == nil {
+		t.Error("expected error when --logo missing")
+	}
+}
+
+func TestOrganizationsUpdate(t *testing.T) {
+	var method, path, contentType, displayName string
+	var sawLogoPart bool
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		path = r.URL.Path
+		contentType = r.Header.Get("Content-Type")
+		if err := r.ParseMultipartForm(1 << 20); err != nil {
+			t.Fatalf("ParseMultipartForm: %v", err)
+		}
+		displayName = r.MultipartForm.Value["display_name"][0]
+		_, sawLogoPart = r.MultipartForm.File["logo"]
+		w.Write([]byte(`{}`))
+	})
+	defer server.Close()
+
+	cmd := organizationsUpdateCmd()
+	cmd.SetArgs([]string{"--display-name", "Renamed Inc."})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "PUT" {
+		t.Errorf("expected PUT, got %s", method)
+	}
+	if path != "/api/v1/organizations/" {
+		t.Errorf("unexpected path: %s", path)
+	}
+	if !strings.HasPrefix(contentType, "multipart/form-data") {
+		t.Errorf("expected multipart/form-data, got %s", contentType)
+	}
+	if displayName != "Renamed Inc." {
+		t.Errorf("expected display_name=Renamed Inc., got %q", displayName)
+	}
+	if sawLogoPart {
+		t.Error("did not expect logo part when --logo omitted")
+	}
+}
+
+func TestOrganizationsUpdateRequiresDisplayName(t *testing.T) {
+	cmd := organizationsUpdateCmd()
+	cmd.SetArgs([]string{})
+	if err := cmd.Execute(); err == nil {
+		t.Error("expected error when --display-name missing")
+	}
+}
+
+func TestUsersDeleteAccountRequiresConfirm(t *testing.T) {
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Error("server should not be hit without --confirm")
+	})
+	defer server.Close()
+
+	cmd := usersDeleteAccountCmd()
+	cmd.SetArgs([]string{})
+	if err := cmd.Execute(); err == nil {
+		t.Error("expected error without --confirm")
+	}
+}
+
+func TestUsersDeleteAccountWithConfirm(t *testing.T) {
+	var method, path string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		path = r.URL.Path
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{}`))
+	})
+	defer server.Close()
+
+	cmd := usersDeleteAccountCmd()
+	cmd.SetArgs([]string{"--confirm"})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "DELETE" {
+		t.Errorf("expected DELETE, got %s", method)
+	}
+	if path != "/api/v1/users/delete_account" {
+		t.Errorf("unexpected path: %s", path)
+	}
+}
+
 func TestConversationConfigBridges(t *testing.T) {
 	var requestPath string
 	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {

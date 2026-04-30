@@ -340,6 +340,117 @@ func (c *Client) doMultipart(method, path, fieldName, filePath string) ([]byte, 
 	return data, resp.StatusCode, nil
 }
 
+// PostMultipartForm performs a multipart/form-data POST that mixes text fields
+// and an optional file. Pass fileField="" or filePath="" to send fields only.
+func (c *Client) PostMultipartForm(path string, fields map[string]string, fileField, filePath string) ([]byte, int, error) {
+	return c.doMultipartForm(http.MethodPost, path, fields, fileField, filePath)
+}
+
+// PutMultipartForm performs a multipart/form-data PUT that mixes text fields
+// and an optional file. Pass fileField="" or filePath="" to send fields only.
+func (c *Client) PutMultipartForm(path string, fields map[string]string, fileField, filePath string) ([]byte, int, error) {
+	return c.doMultipartForm(http.MethodPut, path, fields, fileField, filePath)
+}
+
+func (c *Client) doMultipartForm(method, path string, fields map[string]string, fileField, filePath string) ([]byte, int, error) {
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+
+	for k, v := range fields {
+		if err := w.WriteField(k, v); err != nil {
+			return nil, 0, fmt.Errorf("writing form field %s: %w", k, err)
+		}
+	}
+
+	if fileField != "" && filePath != "" {
+		var src io.Reader
+		var formName string
+		if filePath == "-" {
+			src = os.Stdin
+			formName = "stdin"
+		} else {
+			f, err := os.Open(filePath)
+			if err != nil {
+				return nil, 0, fmt.Errorf("opening file: %w", err)
+			}
+			defer f.Close()
+			src = f
+			formName = filepath.Base(filePath)
+		}
+		part, err := w.CreateFormFile(fileField, formName)
+		if err != nil {
+			return nil, 0, fmt.Errorf("creating form file: %w", err)
+		}
+		if _, err := io.Copy(part, src); err != nil {
+			return nil, 0, fmt.Errorf("copying file to form: %w", err)
+		}
+	}
+	w.Close()
+
+	if c.DryRun {
+		out := map[string]interface{}{
+			"dry_run":      true,
+			"method":       method,
+			"url":          c.BaseURL + path,
+			"fields":       fields,
+			"content_type": w.FormDataContentType(),
+		}
+		if fileField != "" && filePath != "" {
+			out["file_field"] = fileField
+			out["file"] = filePath
+		}
+		data, _ := json.Marshal(out)
+		return nil, 0, &DryRunResult{Output: data}
+	}
+
+	req, err := http.NewRequest(method, c.BaseURL+path, &buf)
+	if err != nil {
+		return nil, 0, fmt.Errorf("creating request: %w", err)
+	}
+	req.Header.Set("Syllable-API-Key", c.APIKey)
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	req.Header.Set("Accept", "application/json")
+
+	if c.Verbose {
+		fmt.Fprintf(os.Stderr, "> %s %s\n", method, c.BaseURL+path)
+		fmt.Fprintf(os.Stderr, "> Syllable-API-Key: %s\n", maskKey(c.APIKey))
+		fmt.Fprintf(os.Stderr, "> Content-Type: %s\n", w.FormDataContentType())
+		for k, v := range fields {
+			fmt.Fprintf(os.Stderr, "> (form field) %s=%s\n", k, v)
+		}
+		if fileField != "" && filePath != "" {
+			fmt.Fprintf(os.Stderr, "> (multipart file: %s, field: %s)\n", filePath, fileField)
+		}
+		fmt.Fprintln(os.Stderr)
+	}
+
+	uploadClient := &http.Client{Timeout: 5 * time.Minute}
+	resp, err := uploadClient.Do(req)
+	if err != nil {
+		return nil, 0, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, resp.StatusCode, fmt.Errorf("reading response body: %w", err)
+	}
+
+	if c.Verbose {
+		fmt.Fprintf(os.Stderr, "< %d %s\n", resp.StatusCode, http.StatusText(resp.StatusCode))
+		var pretty bytes.Buffer
+		if json.Indent(&pretty, data, "< ", "  ") == nil {
+			fmt.Fprintf(os.Stderr, "<\n< %s\n", pretty.String())
+		}
+		fmt.Fprintln(os.Stderr)
+	}
+
+	if resp.StatusCode >= 400 {
+		return data, resp.StatusCode, &APIError{StatusCode: resp.StatusCode, Body: data}
+	}
+	return data, resp.StatusCode, nil
+}
+
 // DeleteWithForm performs a DELETE request with an application/x-www-form-urlencoded body.
 func (c *Client) DeleteWithForm(path string, fields map[string]string) ([]byte, int, error) {
 	form := url.Values{}
