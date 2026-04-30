@@ -35,7 +35,11 @@ func organizationsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "organizations",
 		Short: "Manage organizations",
-		Long:  "Get, create, update, and delete the current organization.",
+		Long: `Get, create, and update the current organization.
+
+Org deletion is intentionally not exposed via the CLI — it would wipe
+every agent, session, batch, etc. for the org. Use the web console if
+you really need it.`,
 		Example: `  # Show the current organization
   syllable organizations get
 
@@ -43,20 +47,16 @@ func organizationsCmd() *cobra.Command {
   syllable organizations get --output json
 
   # Create a new organization
-  syllable organizations create --file org.json
+  syllable organizations create --display-name NAME --logo PATH
 
   # Update the current organization
-  syllable organizations update --file org.json
-
-  # Delete the current organization (requires --confirm)
-  syllable organizations delete --confirm`,
+  syllable organizations update --display-name NAME`,
 	}
 
 	cmd.AddCommand(organizationsGetCmd())
 	cmd.AddCommand(organizationsListCmd())
 	cmd.AddCommand(organizationsCreateCmd())
 	cmd.AddCommand(organizationsUpdateCmd())
-	cmd.AddCommand(organizationsDeleteCmd())
 
 	return cmd
 }
@@ -191,33 +191,3 @@ is required by the API; logo and other fields are optional.`,
 	return cmd
 }
 
-func organizationsDeleteCmd() *cobra.Command {
-	var confirm bool
-
-	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete the current organization (requires --confirm)",
-		Long: `Delete the current organization. Irreversible.
-
-The --confirm flag is required so a typo or autocomplete can't trigger the
-destructive call. There is no undo.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if !confirm {
-				return fmt.Errorf("refusing to delete the current organization without --confirm")
-			}
-			data, _, err := apiClient.Delete("/api/v1/organizations/")
-			if err != nil {
-				return err
-			}
-			if len(data) > 0 {
-				output.PrintJSON(data)
-			} else {
-				fmt.Println("Organization deleted.")
-			}
-			return nil
-		},
-	}
-
-	cmd.Flags().BoolVar(&confirm, "confirm", false, "Confirm the destructive operation")
-	return cmd
-}

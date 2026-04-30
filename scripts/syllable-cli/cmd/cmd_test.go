@@ -1977,42 +1977,6 @@ func TestOrganizationsUpdateRequiresDisplayName(t *testing.T) {
 	}
 }
 
-func TestOrganizationsDeleteRequiresConfirm(t *testing.T) {
-	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		t.Error("server should not be hit without --confirm")
-	})
-	defer server.Close()
-
-	cmd := organizationsDeleteCmd()
-	cmd.SetArgs([]string{})
-	if err := cmd.Execute(); err == nil {
-		t.Error("expected error without --confirm")
-	}
-}
-
-func TestOrganizationsDeleteWithConfirm(t *testing.T) {
-	var method, path string
-	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		method = r.Method
-		path = r.URL.Path
-		w.WriteHeader(http.StatusNoContent)
-	})
-	defer server.Close()
-
-	cmd := organizationsDeleteCmd()
-	cmd.SetArgs([]string{"--confirm"})
-	captureStdout(func() {
-		cmd.Execute()
-	})
-
-	if method != "DELETE" {
-		t.Errorf("expected DELETE, got %s", method)
-	}
-	if path != "/api/v1/organizations/" {
-		t.Errorf("unexpected path: %s", path)
-	}
-}
-
 func TestUsersDeleteAccountRequiresConfirm(t *testing.T) {
 	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 		t.Error("server should not be hit without --confirm")

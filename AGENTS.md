@@ -34,7 +34,7 @@ Quick reference for every resource: what it is, key fields, and hard constraints
 | **Dashboards** | Performance analytics | name | `sessions`, `session-events`, `session-transfers`, `session-summary` endpoints are **DEPRECATED** — use `list` and `fetch-info`. |
 | **Takeouts** | Data export jobs | job_id, status, file_name | Workflow: create → poll with get → download. |
 | **Incidents** | Platform incident tracking | name, status | — |
-| **Organizations** | Current organization | display_name, slug, description | API exposes the **current** org only — `get` returns it; `create`/`update`/`delete` operate on it. `delete` requires `--confirm`. |
+| **Organizations** | Current organization | display_name, slug, description | API exposes the **current** org only — `get` returns it; `create`/`update` operate on it. Delete is intentionally not exposed via CLI — use the web console. |
 | **Permissions** | System-wide permissions | name | Read-only. |
 | **Conversation Config (Bridges)** | Transfer/handoff phrase configuration | phrases | — |
 | **Schema** | Explore API request/response shapes from embedded OpenAPI spec | type name | No API call made. Use before create/update to find required fields. |
@@ -558,11 +558,12 @@ syllable dashboards session-summary [--file query.json]
 Operations on the **current** organization (the one your API key is scoped to). `list` is a hidden alias of `get` for back-compat.
 
 `create` and `update` use multipart/form-data with explicit flags (the API requires a 120x120 PNG logo on create; the logo is optional on update).
+
+Org deletion is intentionally not exposed via the CLI — it would wipe every agent, session, batch, etc. for the org. Use the web console if you really need it.
 ```bash
 syllable organizations get
 syllable organizations create --display-name NAME --logo PATH [--description TEXT] [--domains a.com,b.com] [--saml-provider-id ID]
 syllable organizations update --display-name NAME [--logo PATH] [--description TEXT] [--domains a.com,b.com] [--saml-provider-id ID] [--update-comments TEXT]
-syllable organizations delete --confirm
 ```
 
 ### Schema
