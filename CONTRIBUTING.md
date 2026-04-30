@@ -62,7 +62,15 @@ git push origin vX.Y.Z
 
 ## Spec sync
 
-The CLI develops against the embedded OpenAPI spec, sourced from the `main` branch of [asksyllable/syllable-sdk-typescript](https://github.com/asksyllable/syllable-sdk-typescript). When the backend ships a new spec, the `syllable-sync` skill ([.claude/skills/syllable-sync/SKILL.md](.claude/skills/syllable-sync/SKILL.md)) diffs the new spec against the embedded copy and reconciles the Go `cmd/` files.
+The CLI develops against the embedded OpenAPI spec at `scripts/syllable-cli/internal/spec/openapi.json`, sourced from the `main` branch of [asksyllable/syllable-sdk-typescript](https://github.com/asksyllable/syllable-sdk-typescript). The canonical raw URL:
+
+```
+https://raw.githubusercontent.com/asksyllable/syllable-sdk-typescript/main/openapi.json
+```
+
+**Sync is manually triggered.** There's no automation watching the SDK repo for drift — someone has to notice the spec changed (or proactively run the diff) and kick off the reconciliation. When that happens, the `syllable-sync` skill ([.claude/skills/syllable-sync/SKILL.md](.claude/skills/syllable-sync/SKILL.md)) walks through the full workflow: diff old vs new, plan additions/removals/field changes, replace the embedded JSON, update `cmd/*.go` files and docs, run tests, commit in three logical groups (spec / code / docs).
+
+Working without Claude? `SKILL.md` is the runbook — each phase is a self-contained block of shell commands. The diff script lives at `~/.claude/skills/syllable-sync/scripts/diff_specs.py` and reports new/removed/changed paths and schemas.
 
 ## Convention notes
 
