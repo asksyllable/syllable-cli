@@ -72,7 +72,7 @@ func organizationsGetCmd() *cobra.Command {
 // organizationsListCmd is a hidden back-compat alias for `organizations get`.
 // The spec calls this endpoint "Get Current Organization" (singular) — not a
 // list — but earlier CLI versions exposed it as `list`. Keeping the old name
-// works avoids breaking scripts.
+// avoids breaking scripts that still invoke it.
 func organizationsListCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:    "list",
