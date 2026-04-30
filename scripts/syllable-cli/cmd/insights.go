@@ -46,6 +46,7 @@ func insightsCmd() *cobra.Command {
 	cmd.AddCommand(insightsFoldersCmd())
 	cmd.AddCommand(insightsToolConfigsCmd())
 	cmd.AddCommand(insightsToolDefinitionsCmd())
+	cmd.AddCommand(insightsToolsTestCmd())
 
 	return cmd
 }
@@ -141,6 +142,7 @@ func insightsWorkflowsCmd() *cobra.Command {
 	cmd.AddCommand(insightsWorkflowsDeleteCmd())
 	cmd.AddCommand(insightsWorkflowsActivateCmd())
 	cmd.AddCommand(insightsWorkflowsInactivateCmd())
+	cmd.AddCommand(insightsWorkflowsQueueWorkCmd())
 
 	return cmd
 }
@@ -417,6 +419,7 @@ func insightsFoldersCmd() *cobra.Command {
 	cmd.AddCommand(insightsFoldersDeleteCmd())
 	cmd.AddCommand(insightsFoldersFilesCmd())
 	cmd.AddCommand(insightsFoldersUploadFileCmd())
+	cmd.AddCommand(insightsFoldersMoveFilesCmd())
 
 	return cmd
 }
@@ -862,4 +865,114 @@ func insightsToolDefinitionsCmd() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+// ── Tools Test ───────────────────────────────────────────────────────────────
+
+func insightsToolsTestCmd() *cobra.Command {
+	var file string
+
+	cmd := &cobra.Command{
+		Use:   "tools-test",
+		Short: "Test an insight tool against a sample input",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var body interface{}
+
+			if file == "" {
+				return fmt.Errorf("required flag: --file")
+			}
+			fileData, err := readFile(file)
+			if err != nil {
+				return fmt.Errorf("reading file: %w", err)
+			}
+			if err := json.Unmarshal(fileData, &body); err != nil {
+				return fmt.Errorf("parsing JSON file: %w", err)
+			}
+
+			data, _, err := apiClient.Post("/api/v1/insights/tools-test", body)
+			if err != nil {
+				return err
+			}
+
+			output.PrintJSON(data)
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&file, "file", "", "Path to JSON body file (use '-' for stdin)")
+	return cmd
+}
+
+// ── Move Files ───────────────────────────────────────────────────────────────
+
+func insightsFoldersMoveFilesCmd() *cobra.Command {
+	var file string
+
+	cmd := &cobra.Command{
+		Use:   "move-files <folder-id>",
+		Short: "Move files between insight folders",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var body interface{}
+
+			if file == "" {
+				return fmt.Errorf("required flag: --file")
+			}
+			fileData, err := readFile(file)
+			if err != nil {
+				return fmt.Errorf("reading file: %w", err)
+			}
+			if err := json.Unmarshal(fileData, &body); err != nil {
+				return fmt.Errorf("parsing JSON file: %w", err)
+			}
+
+			path := fmt.Sprintf("/api/v1/insights/folders/%s/move-files", args[0])
+			data, _, err := apiClient.Post(path, body)
+			if err != nil {
+				return err
+			}
+
+			output.PrintJSON(data)
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&file, "file", "", "Path to JSON body file (use '-' for stdin)")
+	return cmd
+}
+
+// ── Workflows Queue Work ─────────────────────────────────────────────────────
+
+func insightsWorkflowsQueueWorkCmd() *cobra.Command {
+	var file string
+
+	cmd := &cobra.Command{
+		Use:   "queue-work",
+		Short: "Queue insight workflow runs for sessions or files",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var body interface{}
+
+			if file == "" {
+				return fmt.Errorf("required flag: --file")
+			}
+			fileData, err := readFile(file)
+			if err != nil {
+				return fmt.Errorf("reading file: %w", err)
+			}
+			if err := json.Unmarshal(fileData, &body); err != nil {
+				return fmt.Errorf("parsing JSON file: %w", err)
+			}
+
+			data, _, err := apiClient.Post("/api/v1/insights/workflows/queue-work", body)
+			if err != nil {
+				return err
+			}
+
+			output.PrintJSON(data)
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&file, "file", "", "Path to JSON body file (use '-' for stdin)")
+	return cmd
 }

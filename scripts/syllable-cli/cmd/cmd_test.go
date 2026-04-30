@@ -186,7 +186,7 @@ func TestOutboundCommandHasSubcommands(t *testing.T) {
 
 func TestInsightsCommandHasSubcommands(t *testing.T) {
 	cmd := insightsCmd()
-	expected := []string{"workflows", "folders", "tool-configs", "tool-definitions"}
+	expected := []string{"workflows", "folders", "tool-configs", "tool-definitions", "tools-test"}
 	subs := make(map[string]bool)
 	for _, c := range cmd.Commands() {
 		subs[c.Name()] = true
@@ -1732,6 +1732,119 @@ func TestDashboardsSessions(t *testing.T) {
 	}
 	if method != "POST" {
 		t.Errorf("expected POST method, got %s", method)
+	}
+}
+
+func TestInsightsToolsTest(t *testing.T) {
+	tmp, _ := os.CreateTemp("", "tools-test-*.json")
+	// Body matches the InsightToolTestInput schema in openapi.json.
+	tmp.WriteString(`{"tool_name":"summary-tool","session_id":283467}`)
+	tmp.Close()
+	defer os.Remove(tmp.Name())
+
+	var method, requestPath string
+	var receivedBody map[string]interface{}
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		requestPath = r.URL.Path
+		body, _ := io.ReadAll(r.Body)
+		json.Unmarshal(body, &receivedBody)
+		w.Write([]byte(`{}`))
+	})
+	defer server.Close()
+
+	cmd := insightsToolsTestCmd()
+	cmd.SetArgs([]string{"--file", tmp.Name()})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "POST" {
+		t.Errorf("expected POST, got %s", method)
+	}
+	if requestPath != "/api/v1/insights/tools-test" {
+		t.Errorf("unexpected path: %s", requestPath)
+	}
+	if receivedBody["tool_name"] != "summary-tool" {
+		t.Errorf("expected tool_name=summary-tool, got %v", receivedBody["tool_name"])
+	}
+}
+
+func TestInsightsToolsTestRequiresFile(t *testing.T) {
+	cmd := insightsToolsTestCmd()
+	cmd.SetArgs([]string{})
+	if err := cmd.Execute(); err == nil {
+		t.Error("expected error when --file missing")
+	}
+}
+
+func TestInsightsFoldersMoveFiles(t *testing.T) {
+	tmp, _ := os.CreateTemp("", "move-*.json")
+	// Body matches the InsightsFolderFileMove schema in openapi.json.
+	tmp.WriteString(`{"destination_folder_id":99,"file_id_list":[12334,23445]}`)
+	tmp.Close()
+	defer os.Remove(tmp.Name())
+
+	var method, requestPath string
+	var receivedBody map[string]interface{}
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		requestPath = r.URL.Path
+		body, _ := io.ReadAll(r.Body)
+		json.Unmarshal(body, &receivedBody)
+		w.Write([]byte(`{}`))
+	})
+	defer server.Close()
+
+	cmd := insightsFoldersMoveFilesCmd()
+	cmd.SetArgs([]string{"42", "--file", tmp.Name()})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "POST" {
+		t.Errorf("expected POST, got %s", method)
+	}
+	if requestPath != "/api/v1/insights/folders/42/move-files" {
+		t.Errorf("unexpected path: %s", requestPath)
+	}
+	if receivedBody["destination_folder_id"] != float64(99) {
+		t.Errorf("expected destination_folder_id=99, got %v", receivedBody["destination_folder_id"])
+	}
+}
+
+func TestInsightsWorkflowsQueueWork(t *testing.T) {
+	tmp, _ := os.CreateTemp("", "queue-*.json")
+	// Body matches the InsightsWorkflowQueueSession schema in openapi.json.
+	tmp.WriteString(`{"workflow_name":"summary-workflow","session_id_list":[12334,23445]}`)
+	tmp.Close()
+	defer os.Remove(tmp.Name())
+
+	var method, requestPath string
+	var receivedBody map[string]interface{}
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		requestPath = r.URL.Path
+		body, _ := io.ReadAll(r.Body)
+		json.Unmarshal(body, &receivedBody)
+		w.Write([]byte(`{}`))
+	})
+	defer server.Close()
+
+	cmd := insightsWorkflowsQueueWorkCmd()
+	cmd.SetArgs([]string{"--file", tmp.Name()})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "POST" {
+		t.Errorf("expected POST, got %s", method)
+	}
+	if requestPath != "/api/v1/insights/workflows/queue-work" {
+		t.Errorf("unexpected path: %s", requestPath)
+	}
+	if receivedBody["workflow_name"] != "summary-workflow" {
+		t.Errorf("expected workflow_name=summary-workflow, got %v", receivedBody["workflow_name"])
 	}
 }
 
