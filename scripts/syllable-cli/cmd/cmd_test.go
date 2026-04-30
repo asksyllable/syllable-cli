@@ -1345,6 +1345,176 @@ func TestDirectoryDownload(t *testing.T) {
 	}
 }
 
+func TestDirectoryHistory(t *testing.T) {
+	var method, requestPath, query string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		requestPath = r.URL.Path
+		query = r.URL.RawQuery
+		json.NewEncoder(w).Encode([]interface{}{})
+	})
+	defer server.Close()
+
+	cmd := directoryHistoryCmd()
+	cmd.SetArgs([]string{"42"})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "GET" {
+		t.Errorf("expected GET method, got %s", method)
+	}
+	if requestPath != "/api/v1/directory_members/42/history" {
+		t.Errorf("unexpected request path: %s", requestPath)
+	}
+	if !strings.Contains(query, "page=0") || !strings.Contains(query, "limit=25") {
+		t.Errorf("expected page+limit defaults in query, got: %s", query)
+	}
+}
+
+func TestDirectoryHistoryWithFlags(t *testing.T) {
+	var query string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		query = r.URL.RawQuery
+		json.NewEncoder(w).Encode([]interface{}{})
+	})
+	defer server.Close()
+
+	cmd := directoryHistoryCmd()
+	cmd.SetArgs([]string{"42", "--page", "2", "--limit", "10", "--order-by-direction", "desc"})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if !strings.Contains(query, "page=2") {
+		t.Errorf("expected page=2, got: %s", query)
+	}
+	if !strings.Contains(query, "limit=10") {
+		t.Errorf("expected limit=10, got: %s", query)
+	}
+	if !strings.Contains(query, "order_by_direction=desc") {
+		t.Errorf("expected order_by_direction=desc, got: %s", query)
+	}
+}
+
+func TestDirectoryRestore(t *testing.T) {
+	var method, requestPath, contentType string
+	var receivedBody map[string]interface{}
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		requestPath = r.URL.Path
+		contentType = r.Header.Get("Content-Type")
+		body, _ := io.ReadAll(r.Body)
+		json.Unmarshal(body, &receivedBody)
+		w.WriteHeader(http.StatusNoContent)
+	})
+	defer server.Close()
+
+	cmd := directoryRestoreCmd()
+	cmd.SetArgs([]string{"42"})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "PUT" {
+		t.Errorf("expected PUT method, got %s", method)
+	}
+	if requestPath != "/api/v1/directory_members/42/restore" {
+		t.Errorf("unexpected request path: %s", requestPath)
+	}
+	if contentType != "application/json" {
+		t.Errorf("expected Content-Type application/json, got %q", contentType)
+	}
+	if receivedBody == nil {
+		t.Error("expected JSON object body, got nil")
+	}
+}
+
+func TestDirectoryRestoreWithComments(t *testing.T) {
+	var receivedBody map[string]interface{}
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		json.Unmarshal(body, &receivedBody)
+		w.WriteHeader(http.StatusNoContent)
+	})
+	defer server.Close()
+
+	cmd := directoryRestoreCmd()
+	cmd.SetArgs([]string{"42", "--comments", "Brought back by request"})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if receivedBody["comments"] != "Brought back by request" {
+		t.Errorf("expected comments in body, got %v", receivedBody["comments"])
+	}
+}
+
+func TestDirectoryTest(t *testing.T) {
+	var method, requestPath, query string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		requestPath = r.URL.Path
+		query = r.URL.RawQuery
+		json.NewEncoder(w).Encode(map[string]interface{}{"extension": "1234"})
+	})
+	defer server.Close()
+
+	cmd := directoryTestCmd()
+	cmd.SetArgs([]string{"42", "--timestamp", "2025-12-04T14:29:39Z"})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "GET" {
+		t.Errorf("expected GET method, got %s", method)
+	}
+	if requestPath != "/api/v1/directory_members/42/test" {
+		t.Errorf("unexpected request path: %s", requestPath)
+	}
+	if !strings.Contains(query, "timestamp=2025-12-04T14%3A29%3A39Z") {
+		t.Errorf("expected URL-encoded timestamp in query, got: %s", query)
+	}
+}
+
+func TestDirectoryTestDefaultsTimestampToNow(t *testing.T) {
+	var query string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		query = r.URL.RawQuery
+		w.Write([]byte(`{}`))
+	})
+	defer server.Close()
+
+	cmd := directoryTestCmd()
+	cmd.SetArgs([]string{"42"})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if !strings.Contains(query, "timestamp=") {
+		t.Errorf("expected timestamp query param even without --timestamp, got: %s", query)
+	}
+}
+
+func TestDirectoryTestWithLanguageCode(t *testing.T) {
+	var query string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		query = r.URL.RawQuery
+		w.Write([]byte(`{}`))
+	})
+	defer server.Close()
+
+	cmd := directoryTestCmd()
+	cmd.SetArgs([]string{"42", "--timestamp", "2025-01-01T00:00:00Z", "--language-code", "es-MX"})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if !strings.Contains(query, "language_code=es-MX") {
+		t.Errorf("expected language_code=es-MX in query, got: %s", query)
+	}
+}
+
 func TestOutboundBatchesUpload(t *testing.T) {
 	tmp, err := os.CreateTemp("", "contacts-*.csv")
 	if err != nil {

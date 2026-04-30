@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/asksyllable/syllable-cli/internal/output"
@@ -37,7 +38,16 @@ func directoryCmd() *cobra.Command {
   syllable directory upload --file members.csv
 
   # Export all directory members as CSV
-  syllable directory download > members.csv`,
+  syllable directory download > members.csv
+
+  # Show version history for a directory member
+  syllable directory history 12
+
+  # Restore a soft-deleted directory member
+  syllable directory restore 12
+
+  # Test extension lookup for a directory member
+  syllable directory test 12`,
 	}
 
 	cmd.AddCommand(directoryListCmd())
@@ -47,6 +57,9 @@ func directoryCmd() *cobra.Command {
 	cmd.AddCommand(directoryDeleteCmd())
 	cmd.AddCommand(directoryUploadCmd())
 	cmd.AddCommand(directoryDownloadCmd())
+	cmd.AddCommand(directoryHistoryCmd())
+	cmd.AddCommand(directoryRestoreCmd())
+	cmd.AddCommand(directoryTestCmd())
 
 	return cmd
 }
@@ -304,5 +317,103 @@ func directoryDownloadCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&format, "format", "normalized", "Response format: normalized or raw")
+	return cmd
+}
+
+func directoryHistoryCmd() *cobra.Command {
+	var page, limit int
+	var orderByDirection, responseFormat string
+
+	cmd := &cobra.Command{
+		Use:   "history <member-id>",
+		Short: "Show version history for a directory member",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			path := fmt.Sprintf("/api/v1/directory_members/%s/history?page=%d&limit=%d", args[0], page, limit)
+			if orderByDirection != "" {
+				path += "&order_by_direction=" + url.QueryEscape(orderByDirection)
+			}
+			if responseFormat != "" {
+				path += "&response_format=" + url.QueryEscape(responseFormat)
+			}
+			data, _, err := apiClient.Get(path)
+			if err != nil {
+				return err
+			}
+			output.PrintJSON(data)
+			return nil
+		},
+	}
+
+	cmd.Flags().IntVar(&page, "page", 0, "Page number (0-based)")
+	cmd.Flags().IntVar(&limit, "limit", 25, "Max items to return")
+	cmd.Flags().StringVar(&orderByDirection, "order-by-direction", "", "Sort direction (e.g. asc, desc)")
+	cmd.Flags().StringVar(&responseFormat, "response-format", "", "Response format passthrough to API")
+	return cmd
+}
+
+func directoryRestoreCmd() *cobra.Command {
+	var comments string
+
+	cmd := &cobra.Command{
+		Use:   "restore <member-id>",
+		Short: "Restore a soft-deleted directory member",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			body := map[string]interface{}{}
+			if comments != "" {
+				body["comments"] = comments
+			}
+			data, _, err := apiClient.Put("/api/v1/directory_members/"+args[0]+"/restore", body)
+			if err != nil {
+				return err
+			}
+			if len(data) > 0 {
+				output.PrintJSON(data)
+			} else {
+				fmt.Printf("Directory member %s restored.\n", args[0])
+			}
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&comments, "comments", "", "Comment stored in version history (defaults to API default \"Restored\")")
+	return cmd
+}
+
+func directoryTestCmd() *cobra.Command {
+	var timestamp, languageCode string
+
+	cmd := &cobra.Command{
+		Use:   "test <member-id>",
+		Short: "Test extension lookup for a directory member at a given time",
+		Long: `Test extension lookup for a directory member at a given time.
+
+The API requires a timestamp (ISO 8601). Without --timestamp the CLI
+substitutes the current time in UTC.`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if timestamp == "" {
+				timestamp = time.Now().UTC().Format(time.RFC3339)
+			}
+			path := fmt.Sprintf(
+				"/api/v1/directory_members/%s/test?timestamp=%s",
+				args[0],
+				url.QueryEscape(timestamp),
+			)
+			if languageCode != "" {
+				path += "&language_code=" + url.QueryEscape(languageCode)
+			}
+			data, _, err := apiClient.Get(path)
+			if err != nil {
+				return err
+			}
+			output.PrintJSON(data)
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&timestamp, "timestamp", "", "ISO 8601 timestamp (defaults to now UTC)")
+	cmd.Flags().StringVar(&languageCode, "language-code", "", "Optional BCP 47 language code (e.g. en-US)")
 	return cmd
 }
