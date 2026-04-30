@@ -1752,7 +1752,7 @@ func TestPronunciationsUploadCSV(t *testing.T) {
 	defer server.Close()
 
 	cmd := pronunciationsUploadCSVCmd()
-	cmd.SetArgs([]string{"--file", tmp.Name()})
+	cmd.SetArgs([]string{"--file", tmp.Name(), "--confirm"})
 	captureStdout(func() {
 		cmd.Execute()
 	})
@@ -1768,6 +1768,24 @@ func TestPronunciationsUploadCSV(t *testing.T) {
 	}
 }
 
+func TestPronunciationsUploadCSVRequiresConfirm(t *testing.T) {
+	tmp, _ := os.CreateTemp("", "pron-*.csv")
+	tmp.WriteString("word,pronunciation\n")
+	tmp.Close()
+	defer os.Remove(tmp.Name())
+
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Error("server should not be hit without --confirm")
+	})
+	defer server.Close()
+
+	cmd := pronunciationsUploadCSVCmd()
+	cmd.SetArgs([]string{"--file", tmp.Name()})
+	if err := cmd.Execute(); err == nil {
+		t.Error("expected error without --confirm")
+	}
+}
+
 func TestPronunciationsDeleteCSV(t *testing.T) {
 	var method, path string
 	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
@@ -1778,7 +1796,7 @@ func TestPronunciationsDeleteCSV(t *testing.T) {
 	defer server.Close()
 
 	cmd := pronunciationsDeleteCSVCmd()
-	cmd.SetArgs([]string{})
+	cmd.SetArgs([]string{"--confirm"})
 	captureStdout(func() {
 		cmd.Execute()
 	})
@@ -1788,6 +1806,19 @@ func TestPronunciationsDeleteCSV(t *testing.T) {
 	}
 	if path != "/api/v1/pronunciations/csv" {
 		t.Errorf("unexpected path: %s", path)
+	}
+}
+
+func TestPronunciationsDeleteCSVRequiresConfirm(t *testing.T) {
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Error("server should not be hit without --confirm")
+	})
+	defer server.Close()
+
+	cmd := pronunciationsDeleteCSVCmd()
+	cmd.SetArgs([]string{})
+	if err := cmd.Execute(); err == nil {
+		t.Error("expected error without --confirm")
 	}
 }
 

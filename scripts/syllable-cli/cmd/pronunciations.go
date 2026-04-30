@@ -12,7 +12,11 @@ func pronunciationsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "pronunciations",
 		Short: "Manage pronunciations",
-		Long:  "List, download CSV, upload CSV, delete CSV, and get metadata for pronunciations.",
+		Long: `List, download CSV, upload CSV, delete CSV, and get metadata for pronunciations.
+
+The pronunciation dictionary is org-wide and applies to every agent at runtime.
+upload-csv and delete-csv affect every live agent immediately, so they require
+an explicit --confirm flag.`,
 		Example: `  # List all pronunciations
   syllable pronunciations list
 
@@ -22,11 +26,11 @@ func pronunciationsCmd() *cobra.Command {
   # Save the CSV to a file
   syllable pronunciations get-csv > pronunciations.csv
 
-  # Upload pronunciations from a CSV file
-  syllable pronunciations upload-csv --file pronunciations.csv
+  # Upload pronunciations from a CSV file (replaces the org dictionary)
+  syllable pronunciations upload-csv --file pronunciations.csv --confirm
 
   # Wipe the pronunciations dictionary
-  syllable pronunciations delete-csv
+  syllable pronunciations delete-csv --confirm
 
   # Get pronunciations metadata
   syllable pronunciations metadata`,
@@ -43,13 +47,22 @@ func pronunciationsCmd() *cobra.Command {
 
 func pronunciationsUploadCSVCmd() *cobra.Command {
 	var file string
+	var confirm bool
 
 	cmd := &cobra.Command{
 		Use:   "upload-csv",
-		Short: "Upload a pronunciations CSV",
+		Short: "Upload a pronunciations CSV (requires --confirm)",
+		Long: `Upload a pronunciations CSV.
+
+This **replaces** the org-wide pronunciation dictionary. Every live agent
+will pick up the new pronunciations on its next synthesis call. The
+--confirm flag is required to prevent accidental dictionary clobbers.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if file == "" {
 				return fmt.Errorf("required flag: --file")
+			}
+			if !confirm {
+				return fmt.Errorf("refusing to replace the org-wide pronunciation dictionary without --confirm")
 			}
 			data, _, err := apiClient.PostMultipart("/api/v1/pronunciations/csv", "file", file)
 			if err != nil {
@@ -61,14 +74,24 @@ func pronunciationsUploadCSVCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&file, "file", "", "Path to local CSV file (use '-' for stdin)")
+	cmd.Flags().BoolVar(&confirm, "confirm", false, "Confirm replacing the org-wide pronunciation dictionary")
 	return cmd
 }
 
 func pronunciationsDeleteCSVCmd() *cobra.Command {
-	return &cobra.Command{
+	var confirm bool
+
+	cmd := &cobra.Command{
 		Use:   "delete-csv",
-		Short: "Delete the pronunciations dictionary",
+		Short: "Delete the pronunciations dictionary (requires --confirm)",
+		Long: `Delete the org-wide pronunciation dictionary.
+
+Every live agent loses its custom pronunciations immediately. The --confirm
+flag is required to prevent a typo from wiping the dictionary.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if !confirm {
+				return fmt.Errorf("refusing to delete the org-wide pronunciation dictionary without --confirm")
+			}
 			data, _, err := apiClient.Delete("/api/v1/pronunciations/csv")
 			if err != nil {
 				return err
@@ -76,13 +99,14 @@ func pronunciationsDeleteCSVCmd() *cobra.Command {
 			if len(data) > 0 {
 				output.PrintJSON(data)
 			} else {
-				// Match other delete commands (directory, agents, voice-groups,
-				// etc.) which print success messages to stdout.
 				fmt.Println("Pronunciations dictionary deleted.")
 			}
 			return nil
 		},
 	}
+
+	cmd.Flags().BoolVar(&confirm, "confirm", false, "Confirm deleting the org-wide pronunciation dictionary")
+	return cmd
 }
 
 func pronunciationsListCmd() *cobra.Command {
