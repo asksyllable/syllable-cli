@@ -1853,24 +1853,40 @@ func TestOrganizationsListAliasStillWorks(t *testing.T) {
 }
 
 func TestOrganizationsCreate(t *testing.T) {
-	tmp, _ := os.CreateTemp("", "org-*.json")
-	tmp.WriteString(`{"name":"new-org","display_name":"New Org"}`)
-	tmp.Close()
-	defer os.Remove(tmp.Name())
+	logo, _ := os.CreateTemp("", "logo-*.png")
+	logo.Write([]byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a})
+	logo.Close()
+	defer os.Remove(logo.Name())
 
-	var method, path string
-	var receivedBody map[string]interface{}
+	var method, path, contentType string
+	var displayName, description, domains string
+	var sawLogoPart bool
 	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 		method = r.Method
 		path = r.URL.Path
-		body, _ := io.ReadAll(r.Body)
-		json.Unmarshal(body, &receivedBody)
+		contentType = r.Header.Get("Content-Type")
+		if err := r.ParseMultipartForm(1 << 20); err != nil {
+			t.Fatalf("ParseMultipartForm: %v", err)
+		}
+		displayName = r.MultipartForm.Value["display_name"][0]
+		if v := r.MultipartForm.Value["description"]; len(v) > 0 {
+			description = v[0]
+		}
+		if v := r.MultipartForm.Value["domains"]; len(v) > 0 {
+			domains = v[0]
+		}
+		_, sawLogoPart = r.MultipartForm.File["logo"]
 		w.Write([]byte(`{}`))
 	})
 	defer server.Close()
 
 	cmd := organizationsCreateCmd()
-	cmd.SetArgs([]string{"--file", tmp.Name()})
+	cmd.SetArgs([]string{
+		"--display-name", "Acme Inc.",
+		"--logo", logo.Name(),
+		"--description", "Test desc",
+		"--domains", "acme.com",
+	})
 	captureStdout(func() {
 		cmd.Execute()
 	})
@@ -1881,27 +1897,57 @@ func TestOrganizationsCreate(t *testing.T) {
 	if path != "/api/v1/organizations/" {
 		t.Errorf("unexpected path: %s", path)
 	}
-	if receivedBody["name"] != "new-org" {
-		t.Errorf("expected name=new-org, got %v", receivedBody["name"])
+	if !strings.HasPrefix(contentType, "multipart/form-data") {
+		t.Errorf("expected multipart/form-data, got %s", contentType)
+	}
+	if displayName != "Acme Inc." {
+		t.Errorf("expected display_name=Acme Inc., got %q", displayName)
+	}
+	if description != "Test desc" {
+		t.Errorf("expected description=Test desc, got %q", description)
+	}
+	if domains != "acme.com" {
+		t.Errorf("expected domains=acme.com, got %q", domains)
+	}
+	if !sawLogoPart {
+		t.Error("expected logo file part in multipart body")
+	}
+}
+
+func TestOrganizationsCreateRequiresDisplayName(t *testing.T) {
+	cmd := organizationsCreateCmd()
+	cmd.SetArgs([]string{"--logo", "/tmp/x.png"})
+	if err := cmd.Execute(); err == nil {
+		t.Error("expected error when --display-name missing")
+	}
+}
+
+func TestOrganizationsCreateRequiresLogo(t *testing.T) {
+	cmd := organizationsCreateCmd()
+	cmd.SetArgs([]string{"--display-name", "Acme"})
+	if err := cmd.Execute(); err == nil {
+		t.Error("expected error when --logo missing")
 	}
 }
 
 func TestOrganizationsUpdate(t *testing.T) {
-	tmp, _ := os.CreateTemp("", "org-*.json")
-	tmp.WriteString(`{"display_name":"Renamed"}`)
-	tmp.Close()
-	defer os.Remove(tmp.Name())
-
-	var method, path string
+	var method, path, contentType, displayName string
+	var sawLogoPart bool
 	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 		method = r.Method
 		path = r.URL.Path
+		contentType = r.Header.Get("Content-Type")
+		if err := r.ParseMultipartForm(1 << 20); err != nil {
+			t.Fatalf("ParseMultipartForm: %v", err)
+		}
+		displayName = r.MultipartForm.Value["display_name"][0]
+		_, sawLogoPart = r.MultipartForm.File["logo"]
 		w.Write([]byte(`{}`))
 	})
 	defer server.Close()
 
 	cmd := organizationsUpdateCmd()
-	cmd.SetArgs([]string{"--file", tmp.Name()})
+	cmd.SetArgs([]string{"--display-name", "Renamed Inc."})
 	captureStdout(func() {
 		cmd.Execute()
 	})
@@ -1911,6 +1957,23 @@ func TestOrganizationsUpdate(t *testing.T) {
 	}
 	if path != "/api/v1/organizations/" {
 		t.Errorf("unexpected path: %s", path)
+	}
+	if !strings.HasPrefix(contentType, "multipart/form-data") {
+		t.Errorf("expected multipart/form-data, got %s", contentType)
+	}
+	if displayName != "Renamed Inc." {
+		t.Errorf("expected display_name=Renamed Inc., got %q", displayName)
+	}
+	if sawLogoPart {
+		t.Error("did not expect logo part when --logo omitted")
+	}
+}
+
+func TestOrganizationsUpdateRequiresDisplayName(t *testing.T) {
+	cmd := organizationsUpdateCmd()
+	cmd.SetArgs([]string{})
+	if err := cmd.Execute(); err == nil {
+		t.Error("expected error when --display-name missing")
 	}
 }
 

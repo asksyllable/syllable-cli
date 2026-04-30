@@ -8,6 +8,29 @@ import (
 	"github.com/asksyllable/syllable-cli/internal/output"
 )
 
+// orgFormFields builds the multipart form-field map shared by create and
+// update. Optional values are only included when set, so the API doesn't
+// receive empty strings for fields the caller didn't touch.
+func orgFormFields(displayName, description, domains, samlProviderID, updateComments string) map[string]string {
+	fields := map[string]string{}
+	if displayName != "" {
+		fields["display_name"] = displayName
+	}
+	if description != "" {
+		fields["description"] = description
+	}
+	if domains != "" {
+		fields["domains"] = domains
+	}
+	if samlProviderID != "" {
+		fields["saml_provider_id"] = samlProviderID
+	}
+	if updateComments != "" {
+		fields["update_comments"] = updateComments
+	}
+	return fields
+}
+
 func organizationsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "organizations",
@@ -97,25 +120,29 @@ func organizationsGetRunE(cmd *cobra.Command, args []string) error {
 }
 
 func organizationsCreateCmd() *cobra.Command {
-	var file string
+	var displayName, logo, description, domains, samlProviderID string
 
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create a new organization",
+		Long: `Create a new organization. The API requires multipart/form-data
+with a 120x120 PNG logo and a display name; optional fields fill in
+description, allowed email domains, and a SAML provider ID.`,
+		Example: `  syllable organizations create \
+    --display-name "Acme Inc." \
+    --logo ./acme-120.png \
+    --description "AI agents for Acme" \
+    --domains acme.com,acme.io`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if file == "" {
-				return fmt.Errorf("required flag: --file")
+			if displayName == "" {
+				return fmt.Errorf("required flag: --display-name")
 			}
-			fileData, err := readFile(file)
-			if err != nil {
-				return fmt.Errorf("reading file: %w", err)
-			}
-			var body interface{}
-			if err := json.Unmarshal(fileData, &body); err != nil {
-				return fmt.Errorf("parsing JSON file: %w", err)
+			if logo == "" {
+				return fmt.Errorf("required flag: --logo (the API requires a 120x120 PNG)")
 			}
 
-			data, _, err := apiClient.Post("/api/v1/organizations/", body)
+			fields := orgFormFields(displayName, description, domains, samlProviderID, "")
+			data, _, err := apiClient.PostMultipartForm("/api/v1/organizations/", fields, "logo", logo)
 			if err != nil {
 				return err
 			}
@@ -124,30 +151,29 @@ func organizationsCreateCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&file, "file", "", "Path to JSON body file (use '-' for stdin)")
+	cmd.Flags().StringVar(&displayName, "display-name", "", "Human-readable display name (required)")
+	cmd.Flags().StringVar(&logo, "logo", "", "Path to the organization logo (120x120 PNG, required; '-' reads stdin)")
+	cmd.Flags().StringVar(&description, "description", "", "Description of the organization")
+	cmd.Flags().StringVar(&domains, "domains", "", "Comma-delimited list of email domains")
+	cmd.Flags().StringVar(&samlProviderID, "saml-provider-id", "", "SAML provider ID for SSO")
 	return cmd
 }
 
 func organizationsUpdateCmd() *cobra.Command {
-	var file string
+	var displayName, logo, description, domains, samlProviderID, updateComments string
 
 	cmd := &cobra.Command{
 		Use:   "update",
 		Short: "Update the current organization",
+		Long: `Update the current organization. Multipart/form-data: --display-name
+is required by the API; logo and other fields are optional.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if file == "" {
-				return fmt.Errorf("required flag: --file")
-			}
-			fileData, err := readFile(file)
-			if err != nil {
-				return fmt.Errorf("reading file: %w", err)
-			}
-			var body interface{}
-			if err := json.Unmarshal(fileData, &body); err != nil {
-				return fmt.Errorf("parsing JSON file: %w", err)
+			if displayName == "" {
+				return fmt.Errorf("required flag: --display-name")
 			}
 
-			data, _, err := apiClient.Put("/api/v1/organizations/", body)
+			fields := orgFormFields(displayName, description, domains, samlProviderID, updateComments)
+			data, _, err := apiClient.PutMultipartForm("/api/v1/organizations/", fields, "logo", logo)
 			if err != nil {
 				return err
 			}
@@ -156,7 +182,12 @@ func organizationsUpdateCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&file, "file", "", "Path to JSON body file (use '-' for stdin)")
+	cmd.Flags().StringVar(&displayName, "display-name", "", "Human-readable display name (required)")
+	cmd.Flags().StringVar(&logo, "logo", "", "Path to a new logo (120x120 PNG); omit to keep current")
+	cmd.Flags().StringVar(&description, "description", "", "Description of the organization")
+	cmd.Flags().StringVar(&domains, "domains", "", "Comma-delimited list of email domains")
+	cmd.Flags().StringVar(&samlProviderID, "saml-provider-id", "", "SAML provider ID for SSO")
+	cmd.Flags().StringVar(&updateComments, "update-comments", "", "Comments describing this update")
 	return cmd
 }
 

@@ -556,10 +556,12 @@ syllable dashboards session-summary [--file query.json]
 
 ### Organizations
 Operations on the **current** organization (the one your API key is scoped to). `list` is a hidden alias of `get` for back-compat.
+
+`create` and `update` use multipart/form-data with explicit flags (the API requires a 120x120 PNG logo on create; the logo is optional on update).
 ```bash
 syllable organizations get
-syllable organizations create --file org.json
-syllable organizations update --file org.json
+syllable organizations create --display-name NAME --logo PATH [--description TEXT] [--domains a.com,b.com] [--saml-provider-id ID]
+syllable organizations update --display-name NAME [--logo PATH] [--description TEXT] [--domains a.com,b.com] [--saml-provider-id ID] [--update-comments TEXT]
 syllable organizations delete --confirm
 ```
 
