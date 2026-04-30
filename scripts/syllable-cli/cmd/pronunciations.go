@@ -76,7 +76,9 @@ func pronunciationsDeleteCSVCmd() *cobra.Command {
 			if len(data) > 0 {
 				output.PrintJSON(data)
 			} else {
-				fmt.Fprintln(os.Stderr, "Pronunciations dictionary deleted.")
+				// Match other delete commands (directory, agents, voice-groups,
+				// etc.) which print success messages to stdout.
+				fmt.Println("Pronunciations dictionary deleted.")
 			}
 			return nil
 		},

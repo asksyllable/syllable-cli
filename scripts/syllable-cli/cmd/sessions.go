@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 
@@ -69,11 +70,14 @@ to --token. Bytes are written to stdout for redirection to a file.`,
 				return fmt.Errorf("required flag: --token")
 			}
 			path := "/api/v1/sessions/recording/stream?token=" + url.QueryEscape(token)
-			data, _, err := apiClient.Get(path)
+			body, _, err := apiClient.GetStream(path)
 			if err != nil {
 				return err
 			}
-			os.Stdout.Write(data)
+			defer body.Close()
+			if _, err := io.Copy(os.Stdout, body); err != nil {
+				return fmt.Errorf("streaming recording: %w", err)
+			}
 			return nil
 		},
 	}
