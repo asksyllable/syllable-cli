@@ -1187,6 +1187,157 @@ func TestOutboundBatchesResults(t *testing.T) {
 	}
 }
 
+func TestDirectoryUpload(t *testing.T) {
+	tmp, err := os.CreateTemp("", "members-*.csv")
+	if err != nil {
+		t.Fatalf("creating temp file: %v", err)
+	}
+	defer os.Remove(tmp.Name())
+	tmp.WriteString("name,type\nAlice,user\n")
+	tmp.Close()
+
+	var method, path, contentType string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		path = r.URL.Path
+		contentType = r.Header.Get("Content-Type")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("{}"))
+	})
+	defer server.Close()
+
+	cmd := directoryUploadCmd()
+	cmd.SetArgs([]string{"--file", tmp.Name()})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "PUT" {
+		t.Errorf("expected PUT method, got %s", method)
+	}
+	if path != "/api/v1/directory_members/upload/" {
+		t.Errorf("unexpected path: %s", path)
+	}
+	if !strings.HasPrefix(contentType, "multipart/form-data") {
+		t.Errorf("expected multipart/form-data, got %s", contentType)
+	}
+}
+
+func TestDirectoryUploadStdin(t *testing.T) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("creating pipe: %v", err)
+	}
+	go func() {
+		w.WriteString("name,type\nAlice,user\n")
+		w.Close()
+	}()
+	origStdin := os.Stdin
+	os.Stdin = r
+	defer func() { os.Stdin = origStdin }()
+
+	var method, path, body string
+	server := setupTestServer(t, func(w http.ResponseWriter, req *http.Request) {
+		method = req.Method
+		path = req.URL.Path
+		buf, _ := io.ReadAll(req.Body)
+		body = string(buf)
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("{}"))
+	})
+	defer server.Close()
+
+	cmd := directoryUploadCmd()
+	cmd.SetArgs([]string{"--file", "-"})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "PUT" {
+		t.Errorf("expected PUT method, got %s", method)
+	}
+	if path != "/api/v1/directory_members/upload/" {
+		t.Errorf("unexpected path: %s", path)
+	}
+	if !strings.Contains(body, "Alice,user") {
+		t.Errorf("expected stdin contents in multipart body, got: %s", body)
+	}
+}
+
+func TestDirectoryDownload(t *testing.T) {
+	var method, path, query string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		path = r.URL.Path
+		query = r.URL.RawQuery
+		w.Write([]byte("name,type\n"))
+	})
+	defer server.Close()
+
+	// default --format normalized
+	cmd := directoryDownloadCmd()
+	cmd.SetArgs([]string{})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "GET" {
+		t.Errorf("expected GET method, got %s", method)
+	}
+	if path != "/api/v1/directory_members/download/" {
+		t.Errorf("unexpected path: %s", path)
+	}
+	if query != "response_format=normalized" {
+		t.Errorf("unexpected default query: %s", query)
+	}
+
+	// --format raw
+	cmd = directoryDownloadCmd()
+	cmd.SetArgs([]string{"--format", "raw"})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+	if query != "response_format=raw" {
+		t.Errorf("expected raw query, got %s", query)
+	}
+}
+
+func TestOutboundBatchesUpload(t *testing.T) {
+	tmp, err := os.CreateTemp("", "contacts-*.csv")
+	if err != nil {
+		t.Fatalf("creating temp file: %v", err)
+	}
+	defer os.Remove(tmp.Name())
+	tmp.WriteString("phone\n+15551234567\n")
+	tmp.Close()
+
+	var method, path, contentType string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		path = r.URL.Path
+		contentType = r.Header.Get("Content-Type")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("{}"))
+	})
+	defer server.Close()
+
+	cmd := outboundBatchesUploadCmd()
+	cmd.SetArgs([]string{"batch-1", "--file", tmp.Name()})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "POST" {
+		t.Errorf("expected POST method, got %s", method)
+	}
+	if path != "/api/v1/outbound/batches/batch-1/upload_batch" {
+		t.Errorf("unexpected path: %s", path)
+	}
+	if !strings.HasPrefix(contentType, "multipart/form-data") {
+		t.Errorf("expected multipart/form-data, got %s", contentType)
+	}
+}
+
 func TestInsightsWorkflowsDelete(t *testing.T) {
 	var method, path string
 	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {

@@ -187,38 +187,56 @@ func (c *Client) PostWithTimeout(path string, body interface{}, timeout time.Dur
 // PostMultipart performs a multipart/form-data POST, uploading a local file as the named field.
 // Large files may require more than the default 30s client timeout — callers should be aware.
 func (c *Client) PostMultipart(path, fieldName, filePath string) ([]byte, int, error) {
-	f, err := os.Open(filePath)
-	if err != nil {
-		return nil, 0, fmt.Errorf("opening file: %w", err)
+	return c.doMultipart(http.MethodPost, path, fieldName, filePath)
+}
+
+// PutMultipart performs a multipart/form-data PUT, uploading a local file as the named field.
+func (c *Client) PutMultipart(path, fieldName, filePath string) ([]byte, int, error) {
+	return c.doMultipart(http.MethodPut, path, fieldName, filePath)
+}
+
+func (c *Client) doMultipart(method, path, fieldName, filePath string) ([]byte, int, error) {
+	var src io.Reader
+	var formName string
+	if filePath == "-" {
+		src = os.Stdin
+		formName = "stdin"
+	} else {
+		f, err := os.Open(filePath)
+		if err != nil {
+			return nil, 0, fmt.Errorf("opening file: %w", err)
+		}
+		defer f.Close()
+		src = f
+		formName = filepath.Base(filePath)
 	}
-	defer f.Close()
 
 	var buf bytes.Buffer
 	w := multipart.NewWriter(&buf)
 
-	part, err := w.CreateFormFile(fieldName, filepath.Base(filePath))
+	part, err := w.CreateFormFile(fieldName, formName)
 	if err != nil {
 		return nil, 0, fmt.Errorf("creating form file: %w", err)
 	}
-	if _, err := io.Copy(part, f); err != nil {
+	if _, err := io.Copy(part, src); err != nil {
 		return nil, 0, fmt.Errorf("copying file to form: %w", err)
 	}
 	w.Close()
 
 	if c.DryRun {
 		out := map[string]interface{}{
-			"dry_run":     true,
-			"method":      http.MethodPost,
-			"url":         c.BaseURL + path,
-			"field":       fieldName,
-			"file":        filePath,
+			"dry_run":      true,
+			"method":       method,
+			"url":          c.BaseURL + path,
+			"field":        fieldName,
+			"file":         filePath,
 			"content_type": w.FormDataContentType(),
 		}
 		data, _ := json.Marshal(out)
 		return nil, 0, &DryRunResult{Output: data}
 	}
 
-	req, err := http.NewRequest(http.MethodPost, c.BaseURL+path, &buf)
+	req, err := http.NewRequest(method, c.BaseURL+path, &buf)
 	if err != nil {
 		return nil, 0, fmt.Errorf("creating request: %w", err)
 	}
@@ -227,7 +245,7 @@ func (c *Client) PostMultipart(path, fieldName, filePath string) ([]byte, int, e
 	req.Header.Set("Accept", "application/json")
 
 	if c.Verbose {
-		fmt.Fprintf(os.Stderr, "> %s %s\n", http.MethodPost, c.BaseURL+path)
+		fmt.Fprintf(os.Stderr, "> %s %s\n", method, c.BaseURL+path)
 		fmt.Fprintf(os.Stderr, "> Syllable-API-Key: %s\n", maskKey(c.APIKey))
 		fmt.Fprintf(os.Stderr, "> Content-Type: %s\n", w.FormDataContentType())
 		fmt.Fprintf(os.Stderr, "> (multipart file: %s, field: %s)\n\n", filePath, fieldName)

@@ -342,6 +342,7 @@ syllable outbound batches delete <batch-id>
 syllable outbound batches results <batch-id>
 syllable outbound batches requests <batch-id> --file requests.json
 syllable outbound batches remove-requests <batch-id> --file requests.json
+syllable outbound batches upload <batch-id> --file contacts.csv
 
 # Campaigns
 syllable outbound campaigns list [--page N] [--limit N] [--search TEXT]
@@ -374,6 +375,8 @@ syllable directory create --file member.json
 syllable directory create --name NAME --type TYPE
 syllable directory update <member-id> --file member.json
 syllable directory delete <member-id>
+syllable directory upload --file members.csv
+syllable directory download [--format normalized|raw]
 ```
 
 ### Insights

@@ -31,6 +31,9 @@ func outboundCmd() *cobra.Command {
   # Remove requests from a batch
   syllable outbound batches remove-requests abc-123 --file request-ids.json
 
+  # Bulk-upload contacts into a batch from a CSV
+  syllable outbound batches upload abc-123 --file contacts.csv
+
   # List all outbound campaigns
   syllable outbound campaigns list
 
@@ -60,6 +63,7 @@ func outboundBatchesCmd() *cobra.Command {
 	cmd.AddCommand(outboundBatchesResultsCmd())
 	cmd.AddCommand(outboundBatchesRequestsCmd())
 	cmd.AddCommand(outboundBatchesRemoveRequestsCmd())
+	cmd.AddCommand(outboundBatchesUploadCmd())
 
 	return cmd
 }
@@ -379,6 +383,31 @@ func outboundBatchesRemoveRequestsCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&file, "file", "", "Path to JSON body file")
+	return cmd
+}
+
+func outboundBatchesUploadCmd() *cobra.Command {
+	var file string
+
+	cmd := &cobra.Command{
+		Use:   "upload <batch-id>",
+		Short: "Bulk-upload contacts into an outbound batch",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if file == "" {
+				return fmt.Errorf("required flag: --file")
+			}
+			path := fmt.Sprintf("/api/v1/outbound/batches/%s/upload_batch", args[0])
+			data, _, err := apiClient.PostMultipart(path, "file", file)
+			if err != nil {
+				return err
+			}
+			output.PrintJSON(data)
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&file, "file", "", "Path to local file to upload")
 	return cmd
 }
 
