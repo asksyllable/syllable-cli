@@ -1807,6 +1807,186 @@ func TestVoiceGroupsSampleRequiresFile(t *testing.T) {
 	}
 }
 
+func TestOrganizationsGet(t *testing.T) {
+	var method, path string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		path = r.URL.Path
+		json.NewEncoder(w).Encode(map[string]interface{}{"id": "1", "name": "Acme", "display_name": "Acme Inc."})
+	})
+	defer server.Close()
+
+	cmd := organizationsGetCmd()
+	cmd.SetArgs([]string{})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "GET" {
+		t.Errorf("expected GET, got %s", method)
+	}
+	if path != "/api/v1/organizations/" {
+		t.Errorf("unexpected path: %s", path)
+	}
+}
+
+func TestOrganizationsListAliasStillWorks(t *testing.T) {
+	var path string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		path = r.URL.Path
+		json.NewEncoder(w).Encode(map[string]interface{}{"id": "1"})
+	})
+	defer server.Close()
+
+	cmd := organizationsListCmd()
+	if !cmd.Hidden {
+		t.Error("organizations list alias should be Hidden")
+	}
+	cmd.SetArgs([]string{})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if path != "/api/v1/organizations/" {
+		t.Errorf("alias should hit same endpoint, got: %s", path)
+	}
+}
+
+func TestOrganizationsCreate(t *testing.T) {
+	tmp, _ := os.CreateTemp("", "org-*.json")
+	tmp.WriteString(`{"name":"new-org","display_name":"New Org"}`)
+	tmp.Close()
+	defer os.Remove(tmp.Name())
+
+	var method, path string
+	var receivedBody map[string]interface{}
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		path = r.URL.Path
+		body, _ := io.ReadAll(r.Body)
+		json.Unmarshal(body, &receivedBody)
+		w.Write([]byte(`{}`))
+	})
+	defer server.Close()
+
+	cmd := organizationsCreateCmd()
+	cmd.SetArgs([]string{"--file", tmp.Name()})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "POST" {
+		t.Errorf("expected POST, got %s", method)
+	}
+	if path != "/api/v1/organizations/" {
+		t.Errorf("unexpected path: %s", path)
+	}
+	if receivedBody["name"] != "new-org" {
+		t.Errorf("expected name=new-org, got %v", receivedBody["name"])
+	}
+}
+
+func TestOrganizationsUpdate(t *testing.T) {
+	tmp, _ := os.CreateTemp("", "org-*.json")
+	tmp.WriteString(`{"display_name":"Renamed"}`)
+	tmp.Close()
+	defer os.Remove(tmp.Name())
+
+	var method, path string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		path = r.URL.Path
+		w.Write([]byte(`{}`))
+	})
+	defer server.Close()
+
+	cmd := organizationsUpdateCmd()
+	cmd.SetArgs([]string{"--file", tmp.Name()})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "PUT" {
+		t.Errorf("expected PUT, got %s", method)
+	}
+	if path != "/api/v1/organizations/" {
+		t.Errorf("unexpected path: %s", path)
+	}
+}
+
+func TestOrganizationsDeleteRequiresConfirm(t *testing.T) {
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Error("server should not be hit without --confirm")
+	})
+	defer server.Close()
+
+	cmd := organizationsDeleteCmd()
+	cmd.SetArgs([]string{})
+	if err := cmd.Execute(); err == nil {
+		t.Error("expected error without --confirm")
+	}
+}
+
+func TestOrganizationsDeleteWithConfirm(t *testing.T) {
+	var method, path string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		path = r.URL.Path
+		w.WriteHeader(http.StatusNoContent)
+	})
+	defer server.Close()
+
+	cmd := organizationsDeleteCmd()
+	cmd.SetArgs([]string{"--confirm"})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "DELETE" {
+		t.Errorf("expected DELETE, got %s", method)
+	}
+	if path != "/api/v1/organizations/" {
+		t.Errorf("unexpected path: %s", path)
+	}
+}
+
+func TestUsersDeleteAccountRequiresConfirm(t *testing.T) {
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Error("server should not be hit without --confirm")
+	})
+	defer server.Close()
+
+	cmd := usersDeleteAccountCmd()
+	cmd.SetArgs([]string{})
+	if err := cmd.Execute(); err == nil {
+		t.Error("expected error without --confirm")
+	}
+}
+
+func TestUsersDeleteAccountWithConfirm(t *testing.T) {
+	var method, path string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		path = r.URL.Path
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{}`))
+	})
+	defer server.Close()
+
+	cmd := usersDeleteAccountCmd()
+	cmd.SetArgs([]string{"--confirm"})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "DELETE" {
+		t.Errorf("expected DELETE, got %s", method)
+	}
+	if path != "/api/v1/users/delete_account" {
+		t.Errorf("unexpected path: %s", path)
+	}
+}
+
 func TestConversationConfigBridges(t *testing.T) {
 	var requestPath string
 	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {

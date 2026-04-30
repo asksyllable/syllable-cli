@@ -47,7 +47,40 @@ func usersCmd() *cobra.Command {
 	cmd.AddCommand(usersDeleteCmd())
 	cmd.AddCommand(usersMeCmd())
 	cmd.AddCommand(usersSendEmailCmd())
+	cmd.AddCommand(usersDeleteAccountCmd())
 
+	return cmd
+}
+
+func usersDeleteAccountCmd() *cobra.Command {
+	var confirm bool
+
+	cmd := &cobra.Command{
+		Use:   "delete-account",
+		Short: "Request removal of your account (requires --confirm)",
+		Long: `Request removal of the account of the user calling this endpoint.
+
+Intended for trial-account self-removal. The --confirm flag is required to
+prevent accidental invocation. Once removed, the account cannot be recovered
+through the CLI.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if !confirm {
+				return fmt.Errorf("refusing to delete account without --confirm")
+			}
+			data, _, err := apiClient.Delete("/api/v1/users/delete_account")
+			if err != nil {
+				return err
+			}
+			if len(data) > 0 {
+				output.PrintJSON(data)
+			} else {
+				fmt.Println("Account removal requested.")
+			}
+			return nil
+		},
+	}
+
+	cmd.Flags().BoolVar(&confirm, "confirm", false, "Confirm the destructive operation")
 	return cmd
 }
 

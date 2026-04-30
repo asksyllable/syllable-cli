@@ -34,7 +34,7 @@ Quick reference for every resource: what it is, key fields, and hard constraints
 | **Dashboards** | Performance analytics | name | `sessions`, `session-events`, `session-transfers`, `session-summary` endpoints are **DEPRECATED** — use `list` and `fetch-info`. |
 | **Takeouts** | Data export jobs | job_id, status, file_name | Workflow: create → poll with get → download. |
 | **Incidents** | Platform incident tracking | name, status | — |
-| **Organizations** | Org listing | display_name | Read-only — no create, update, or delete. |
+| **Organizations** | Current organization | display_name, slug, description | API exposes the **current** org only — `get` returns it; `create`/`update`/`delete` operate on it. `delete` requires `--confirm`. |
 | **Permissions** | System-wide permissions | name | Read-only. |
 | **Conversation Config (Bridges)** | Transfer/handoff phrase configuration | phrases | — |
 | **Schema** | Explore API request/response shapes from embedded OpenAPI spec | type name | No API call made. Use before create/update to find required fields. |
@@ -364,6 +364,7 @@ syllable users update <email> --file user.json
 syllable users delete <email>
 syllable users me
 syllable users send-email <email>
+syllable users delete-account --confirm
 ```
 **Table columns:** ID, EMAIL, NAME, ROLE, STATUS, LAST_UPDATED
 
@@ -554,9 +555,12 @@ syllable dashboards session-summary [--file query.json]
 ```
 
 ### Organizations
-Read-only — no create, update, or delete.
+Operations on the **current** organization (the one your API key is scoped to). `list` is a hidden alias of `get` for back-compat.
 ```bash
-syllable organizations list [--page N] [--limit N] [--search TEXT]
+syllable organizations get
+syllable organizations create --file org.json
+syllable organizations update --file org.json
+syllable organizations delete --confirm
 ```
 
 ### Schema
