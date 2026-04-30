@@ -50,3 +50,23 @@ func TestOpenAPIHasPaths(t *testing.T) {
 		t.Fatal("OpenAPI spec has no paths")
 	}
 }
+
+// TestBulkOperationPathsMatch guards the exact paths used by the bulk CLI
+// commands against silent spec drift — slash-mismatch redirects drop the
+// Syllable-API-Key header on some clients, so trailing slashes must match.
+func TestBulkOperationPathsMatch(t *testing.T) {
+	var parsed map[string]interface{}
+	json.Unmarshal(OpenAPI, &parsed)
+	paths := parsed["paths"].(map[string]interface{})
+
+	want := []string{
+		"/api/v1/directory_members/upload/",
+		"/api/v1/directory_members/download/",
+		"/api/v1/outbound/batches/{batch_id}/upload_batch",
+	}
+	for _, p := range want {
+		if _, ok := paths[p]; !ok {
+			t.Errorf("bulk operation path %q missing from spec — CLI command will hit a slash-mismatch redirect", p)
+		}
+	}
+}

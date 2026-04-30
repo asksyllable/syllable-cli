@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/asksyllable/syllable-cli/internal/output"
@@ -30,7 +31,13 @@ func directoryCmd() *cobra.Command {
   syllable directory update 12 --file member.json
 
   # Delete a directory member
-  syllable directory delete 12`,
+  syllable directory delete 12
+
+  # Bulk-import directory members from a CSV
+  syllable directory upload --file members.csv
+
+  # Export all directory members as CSV
+  syllable directory download > members.csv`,
 	}
 
 	cmd.AddCommand(directoryListCmd())
@@ -38,6 +45,8 @@ func directoryCmd() *cobra.Command {
 	cmd.AddCommand(directoryCreateCmd())
 	cmd.AddCommand(directoryUpdateCmd())
 	cmd.AddCommand(directoryDeleteCmd())
+	cmd.AddCommand(directoryUploadCmd())
+	cmd.AddCommand(directoryDownloadCmd())
 
 	return cmd
 }
@@ -249,4 +258,51 @@ func directoryDeleteCmd() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func directoryUploadCmd() *cobra.Command {
+	var file string
+
+	cmd := &cobra.Command{
+		Use:   "upload",
+		Short: "Bulk-import directory members from a file",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if file == "" {
+				return fmt.Errorf("required flag: --file")
+			}
+			data, _, err := apiClient.PutMultipart("/api/v1/directory_members/upload/", "file", file)
+			if err != nil {
+				return err
+			}
+			output.PrintJSON(data)
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&file, "file", "", "Path to local file to upload")
+	return cmd
+}
+
+func directoryDownloadCmd() *cobra.Command {
+	var format string
+
+	cmd := &cobra.Command{
+		Use:   "download",
+		Short: "Bulk-export directory members",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if format != "normalized" && format != "raw" {
+				return fmt.Errorf("--format must be 'normalized' or 'raw' (got %q)", format)
+			}
+			path := "/api/v1/directory_members/download/?response_format=" + format
+			data, _, err := apiClient.Get(path)
+			if err != nil {
+				return err
+			}
+			os.Stdout.Write(data)
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&format, "format", "normalized", "Response format: normalized or raw")
+	return cmd
 }
