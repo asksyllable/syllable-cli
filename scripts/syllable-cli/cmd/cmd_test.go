@@ -144,7 +144,7 @@ func TestToolsCommandHasSubcommands(t *testing.T) {
 
 func TestSessionsCommandHasSubcommands(t *testing.T) {
 	cmd := sessionsCmd()
-	expected := []string{"list", "get", "transcript", "summary", "latency", "recording"}
+	expected := []string{"list", "get", "transcript", "summary", "latency", "recording", "recording-stream"}
 	subs := make(map[string]bool)
 	for _, c := range cmd.Commands() {
 		subs[c.Name()] = true
@@ -908,7 +908,7 @@ func TestIncidentsCommandHasSubcommands(t *testing.T) {
 
 func TestPronunciationsCommandHasSubcommands(t *testing.T) {
 	cmd := pronunciationsCmd()
-	expected := []string{"list", "get-csv", "metadata"}
+	expected := []string{"list", "get-csv", "upload-csv", "delete-csv", "metadata"}
 	subs := make(map[string]bool)
 	for _, c := range cmd.Commands() {
 		subs[c.Name()] = true
@@ -1735,75 +1735,99 @@ func TestDashboardsSessions(t *testing.T) {
 	}
 }
 
-func TestAgentsVoices(t *testing.T) {
-	var method, requestPath string
-	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		method = r.Method
-		requestPath = r.URL.Path
-		json.NewEncoder(w).Encode([]map[string]interface{}{
-			{"provider": "OpenAI", "display_name": "Alloy", "gender": "neutral", "model": "tts-1"},
-		})
-	})
-	defer server.Close()
-
-	cmd := agentsVoicesCmd()
-	cmd.SetArgs([]string{})
-	captureStdout(func() {
-		cmd.Execute()
-	})
-
-	if method != "GET" {
-		t.Errorf("expected GET, got %s", method)
-	}
-	if requestPath != "/api/v1/agents/voices/available" {
-		t.Errorf("unexpected path: %s", requestPath)
-	}
-}
-
-func TestVoiceGroupsSample(t *testing.T) {
-	tmp, _ := os.CreateTemp("", "sample-*.json")
-	tmp.WriteString(`{"language_code":"en-US","voice_provider":"OpenAI","voice_display_name":"Alloy","sample_text":"Hello"}`)
+func TestPronunciationsUploadCSV(t *testing.T) {
+	tmp, _ := os.CreateTemp("", "pron-*.csv")
+	tmp.WriteString("word,pronunciation\nhello,heh-loh\n")
 	tmp.Close()
 	defer os.Remove(tmp.Name())
 
-	var method, requestPath string
-	var receivedBody map[string]interface{}
-	audio := []byte{0xff, 0xfb, 0x90, 0x44, 0x00}
+	var method, path, contentType string
 	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 		method = r.Method
-		requestPath = r.URL.Path
-		body, _ := io.ReadAll(r.Body)
-		json.Unmarshal(body, &receivedBody)
-		w.Header().Set("Content-Type", "application/octet-stream")
-		w.Write(audio)
+		path = r.URL.Path
+		contentType = r.Header.Get("Content-Type")
+		w.WriteHeader(http.StatusAccepted)
+		w.Write([]byte(`{}`))
 	})
 	defer server.Close()
 
-	cmd := voiceGroupsSampleCmd()
+	cmd := pronunciationsUploadCSVCmd()
 	cmd.SetArgs([]string{"--file", tmp.Name()})
-	out := captureStdout(func() {
+	captureStdout(func() {
 		cmd.Execute()
 	})
 
 	if method != "POST" {
 		t.Errorf("expected POST, got %s", method)
 	}
-	if requestPath != "/api/v1/voice_groups/voices/sample" {
-		t.Errorf("unexpected path: %s", requestPath)
+	if path != "/api/v1/pronunciations/csv" {
+		t.Errorf("unexpected path: %s", path)
 	}
-	if receivedBody["voice_display_name"] != "Alloy" {
-		t.Errorf("expected voice_display_name=Alloy, got %v", receivedBody["voice_display_name"])
+	if !strings.HasPrefix(contentType, "multipart/form-data") {
+		t.Errorf("expected multipart/form-data, got %s", contentType)
+	}
+}
+
+func TestPronunciationsDeleteCSV(t *testing.T) {
+	var method, path string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		path = r.URL.Path
+		w.WriteHeader(http.StatusNoContent)
+	})
+	defer server.Close()
+
+	cmd := pronunciationsDeleteCSVCmd()
+	cmd.SetArgs([]string{})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "DELETE" {
+		t.Errorf("expected DELETE, got %s", method)
+	}
+	if path != "/api/v1/pronunciations/csv" {
+		t.Errorf("unexpected path: %s", path)
+	}
+}
+
+func TestSessionsRecordingStream(t *testing.T) {
+	var method, path, query string
+	audio := []byte{0xff, 0xfb, 0x90, 0x44}
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		path = r.URL.Path
+		query = r.URL.RawQuery
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Write(audio)
+	})
+	defer server.Close()
+
+	cmd := sessionsRecordingStreamCmd()
+	cmd.SetArgs([]string{"--token", "abc-123"})
+	out := captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "GET" {
+		t.Errorf("expected GET, got %s", method)
+	}
+	if path != "/api/v1/sessions/recording/stream" {
+		t.Errorf("unexpected path: %s", path)
+	}
+	if query != "token=abc-123" {
+		t.Errorf("expected token=abc-123 query, got %s", query)
 	}
 	if out != string(audio) {
 		t.Errorf("expected raw audio bytes on stdout, got %q", out)
 	}
 }
 
-func TestVoiceGroupsSampleRequiresFile(t *testing.T) {
-	cmd := voiceGroupsSampleCmd()
+func TestSessionsRecordingStreamRequiresToken(t *testing.T) {
+	cmd := sessionsRecordingStreamCmd()
 	cmd.SetArgs([]string{})
 	if err := cmd.Execute(); err == nil {
-		t.Error("expected error when --file missing")
+		t.Error("expected error when --token missing")
 	}
 }
 

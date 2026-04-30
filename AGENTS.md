@@ -329,6 +329,7 @@ syllable sessions transcript <session-id>
 syllable sessions summary <session-id>
 syllable sessions latency <session-id>
 syllable sessions recording <session-id>
+syllable sessions recording-stream --token <token>
 ```
 **List columns:** SESSION_ID, TIMESTAMP, AGENT, DURATION, SOURCE, TARGET, IS_TEST
 
@@ -498,6 +499,8 @@ Custom TTS pronunciation dictionary. Downloadable as CSV.
 ```bash
 syllable pronunciations list
 syllable pronunciations get-csv
+syllable pronunciations upload-csv --file pronunciations.csv
+syllable pronunciations delete-csv
 syllable pronunciations metadata
 ```
 
