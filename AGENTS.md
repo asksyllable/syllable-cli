@@ -390,6 +390,7 @@ syllable insights workflows update --file workflow.json
 syllable insights workflows delete <workflow-id>
 syllable insights workflows activate <workflow-id>
 syllable insights workflows inactivate <workflow-id>
+syllable insights workflows queue-work --file work.json
 
 # Folders
 syllable insights folders list
@@ -398,6 +399,7 @@ syllable insights folders create --file folder.json
 syllable insights folders update --file folder.json
 syllable insights folders delete <folder-id>
 syllable insights folders files <folder-id>
+syllable insights folders move-files <folder-id> --file move.json
 
 # Tool Configs
 syllable insights tool-configs list
@@ -408,6 +410,9 @@ syllable insights tool-configs delete <config-id>
 
 # Tool Definitions
 syllable insights tool-definitions list
+
+# Test a tool against sample input
+syllable insights tools-test --file sample.json
 ```
 
 ### Custom Messages
