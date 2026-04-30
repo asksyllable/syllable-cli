@@ -500,10 +500,11 @@ Custom TTS pronunciation dictionary. Downloadable as CSV.
 ```bash
 syllable pronunciations list
 syllable pronunciations get-csv
-syllable pronunciations upload-csv --file pronunciations.csv
-syllable pronunciations delete-csv
+syllable pronunciations upload-csv --file pronunciations.csv --confirm
+syllable pronunciations delete-csv --confirm
 syllable pronunciations metadata
 ```
+**`upload-csv` and `delete-csv` modify the org-wide pronunciation dictionary, which every live agent picks up immediately. Both require `--confirm`.**
 
 ### Session Labels
 Manual annotations on sessions: rating (Bad/OK/Good/N/A), issue category, freetext notes. **CONSTRAINT: Immutable — once a label is added to a session, it cannot be updated or deleted.** There is no update or delete subcommand.
