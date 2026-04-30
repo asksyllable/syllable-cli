@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/asksyllable/syllable-cli/internal/output"
@@ -320,12 +321,22 @@ func directoryDownloadCmd() *cobra.Command {
 }
 
 func directoryHistoryCmd() *cobra.Command {
-	return &cobra.Command{
+	var page, limit int
+	var orderByDirection, responseFormat string
+
+	cmd := &cobra.Command{
 		Use:   "history <member-id>",
 		Short: "Show version history for a directory member",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Get("/api/v1/directory_members/" + args[0] + "/history")
+			path := fmt.Sprintf("/api/v1/directory_members/%s/history?page=%d&limit=%d", args[0], page, limit)
+			if orderByDirection != "" {
+				path += "&order_by_direction=" + url.QueryEscape(orderByDirection)
+			}
+			if responseFormat != "" {
+				path += "&response_format=" + url.QueryEscape(responseFormat)
+			}
+			data, _, err := apiClient.Get(path)
 			if err != nil {
 				return err
 			}
@@ -333,15 +344,27 @@ func directoryHistoryCmd() *cobra.Command {
 			return nil
 		},
 	}
+
+	cmd.Flags().IntVar(&page, "page", 0, "Page number (0-based)")
+	cmd.Flags().IntVar(&limit, "limit", 25, "Max items to return")
+	cmd.Flags().StringVar(&orderByDirection, "order-by-direction", "", "Sort direction (e.g. asc, desc)")
+	cmd.Flags().StringVar(&responseFormat, "response-format", "", "Response format passthrough to API")
+	return cmd
 }
 
 func directoryRestoreCmd() *cobra.Command {
-	return &cobra.Command{
+	var comments string
+
+	cmd := &cobra.Command{
 		Use:   "restore <member-id>",
 		Short: "Restore a soft-deleted directory member",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Put("/api/v1/directory_members/"+args[0]+"/restore", nil)
+			body := map[string]interface{}{}
+			if comments != "" {
+				body["comments"] = comments
+			}
+			data, _, err := apiClient.Put("/api/v1/directory_members/"+args[0]+"/restore", body)
 			if err != nil {
 				return err
 			}
@@ -353,15 +376,35 @@ func directoryRestoreCmd() *cobra.Command {
 			return nil
 		},
 	}
+
+	cmd.Flags().StringVar(&comments, "comments", "", "Comment stored in version history (defaults to API default \"Restored\")")
+	return cmd
 }
 
 func directoryTestCmd() *cobra.Command {
-	return &cobra.Command{
+	var timestamp, languageCode string
+
+	cmd := &cobra.Command{
 		Use:   "test <member-id>",
-		Short: "Test extension lookup for a directory member",
-		Args:  cobra.ExactArgs(1),
+		Short: "Test extension lookup for a directory member at a given time",
+		Long: `Test extension lookup for a directory member at a given time.
+
+The API requires a timestamp (ISO 8601). Without --timestamp the CLI
+substitutes the current time in UTC.`,
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Get("/api/v1/directory_members/" + args[0] + "/test")
+			if timestamp == "" {
+				timestamp = time.Now().UTC().Format(time.RFC3339)
+			}
+			path := fmt.Sprintf(
+				"/api/v1/directory_members/%s/test?timestamp=%s",
+				args[0],
+				url.QueryEscape(timestamp),
+			)
+			if languageCode != "" {
+				path += "&language_code=" + url.QueryEscape(languageCode)
+			}
+			data, _, err := apiClient.Get(path)
 			if err != nil {
 				return err
 			}
@@ -369,4 +412,8 @@ func directoryTestCmd() *cobra.Command {
 			return nil
 		},
 	}
+
+	cmd.Flags().StringVar(&timestamp, "timestamp", "", "ISO 8601 timestamp (defaults to now UTC)")
+	cmd.Flags().StringVar(&languageCode, "language-code", "", "Optional BCP 47 language code (e.g. en-US)")
+	return cmd
 }

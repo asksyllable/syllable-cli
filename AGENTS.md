@@ -377,9 +377,9 @@ syllable directory update <member-id> --file member.json
 syllable directory delete <member-id>
 syllable directory upload --file members.csv
 syllable directory download [--format normalized|raw]
-syllable directory history <member-id>
-syllable directory restore <member-id>
-syllable directory test <member-id>
+syllable directory history <member-id> [--page N] [--limit N] [--order-by-direction asc|desc]
+syllable directory restore <member-id> [--comments TEXT]
+syllable directory test <member-id> [--timestamp ISO8601] [--language-code BCP47]
 ```
 
 ### Insights
