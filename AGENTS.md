@@ -255,6 +255,7 @@ syllable agents create --file agent.json
 syllable agents create --name NAME --type TYPE --prompt-id ID --timezone TZ
 syllable agents update <agent-id> --file agent.json
 syllable agents delete <agent-id>
+syllable agents voices
 ```
 **Table columns:** ID, NAME, TYPE, LABEL, DESCRIPTION, UPDATED
 
@@ -459,6 +460,7 @@ syllable voice-groups get <voice-group-id>
 syllable voice-groups create --file vg.json
 syllable voice-groups update --file vg.json
 syllable voice-groups delete <voice-group-id>
+syllable voice-groups sample --file voice.json > sample.mp3
 ```
 
 ### Services

@@ -46,8 +46,47 @@ func agentsCmd() *cobra.Command {
 	cmd.AddCommand(agentsUpdateCmd())
 	cmd.AddCommand(agentsDeleteCmd())
 	cmd.AddCommand(agentsSendTestMessageCmd())
+	cmd.AddCommand(agentsVoicesCmd())
 
 	return cmd
+}
+
+func agentsVoicesCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "voices",
+		Short: "List available agent voices",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			data, _, err := apiClient.Get("/api/v1/agents/voices/available")
+			if err != nil {
+				return err
+			}
+
+			if getOutputFmt() == "json" {
+				output.PrintJSON(data)
+				return nil
+			}
+
+			var voices []struct {
+				Provider    string `json:"provider"`
+				DisplayName string `json:"display_name"`
+				Gender      string `json:"gender"`
+				Model       string `json:"model"`
+			}
+			if err := json.Unmarshal(data, &voices); err != nil {
+				output.PrintJSON(data)
+				return nil
+			}
+
+			headers := []string{"PROVIDER", "DISPLAY_NAME", "GENDER", "MODEL"}
+			rows := make([][]string, len(voices))
+			for i, v := range voices {
+				rows[i] = []string{v.Provider, v.DisplayName, v.Gender, v.Model}
+			}
+			printTable(headers, rows)
+			fmt.Printf("\nTotal: %d\n", len(voices))
+			return nil
+		},
+	}
 }
 
 func agentsListCmd() *cobra.Command {

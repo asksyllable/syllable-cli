@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/asksyllable/syllable-cli/internal/output"
@@ -41,7 +42,45 @@ func voiceGroupsCmd() *cobra.Command {
 	cmd.AddCommand(voiceGroupsCreateCmd())
 	cmd.AddCommand(voiceGroupsUpdateCmd())
 	cmd.AddCommand(voiceGroupsDeleteCmd())
+	cmd.AddCommand(voiceGroupsSampleCmd())
 
+	return cmd
+}
+
+func voiceGroupsSampleCmd() *cobra.Command {
+	var file string
+
+	cmd := &cobra.Command{
+		Use:   "sample",
+		Short: "Generate a voice sample",
+		Long:  "Generate a voice sample. Returns binary audio bytes; redirect to a file (e.g. > sample.mp3).",
+		Example: `  # Generate a sample from a voice config and write to a file
+  syllable voice-groups sample --file voice.json > sample.mp3`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var body interface{}
+
+			if file == "" {
+				return fmt.Errorf("required flag: --file")
+			}
+			fileData, err := readFile(file)
+			if err != nil {
+				return fmt.Errorf("reading file: %w", err)
+			}
+			if err := json.Unmarshal(fileData, &body); err != nil {
+				return fmt.Errorf("parsing JSON file: %w", err)
+			}
+
+			data, _, err := apiClient.Post("/api/v1/voice_groups/voices/sample", body)
+			if err != nil {
+				return err
+			}
+
+			os.Stdout.Write(data)
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&file, "file", "", "Path to JSON body file (use '-' for stdin)")
 	return cmd
 }
 

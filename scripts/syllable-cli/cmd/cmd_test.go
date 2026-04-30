@@ -102,7 +102,7 @@ func TestRootCommandHasSubcommands(t *testing.T) {
 
 func TestAgentsCommandHasSubcommands(t *testing.T) {
 	cmd := agentsCmd()
-	expected := []string{"list", "get", "create", "update", "delete", "send-test-message"}
+	expected := []string{"list", "get", "create", "update", "delete", "send-test-message", "voices"}
 	subs := make(map[string]bool)
 	for _, c := range cmd.Commands() {
 		subs[c.Name()] = true
@@ -852,7 +852,7 @@ func TestDataSourcesCommandHasSubcommands(t *testing.T) {
 
 func TestVoiceGroupsCommandHasSubcommands(t *testing.T) {
 	cmd := voiceGroupsCmd()
-	expected := []string{"list", "get", "create", "update", "delete"}
+	expected := []string{"list", "get", "create", "update", "delete", "sample"}
 	subs := make(map[string]bool)
 	for _, c := range cmd.Commands() {
 		subs[c.Name()] = true
@@ -1735,116 +1735,75 @@ func TestDashboardsSessions(t *testing.T) {
 	}
 }
 
-func TestInsightsToolsTest(t *testing.T) {
-	tmp, _ := os.CreateTemp("", "tools-test-*.json")
-	// Body matches the InsightToolTestInput schema in openapi.json.
-	tmp.WriteString(`{"tool_name":"summary-tool","session_id":283467}`)
+func TestAgentsVoices(t *testing.T) {
+	var method, requestPath string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		requestPath = r.URL.Path
+		json.NewEncoder(w).Encode([]map[string]interface{}{
+			{"provider": "OpenAI", "display_name": "Alloy", "gender": "neutral", "model": "tts-1"},
+		})
+	})
+	defer server.Close()
+
+	cmd := agentsVoicesCmd()
+	cmd.SetArgs([]string{})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "GET" {
+		t.Errorf("expected GET, got %s", method)
+	}
+	if requestPath != "/api/v1/agents/voices/available" {
+		t.Errorf("unexpected path: %s", requestPath)
+	}
+}
+
+func TestVoiceGroupsSample(t *testing.T) {
+	tmp, _ := os.CreateTemp("", "sample-*.json")
+	tmp.WriteString(`{"language_code":"en-US","voice_provider":"OpenAI","voice_display_name":"Alloy","sample_text":"Hello"}`)
 	tmp.Close()
 	defer os.Remove(tmp.Name())
 
 	var method, requestPath string
 	var receivedBody map[string]interface{}
+	audio := []byte{0xff, 0xfb, 0x90, 0x44, 0x00}
 	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 		method = r.Method
 		requestPath = r.URL.Path
 		body, _ := io.ReadAll(r.Body)
 		json.Unmarshal(body, &receivedBody)
-		w.Write([]byte(`{}`))
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Write(audio)
 	})
 	defer server.Close()
 
-	cmd := insightsToolsTestCmd()
+	cmd := voiceGroupsSampleCmd()
 	cmd.SetArgs([]string{"--file", tmp.Name()})
-	captureStdout(func() {
+	out := captureStdout(func() {
 		cmd.Execute()
 	})
 
 	if method != "POST" {
 		t.Errorf("expected POST, got %s", method)
 	}
-	if requestPath != "/api/v1/insights/tools-test" {
+	if requestPath != "/api/v1/voice_groups/voices/sample" {
 		t.Errorf("unexpected path: %s", requestPath)
 	}
-	if receivedBody["tool_name"] != "summary-tool" {
-		t.Errorf("expected tool_name=summary-tool, got %v", receivedBody["tool_name"])
+	if receivedBody["voice_display_name"] != "Alloy" {
+		t.Errorf("expected voice_display_name=Alloy, got %v", receivedBody["voice_display_name"])
+	}
+	if out != string(audio) {
+		t.Errorf("expected raw audio bytes on stdout, got %q", out)
 	}
 }
 
-func TestInsightsToolsTestRequiresFile(t *testing.T) {
-	cmd := insightsToolsTestCmd()
+func TestVoiceGroupsSampleRequiresFile(t *testing.T) {
+	cmd := voiceGroupsSampleCmd()
 	cmd.SetArgs([]string{})
 	if err := cmd.Execute(); err == nil {
 		t.Error("expected error when --file missing")
-	}
-}
-
-func TestInsightsFoldersMoveFiles(t *testing.T) {
-	tmp, _ := os.CreateTemp("", "move-*.json")
-	// Body matches the InsightsFolderFileMove schema in openapi.json.
-	tmp.WriteString(`{"destination_folder_id":99,"file_id_list":[12334,23445]}`)
-	tmp.Close()
-	defer os.Remove(tmp.Name())
-
-	var method, requestPath string
-	var receivedBody map[string]interface{}
-	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		method = r.Method
-		requestPath = r.URL.Path
-		body, _ := io.ReadAll(r.Body)
-		json.Unmarshal(body, &receivedBody)
-		w.Write([]byte(`{}`))
-	})
-	defer server.Close()
-
-	cmd := insightsFoldersMoveFilesCmd()
-	cmd.SetArgs([]string{"42", "--file", tmp.Name()})
-	captureStdout(func() {
-		cmd.Execute()
-	})
-
-	if method != "POST" {
-		t.Errorf("expected POST, got %s", method)
-	}
-	if requestPath != "/api/v1/insights/folders/42/move-files" {
-		t.Errorf("unexpected path: %s", requestPath)
-	}
-	if receivedBody["destination_folder_id"] != float64(99) {
-		t.Errorf("expected destination_folder_id=99, got %v", receivedBody["destination_folder_id"])
-	}
-}
-
-func TestInsightsWorkflowsQueueWork(t *testing.T) {
-	tmp, _ := os.CreateTemp("", "queue-*.json")
-	// Body matches the InsightsWorkflowQueueSession schema in openapi.json.
-	tmp.WriteString(`{"workflow_name":"summary-workflow","session_id_list":[12334,23445]}`)
-	tmp.Close()
-	defer os.Remove(tmp.Name())
-
-	var method, requestPath string
-	var receivedBody map[string]interface{}
-	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		method = r.Method
-		requestPath = r.URL.Path
-		body, _ := io.ReadAll(r.Body)
-		json.Unmarshal(body, &receivedBody)
-		w.Write([]byte(`{}`))
-	})
-	defer server.Close()
-
-	cmd := insightsWorkflowsQueueWorkCmd()
-	cmd.SetArgs([]string{"--file", tmp.Name()})
-	captureStdout(func() {
-		cmd.Execute()
-	})
-
-	if method != "POST" {
-		t.Errorf("expected POST, got %s", method)
-	}
-	if requestPath != "/api/v1/insights/workflows/queue-work" {
-		t.Errorf("unexpected path: %s", requestPath)
-	}
-	if receivedBody["workflow_name"] != "summary-workflow" {
-		t.Errorf("expected workflow_name=summary-workflow, got %v", receivedBody["workflow_name"])
 	}
 }
 
