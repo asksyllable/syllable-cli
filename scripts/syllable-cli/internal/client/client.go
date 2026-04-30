@@ -148,6 +148,67 @@ func (c *Client) Get(path string) ([]byte, int, error) {
 	return c.Do(http.MethodGet, path, nil)
 }
 
+// GetStream performs a GET and returns the response body as an io.ReadCloser
+// without buffering it. The caller must Close the returned reader.
+//
+// Use this for endpoints that return potentially large binary payloads (audio
+// recordings, file downloads) where buffering the whole response into memory
+// is wasteful. A 30-minute timeout is used since recordings can be long; the
+// regular Get's 30-second timeout would cut off mid-stream.
+//
+// On non-2xx responses the body is read into memory and returned as an
+// APIError, since errors are typically small JSON payloads.
+func (c *Client) GetStream(path string) (io.ReadCloser, int, error) {
+	if c.DryRun {
+		out := map[string]interface{}{
+			"dry_run": true,
+			"method":  http.MethodGet,
+			"url":     c.BaseURL + path,
+			"stream":  true,
+		}
+		data, _ := json.Marshal(out)
+		return nil, 0, &DryRunResult{Output: data}
+	}
+
+	req, err := http.NewRequest(http.MethodGet, c.BaseURL+path, nil)
+	if err != nil {
+		return nil, 0, fmt.Errorf("creating request: %w", err)
+	}
+	req.Header.Set("Syllable-API-Key", c.APIKey)
+	req.Header.Set("Accept", "application/octet-stream")
+
+	if c.Verbose {
+		fmt.Fprintf(os.Stderr, "> %s %s\n", http.MethodGet, c.BaseURL+path)
+		fmt.Fprintf(os.Stderr, "> Syllable-API-Key: %s\n", maskKey(c.APIKey))
+		fmt.Fprintln(os.Stderr)
+	}
+
+	streamClient := &http.Client{Timeout: 30 * time.Minute}
+	resp, err := streamClient.Do(req)
+	if err != nil {
+		return nil, 0, fmt.Errorf("executing request: %w", err)
+	}
+
+	if resp.StatusCode >= 400 {
+		defer resp.Body.Close()
+		data, _ := io.ReadAll(resp.Body)
+		if c.Verbose {
+			fmt.Fprintf(os.Stderr, "< %d %s\n", resp.StatusCode, http.StatusText(resp.StatusCode))
+			fmt.Fprintf(os.Stderr, "< %s\n\n", string(data))
+		}
+		return nil, resp.StatusCode, &APIError{StatusCode: resp.StatusCode, Body: data}
+	}
+
+	if c.Verbose {
+		fmt.Fprintf(os.Stderr, "< %d %s\n", resp.StatusCode, http.StatusText(resp.StatusCode))
+		fmt.Fprintf(os.Stderr, "< Content-Type: %s\n", resp.Header.Get("Content-Type"))
+		fmt.Fprintln(os.Stderr, "< (streaming body to stdout)")
+		fmt.Fprintln(os.Stderr)
+	}
+
+	return resp.Body, resp.StatusCode, nil
+}
+
 // Post performs a POST request.
 func (c *Client) Post(path string, body interface{}) ([]byte, int, error) {
 	return c.Do(http.MethodPost, path, body)

@@ -3,7 +3,9 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/url"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/asksyllable/syllable-cli/internal/output"
@@ -45,7 +47,42 @@ func sessionsCmd() *cobra.Command {
 	cmd.AddCommand(sessionsSummaryCmd())
 	cmd.AddCommand(sessionsLatencyCmd())
 	cmd.AddCommand(sessionsRecordingCmd())
+	cmd.AddCommand(sessionsRecordingStreamCmd())
 
+	return cmd
+}
+
+func sessionsRecordingStreamCmd() *cobra.Command {
+	var token string
+
+	cmd := &cobra.Command{
+		Use:   "recording-stream",
+		Short: "Stream recording bytes for a token from sessions recording",
+		Long: `Stream the binary recording bytes for a token returned by ` + "`syllable sessions recording`" + `.
+
+The recording endpoint returns short-lived streaming tokens; pass one of those
+to --token. Bytes are written to stdout for redirection to a file.`,
+		Example: `  # Get streaming tokens, pull one out, fetch the audio
+  syllable sessions recording <session-id> --output json | jq -r '.<token-field>' | \
+    xargs -I{} syllable sessions recording-stream --token {} > recording.wav`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if token == "" {
+				return fmt.Errorf("required flag: --token")
+			}
+			path := "/api/v1/sessions/recording/stream?token=" + url.QueryEscape(token)
+			body, _, err := apiClient.GetStream(path)
+			if err != nil {
+				return err
+			}
+			defer body.Close()
+			if _, err := io.Copy(os.Stdout, body); err != nil {
+				return fmt.Errorf("streaming recording: %w", err)
+			}
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&token, "token", "", "Streaming token from `sessions recording`")
 	return cmd
 }
 

@@ -63,6 +63,7 @@ func TestBulkOperationPathsMatch(t *testing.T) {
 		"/api/v1/directory_members/upload/",
 		"/api/v1/directory_members/download/",
 		"/api/v1/outbound/batches/{batch_id}/upload_batch",
+		"/api/v1/pronunciations/csv",
 	}
 	for _, p := range want {
 		if _, ok := paths[p]; !ok {
