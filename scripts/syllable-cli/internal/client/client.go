@@ -340,12 +340,6 @@ func (c *Client) doMultipart(method, path, fieldName, filePath string) ([]byte, 
 	return data, resp.StatusCode, nil
 }
 
-// PostMultipartForm performs a multipart/form-data POST that mixes text fields
-// and an optional file. Pass fileField="" or filePath="" to send fields only.
-func (c *Client) PostMultipartForm(path string, fields map[string]string, fileField, filePath string) ([]byte, int, error) {
-	return c.doMultipartForm(http.MethodPost, path, fields, fileField, filePath)
-}
-
 // PutMultipartForm performs a multipart/form-data PUT that mixes text fields
 // and an optional file. Pass fileField="" or filePath="" to send fields only.
 func (c *Client) PutMultipartForm(path string, fields map[string]string, fileField, filePath string) ([]byte, int, error) {

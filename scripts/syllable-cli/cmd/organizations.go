@@ -8,9 +8,9 @@ import (
 	"github.com/asksyllable/syllable-cli/internal/output"
 )
 
-// orgFormFields builds the multipart form-field map shared by create and
-// update. Optional values are only included when set, so the API doesn't
-// receive empty strings for fields the caller didn't touch.
+// orgFormFields builds the multipart form-field map for organization update.
+// Optional values are only included when set, so the API doesn't receive
+// empty strings for fields the caller didn't touch.
 func orgFormFields(displayName, description, domains, samlProviderID, updateComments string) map[string]string {
 	fields := map[string]string{}
 	if displayName != "" {
@@ -34,20 +34,17 @@ func orgFormFields(displayName, description, domains, samlProviderID, updateComm
 func organizationsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "organizations",
-		Short: "Manage organizations",
-		Long: `Get, create, and update the current organization.
+		Short: "Manage the current organization",
+		Long: `Get and update the current organization.
 
-Org deletion is intentionally not exposed via the CLI — it would wipe
-every agent, session, batch, etc. for the org. Use the web console if
-you really need it.`,
+Org provisioning (create) and deletion are intentionally not exposed via
+the CLI — both are platform-side admin operations with high blast radius.
+Use the web console if you really need them.`,
 		Example: `  # Show the current organization
   syllable organizations get
 
   # Show as JSON
   syllable organizations get --output json
-
-  # Create a new organization
-  syllable organizations create --display-name NAME --logo PATH
 
   # Update the current organization
   syllable organizations update --display-name NAME`,
@@ -55,7 +52,6 @@ you really need it.`,
 
 	cmd.AddCommand(organizationsGetCmd())
 	cmd.AddCommand(organizationsListCmd())
-	cmd.AddCommand(organizationsCreateCmd())
 	cmd.AddCommand(organizationsUpdateCmd())
 
 	return cmd
@@ -119,46 +115,6 @@ func organizationsGetRunE(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func organizationsCreateCmd() *cobra.Command {
-	var displayName, logo, description, domains, samlProviderID string
-
-	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a new organization",
-		Long: `Create a new organization. The API requires multipart/form-data
-with a 120x120 PNG logo and a display name; optional fields fill in
-description, allowed email domains, and a SAML provider ID.`,
-		Example: `  syllable organizations create \
-    --display-name "Acme Inc." \
-    --logo ./acme-120.png \
-    --description "AI agents for Acme" \
-    --domains acme.com,acme.io`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if displayName == "" {
-				return fmt.Errorf("required flag: --display-name")
-			}
-			if logo == "" {
-				return fmt.Errorf("required flag: --logo (the API requires a 120x120 PNG)")
-			}
-
-			fields := orgFormFields(displayName, description, domains, samlProviderID, "")
-			data, _, err := apiClient.PostMultipartForm("/api/v1/organizations/", fields, "logo", logo)
-			if err != nil {
-				return err
-			}
-			output.PrintJSON(data)
-			return nil
-		},
-	}
-
-	cmd.Flags().StringVar(&displayName, "display-name", "", "Human-readable display name (required)")
-	cmd.Flags().StringVar(&logo, "logo", "", "Path to the organization logo (120x120 PNG, required; '-' reads stdin)")
-	cmd.Flags().StringVar(&description, "description", "", "Description of the organization")
-	cmd.Flags().StringVar(&domains, "domains", "", "Comma-delimited list of email domains")
-	cmd.Flags().StringVar(&samlProviderID, "saml-provider-id", "", "SAML provider ID for SSO")
-	return cmd
-}
-
 func organizationsUpdateCmd() *cobra.Command {
 	var displayName, logo, description, domains, samlProviderID, updateComments string
 
@@ -190,4 +146,3 @@ is required by the API; logo and other fields are optional.`,
 	cmd.Flags().StringVar(&updateComments, "update-comments", "", "Comments describing this update")
 	return cmd
 }
-
