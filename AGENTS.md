@@ -34,7 +34,7 @@ Quick reference for every resource: what it is, key fields, and hard constraints
 | **Dashboards** | Performance analytics | name | `sessions`, `session-events`, `session-transfers`, `session-summary` endpoints are **DEPRECATED** — use `list` and `fetch-info`. |
 | **Takeouts** | Data export jobs | job_id, status, file_name | Workflow: create → poll with get → download. |
 | **Incidents** | Platform incident tracking | name, status | — |
-| **Organizations** | Current organization | display_name, slug, description | API exposes the **current** org only — `get` returns it; `create`/`update` operate on it. Delete is intentionally not exposed via CLI — use the web console. |
+| **Organizations** | Current organization | display_name, slug, description | API exposes the **current** org only — `get` returns it; `update` modifies it. Create and delete are intentionally not exposed via CLI — use the web console for both. |
 | **Permissions** | System-wide permissions | name | Read-only. |
 | **Conversation Config (Bridges)** | Transfer/handoff phrase configuration | phrases | — |
 | **Schema** | Explore API request/response shapes from embedded OpenAPI spec | type name | No API call made. Use before create/update to find required fields. |
@@ -561,12 +561,11 @@ syllable dashboards session-summary [--file query.json]
 ### Organizations
 Operations on the **current** organization (the one your API key is scoped to). `list` is a hidden alias of `get` for back-compat.
 
-`create` and `update` use multipart/form-data with explicit flags (the API requires a 120x120 PNG logo on create; the logo is optional on update).
+`update` uses multipart/form-data with explicit flags; logo is optional and replaces the current one if supplied.
 
-Org deletion is intentionally not exposed via the CLI — it would wipe every agent, session, batch, etc. for the org. Use the web console if you really need it.
+Org provisioning (create) and deletion are intentionally not exposed via the CLI — both are platform-side admin operations with high blast radius. Use the web console for both.
 ```bash
 syllable organizations get
-syllable organizations create --display-name NAME --logo PATH [--description TEXT] [--domains a.com,b.com] [--saml-provider-id ID]
 syllable organizations update --display-name NAME [--logo PATH] [--description TEXT] [--domains a.com,b.com] [--saml-provider-id ID] [--update-comments TEXT]
 ```
 
