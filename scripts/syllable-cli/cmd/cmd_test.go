@@ -595,6 +595,60 @@ func TestAgentsSendTestMessageEmptyTextSendsField(t *testing.T) {
 	}
 }
 
+func TestAgentsSendTestMessageOverrideTimestamp(t *testing.T) {
+	var receivedBody map[string]interface{}
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		json.Unmarshal(body, &receivedBody)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"test_id":  "test-ts",
+			"agent_id": "42",
+		})
+	})
+	defer server.Close()
+
+	cmd := agentsSendTestMessageCmd()
+	cmd.SetArgs([]string{"42", "--test-id", "test-ts", "--session-start", "--override-timestamp", "2026-05-30T10:00:00-07:00"})
+	captureStdout(func() {
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	val, exists := receivedBody["override_timestamp"]
+	if !exists {
+		t.Fatal("override_timestamp should be present when --override-timestamp is provided")
+	}
+	if val != "2026-05-30T10:00:00-07:00" {
+		t.Errorf("expected override_timestamp=2026-05-30T10:00:00-07:00, got %v", val)
+	}
+}
+
+func TestAgentsSendTestMessageNoOverrideTimestampOmitsField(t *testing.T) {
+	var receivedBody map[string]interface{}
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		json.Unmarshal(body, &receivedBody)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"test_id":  "test-no-ts",
+			"agent_id": "42",
+		})
+	})
+	defer server.Close()
+
+	cmd := agentsSendTestMessageCmd()
+	cmd.SetArgs([]string{"42", "--test-id", "test-no-ts", "--session-start", "--text", "hi"})
+	captureStdout(func() {
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	if _, exists := receivedBody["override_timestamp"]; exists {
+		t.Errorf("override_timestamp should be omitted when --override-timestamp is not provided, got %v", receivedBody["override_timestamp"])
+	}
+}
+
 // --- Tools functional tests ---
 
 func TestToolsList(t *testing.T) {

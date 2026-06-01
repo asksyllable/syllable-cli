@@ -310,7 +310,7 @@ func agentsDeleteCmd() *cobra.Command {
 }
 
 func agentsSendTestMessageCmd() *cobra.Command {
-	var testID, text, serviceName, source string
+	var testID, text, serviceName, source, overrideTimestamp string
 	var sessionStart bool
 	var timeout int
 
@@ -330,7 +330,10 @@ the same --test-id).`,
   syllable agents send-test-message 42 --test-id my-test-1 --text "Yes, that's correct"
 
   # Start a session with no caller text (agent speaks first)
-  syllable agents send-test-message 42 --test-id my-test-1 --session-start`,
+  syllable agents send-test-message 42 --test-id my-test-1 --session-start
+
+  # Pin the agent's wall-clock time for deterministic date-sensitive tests
+  syllable agents send-test-message 42 --test-id my-test-1 --session-start --override-timestamp "2026-05-30T10:00:00-07:00" --text "I need to schedule an appointment"`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			agentID := args[0]
@@ -346,6 +349,9 @@ the same --test-id).`,
 				body["text"] = text
 			} else if sessionStart {
 				body["text"] = ""
+			}
+			if cmd.Flags().Changed("override-timestamp") {
+				body["override_timestamp"] = overrideTimestamp
 			}
 
 			data, _, err := apiClient.PostWithTimeout(
@@ -386,6 +392,7 @@ the same --test-id).`,
 
 	cmd.Flags().StringVar(&testID, "test-id", "", "Test session identifier (required)")
 	cmd.Flags().StringVar(&text, "text", "", "Message text to send to the agent")
+	cmd.Flags().StringVar(&overrideTimestamp, "override-timestamp", "", "ISO 8601 timestamp to pin the agent's wall-clock time for this turn (forwarded as override_timestamp). Omit to use current time.")
 	cmd.Flags().BoolVar(&sessionStart, "session-start", false, "Start a new test session")
 	cmd.Flags().StringVar(&serviceName, "service-name", "test", "Service name for the test")
 	cmd.Flags().StringVar(&source, "source", "tester@syllable.ai", "Source identifier for the test caller")
