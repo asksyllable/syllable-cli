@@ -247,7 +247,7 @@ syllable completion powershell > syllable.ps1
 ## Commands
 
 ### Agents
-Agents are AI systems that communicate with users via channels. Configured with a prompt, timezone, optional opening message, session variables (`{vars.session_variable}` syntax), tool headers, and optional voice group. **Constraint: 1:1 with channel target.** A test channel is auto-generated for each agent. `send-test-message` exchanges a single turn with an agent via the conversation-test API (`POST /api/v1/agents/test/messages`): pass `--session-start` on the first turn and reuse `--test-id` for follow-ups; `--override-timestamp <iso8601>` pins the agent's wall-clock time for deterministic date-sensitive tests (omit to use the current time).
+Agents are AI systems that communicate with users via channels. Configured with a prompt, timezone, optional opening message, session variables (`{vars.session_variable}` syntax), tool headers, and optional voice group. **Constraint: 1:1 with channel target.** A test channel is auto-generated for each agent. `send-test-message` exchanges a single turn with an agent via the conversation-test API (`POST /api/v1/agents/test/messages`): pass `--session-start` on the first turn and reuse `--test-id` for follow-ups; `--override-timestamp` pins the agent's wall clock for deterministic date-sensitive tests and must be a **timezone-naive** ISO 8601 value like `2030-12-25T09:30:00` (interpreted in the agent's timezone) — offset, `Z`, and space-separated forms are silently ignored by the server (omit to use the current time).
 ```bash
 syllable agents list [--page N] [--limit N] [--search TEXT]
 syllable agents get <agent-id>

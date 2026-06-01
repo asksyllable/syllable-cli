@@ -332,8 +332,8 @@ the same --test-id).`,
   # Start a session with no caller text (agent speaks first)
   syllable agents send-test-message 42 --test-id my-test-1 --session-start
 
-  # Pin the agent's wall-clock time for deterministic date-sensitive tests
-  syllable agents send-test-message 42 --test-id my-test-1 --session-start --override-timestamp "2026-05-30T10:00:00-07:00" --text "I need to schedule an appointment"`,
+  # Pin the agent's wall clock for deterministic date-sensitive tests (timezone-naive ISO 8601, interpreted in the agent's timezone)
+  syllable agents send-test-message 42 --test-id my-test-1 --session-start --override-timestamp "2030-12-25T09:30:00" --text "I need to schedule an appointment"`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			agentID := args[0]
@@ -392,7 +392,7 @@ the same --test-id).`,
 
 	cmd.Flags().StringVar(&testID, "test-id", "", "Test session identifier (required)")
 	cmd.Flags().StringVar(&text, "text", "", "Message text to send to the agent")
-	cmd.Flags().StringVar(&overrideTimestamp, "override-timestamp", "", "ISO 8601 timestamp to pin the agent's wall-clock time for this turn (forwarded as override_timestamp). Omit to use current time.")
+	cmd.Flags().StringVar(&overrideTimestamp, "override-timestamp", "", "Timezone-naive ISO 8601 timestamp (e.g. 2030-12-25T09:30:00) to pin the agent's wall clock for this turn, interpreted in the agent's timezone. Offset (-07:00), 'Z', and space-separated forms are silently ignored by the server. Omit to use current time.")
 	cmd.Flags().BoolVar(&sessionStart, "session-start", false, "Start a new test session")
 	cmd.Flags().StringVar(&serviceName, "service-name", "test", "Service name for the test")
 	cmd.Flags().StringVar(&source, "source", "tester@syllable.ai", "Source identifier for the test caller")

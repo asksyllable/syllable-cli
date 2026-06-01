@@ -608,7 +608,7 @@ func TestAgentsSendTestMessageOverrideTimestamp(t *testing.T) {
 	defer server.Close()
 
 	cmd := agentsSendTestMessageCmd()
-	cmd.SetArgs([]string{"42", "--test-id", "test-ts", "--session-start", "--override-timestamp", "2026-05-30T10:00:00-07:00"})
+	cmd.SetArgs([]string{"42", "--test-id", "test-ts", "--session-start", "--override-timestamp", "2030-12-25T09:30:00"})
 	captureStdout(func() {
 		if err := cmd.Execute(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -619,8 +619,8 @@ func TestAgentsSendTestMessageOverrideTimestamp(t *testing.T) {
 	if !exists {
 		t.Fatal("override_timestamp should be present when --override-timestamp is provided")
 	}
-	if val != "2026-05-30T10:00:00-07:00" {
-		t.Errorf("expected override_timestamp=2026-05-30T10:00:00-07:00, got %v", val)
+	if val != "2030-12-25T09:30:00" {
+		t.Errorf("expected override_timestamp=2030-12-25T09:30:00, got %v", val)
 	}
 }
 
