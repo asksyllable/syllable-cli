@@ -1,0 +1,73 @@
+name: Spec Live Check
+
+# Validates the CLI against the LIVE Syllable API, catching drift between the
+# spec and reality (spec says X, server does Y) that a spec-vs-spec diff can't.
+#
+# Runs the black-box integration suite (scripts/syllable-cli/integration) which
+# exercises the built binary against a live instance.
+#
+# GUARDRAIL: this must only ever touch the sandbox org. Authentication is via
+# SYLLABLE_API_KEY sourced from the SYLLABLE_SANDBOX_API_KEY secret — the key
+# itself is the org boundary, so that secret MUST be a sandbox key, never a
+# customer key (see CONTRIBUTING.md). SYLLABLE_ORG is deliberately left unset:
+# CI has no ~/.syllable/config.yaml, so the keyless SYLLABLE_API_KEY path is the
+# only auth used, and there is no org slug to override.
+#
+# The integration tests create and delete real resources in the target org, so
+# the sandbox is mutated on every run — that is expected and acceptable.
+
+on:
+  schedule:
+    - cron: "0 14 * * *" # 14:00 UTC daily — offset one hour after spec-drift
+  workflow_dispatch: {}
+  pull_request:
+    types: [labeled, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spec-live-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  live-check:
+    runs-on: ubuntu-latest
+    # For PRs, only run when the PR carries the `spec-sync` label (reconciliation
+    # PRs). For schedule/manual runs, always proceed.
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'spec-sync')
+    env:
+      SYLLABLE_API_KEY: ${{ secrets.SYLLABLE_SANDBOX_API_KEY }}
+    steps:
+      - name: Check for sandbox credentials
+        id: guard
+        run: |
+          if [ -z "${SYLLABLE_API_KEY}" ]; then
+            echo "::warning::SYLLABLE_SANDBOX_API_KEY is unset (or withheld, e.g. on a fork PR) — skipping live integration tests."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        if: steps.guard.outputs.run == 'true'
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        if: steps.guard.outputs.run == 'true'
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: scripts/syllable-cli/go.mod
+          cache-dependency-path: scripts/syllable-cli/go.sum
+
+      - name: Build CLI
+        if: steps.guard.outputs.run == 'true'
+        working-directory: scripts/syllable-cli
+        run: go build -o syllable .
+
+      - name: Run live integration tests (sandbox)
+        if: steps.guard.outputs.run == 'true'
+        working-directory: scripts/syllable-cli
+        env:
+          SYLLABLE_CLI_BINARY: ${{ github.workspace }}/scripts/syllable-cli/syllable
+        run: go test -count=1 -v ./integration/...
