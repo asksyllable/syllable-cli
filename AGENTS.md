@@ -131,8 +131,8 @@ syllable --version
 
 Select an org per command:
 ```bash
-syllable --org nyp agents list
-syllable --org hm sessions list
+syllable --org acme agents list
+syllable --org globex sessions list
 ```
 
 If `default_org` is set in `~/.syllable/config.yaml`, it's used when `--org` is omitted.

@@ -39,7 +39,7 @@ SYLLABLE_API_KEY=... go test ./integration/...
 SYLLABLE_ORG=sandbox go test ./integration/...
 ```
 
-The default org slug is `sandbox`. **Do not point integration tests at customer orgs.** Real customers (`nyp`, `hm`, etc.) appear in [AGENTS.md](AGENTS.md) examples — those are examples, not test targets.
+The default org slug is `sandbox`. **Do not point integration tests at customer orgs.** The org slugs in [AGENTS.md](AGENTS.md) examples (`acme`, `globex`, etc.) are placeholders, not test targets.
 
 ## Branch and release workflow
 
