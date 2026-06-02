@@ -6,15 +6,15 @@ name: Spec Live Check
 # Runs the black-box integration suite (scripts/syllable-cli/integration) which
 # exercises the built binary against a live instance.
 #
-# GUARDRAIL: this must only ever touch the sandbox org. Authentication is via
-# SYLLABLE_API_KEY sourced from the SYLLABLE_SANDBOX_API_KEY secret — the key
-# itself is the org boundary, so that secret MUST be a sandbox key, never a
-# customer key (see CONTRIBUTING.md). SYLLABLE_ORG is deliberately left unset:
-# CI has no ~/.syllable/config.yaml, so the keyless SYLLABLE_API_KEY path is the
-# only auth used, and there is no org slug to override.
+# GUARDRAIL: this must only ever touch a dedicated, non-customer CI org.
+# Authentication is via SYLLABLE_API_KEY sourced from the SYLLABLE_CI_API_KEY
+# secret — the key itself is the org boundary, so that secret MUST be a key for
+# the dedicated CI org, never a customer key (see CONTRIBUTING.md). SYLLABLE_ORG
+# is deliberately left unset: CI has no ~/.syllable/config.yaml, so the keyless
+# SYLLABLE_API_KEY path is the only auth used, and there is no org slug to override.
 #
 # The integration tests create and delete real resources in the target org, so
-# the sandbox is mutated on every run — that is expected and acceptable.
+# the CI org is mutated on every run — that is expected and acceptable.
 
 on:
   schedule:
@@ -37,13 +37,13 @@ jobs:
     # PRs). For schedule/manual runs, always proceed.
     if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'spec-sync')
     env:
-      SYLLABLE_API_KEY: ${{ secrets.SYLLABLE_SANDBOX_API_KEY }}
+      SYLLABLE_API_KEY: ${{ secrets.SYLLABLE_CI_API_KEY }}
     steps:
-      - name: Check for sandbox credentials
+      - name: Check for CI-org credentials
         id: guard
         run: |
           if [ -z "${SYLLABLE_API_KEY}" ]; then
-            echo "::warning::SYLLABLE_SANDBOX_API_KEY is unset (or withheld, e.g. on a fork PR) — skipping live integration tests."
+            echo "::warning::SYLLABLE_CI_API_KEY is unset (or withheld, e.g. on a fork PR) — skipping live integration tests."
             echo "run=false" >> "$GITHUB_OUTPUT"
           else
             echo "run=true" >> "$GITHUB_OUTPUT"
@@ -65,7 +65,7 @@ jobs:
         working-directory: scripts/syllable-cli
         run: go build -o syllable .
 
-      - name: Run live integration tests (sandbox)
+      - name: Run live integration tests (CI org)
         if: steps.guard.outputs.run == 'true'
         working-directory: scripts/syllable-cli
         env:

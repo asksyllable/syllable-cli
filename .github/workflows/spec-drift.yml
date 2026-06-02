@@ -97,7 +97,7 @@ jobs:
           gh label create "$LABEL" -c FBCA04 \
             -d "Embedded OpenAPI spec has drifted from the upstream SDK" --force >/dev/null 2>&1 || true
           gh label create spec-sync -c 0E8A16 \
-            -d "Reconciliation PR — run the live sandbox check" --force >/dev/null 2>&1 || true
+            -d "Reconciliation PR — run the live integration check" --force >/dev/null 2>&1 || true
 
           # Tolerate no existing issue / label absence — fall through to create.
           existing="$(gh issue list --label "$LABEL" --state open --json number --jq '.[0].number // empty' 2>/dev/null || true)"
