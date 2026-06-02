@@ -16,6 +16,12 @@ description: >
 Reconcile the Syllable CLI with a new version of the OpenAPI spec. This is a
 guided, step-by-step workflow — follow each phase in order.
 
+**Detection is automated:** `.github/workflows/spec-drift.yml` checks for drift
+daily and files a `spec-drift` tracking issue — this skill is the *reconciliation*
+half. A scheduled Claude Code routine can run this skill automatically (see
+CONTRIBUTING.md → "Spec sync"). Always replace the embedded spec and update the
+code that implements it in the **same** PR — never ship a spec-only bump.
+
 ## Key paths
 
 | What | Where |
@@ -24,7 +30,7 @@ guided, step-by-step workflow — follow each phase in order.
 | Embedded spec | `scripts/syllable-cli/internal/spec/openapi.json` |
 | Cmd files | `scripts/syllable-cli/cmd/` (one `.go` file per resource) |
 | HTTP client | `scripts/syllable-cli/internal/client/client.go` |
-| Diff script | `~/.claude/skills/syllable-sync/scripts/diff_specs.py` |
+| Diff script | `.claude/skills/syllable-sync/scripts/diff_specs.py` (repo-relative; committed) |
 
 ---
 
@@ -71,7 +77,7 @@ If the versions match, run the diff anyway — schema changes can land without a
 Run the diff script and capture the output:
 
 ```bash
-python3 ~/.claude/skills/syllable-sync/scripts/diff_specs.py \
+python3 .claude/skills/syllable-sync/scripts/diff_specs.py --exit-code \
   /tmp/openapi_old.json /tmp/openapi_new.json
 ```
 
