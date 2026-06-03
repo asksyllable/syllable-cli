@@ -39,7 +39,7 @@ SYLLABLE_API_KEY=... go test ./integration/...
 SYLLABLE_ORG=sandbox go test ./integration/...
 ```
 
-The default org slug is `sandbox`. **Do not point integration tests at customer orgs.** The org slugs in [AGENTS.md](AGENTS.md) examples (`acme`, `globex`, etc.) are placeholders, not test targets.
+`SYLLABLE_API_KEY` is read directly by the CLI (no config file needed — this is how CI authenticates); `SYLLABLE_ORG` instead resolves the key from `~/.syllable/config.yaml`. **Do not point integration tests at customer orgs** — use a dedicated throwaway org such as `cli-test`. The org slugs in [AGENTS.md](AGENTS.md) examples (`acme`, `globex`, etc.) are placeholders, not test targets.
 
 ## Branch and release workflow
 

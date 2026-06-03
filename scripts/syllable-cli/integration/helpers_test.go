@@ -16,24 +16,22 @@ import (
 
 var (
 	cliBinary string
-	baseURL   string
-	apiKey    string // direct key (no org lookup)
-	org       string // org name (key looked up from config file)
+	org       string // org name; key is resolved by the CLI from ~/.syllable/config.yaml
+	env       string // optional named environment (selects base URL + per-env key)
 )
 
 // initConfig populates the test config from environment variables.
 //
-// Auth: prefers --org (reads key from ~/.syllable/config.yaml) over --api-key,
-// so set SYLLABLE_ORG to pick the right org. SYLLABLE_API_KEY is used only
-// when SYLLABLE_ORG is not set.
-//
-// Base URL: defaults to https://api.syllable.cloud. Override with SYLLABLE_TEST_BASE_URL
-// (NOT SYLLABLE_BASE_URL, to avoid accidentally picking up shell env pointing to staging).
+// Auth (either works):
+//   - SYLLABLE_API_KEY — the CLI reads this key directly (non-interactive / CI).
+//   - SYLLABLE_ORG     — the CLI resolves that org's key from ~/.syllable/config.yaml
+//                        (local dev; configure it with `syllable setup`).
+// The CLI has no --api-key/--base-url flag. Set SYLLABLE_ENV for a non-default
+// environment; base URL defaults to prod (https://api.syllable.cloud).
 func initConfig() {
 	cliBinary = envOr("SYLLABLE_CLI_BINARY", "../syllable")
-	baseURL = envOr("SYLLABLE_TEST_BASE_URL", "https://api.syllable.cloud")
-	apiKey = os.Getenv("SYLLABLE_API_KEY")
 	org = os.Getenv("SYLLABLE_ORG")
+	env = os.Getenv("SYLLABLE_ENV")
 }
 
 func envOr(key, def string) string {
@@ -70,15 +68,16 @@ func runCleanup() {
 // CLI runner
 // ---------------------------------------------------------------------------
 
-// runCLI executes the CLI binary with the given args, always injecting
-// --base-url and -o json. Auth is either --api-key (if SYLLABLE_API_KEY is
-// set) or --org (if SYLLABLE_ORG is set, reads key from ~/.syllable/config.yaml).
+// runCLI executes the CLI binary with the given args, injecting -o json (plus
+// --org when SYLLABLE_ORG is set and --env when SYLLABLE_ENV is set). The CLI
+// gets its key from SYLLABLE_API_KEY (inherited env) or that org's config entry.
 func runCLI(args ...string) ([]byte, error) {
-	base := []string{"--base-url", baseURL, "-o", "json"}
-	if apiKey != "" {
-		base = append(base, "--api-key", apiKey)
-	} else {
+	base := []string{"-o", "json"}
+	if org != "" {
 		base = append(base, "--org", org)
+	}
+	if env != "" {
+		base = append(base, "--env", env)
 	}
 	full := append(base, args...)
 	cmd := exec.Command(cliBinary, full...)
