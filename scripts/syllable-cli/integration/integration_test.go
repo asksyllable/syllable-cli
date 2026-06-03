@@ -458,3 +458,71 @@ func TestOutboundCampaignsCRUD(t *testing.T) {
 	// Delete
 	mustRunCLI(t, "outbound", "campaigns", "delete", id)
 }
+
+// ---------------------------------------------------------------------------
+// Agent Labels (read-only) — spec-sync v0.0.3
+// ---------------------------------------------------------------------------
+
+func TestAgentsLabels(t *testing.T) {
+	// Read-only listing; the org may have zero labels. mustRunCLI fails the test
+	// on a non-zero exit, so a clean call proves the command, path, and auth all
+	// work against the live API.
+	mustRunCLI(t, "agents", "labels")
+}
+
+// ---------------------------------------------------------------------------
+// Organization SIP IP Ranges — spec-sync v0.0.3
+// ---------------------------------------------------------------------------
+
+func TestOrganizationsSipIPRangesCRUD(t *testing.T) {
+	// TEST-NET-3 (RFC 5737) — reserved for documentation, safe to create/delete.
+	cidr := "203.0.113.0/24"
+
+	// Create
+	out := mustRunCLI(t, "organizations", "sip-ip-ranges", "create", "--type", "signaling", "--ip-range", cidr)
+	id := mustExtractField(t, out, "id")
+	t.Logf("created sip-ip-range id=%s", id)
+	registerCleanup(func() {
+		runCLI("organizations", "sip-ip-ranges", "delete", id)
+	})
+
+	// List — should include the range we created
+	out = mustRunCLI(t, "organizations", "sip-ip-ranges", "list")
+	assertContains(t, string(out), cidr)
+
+	// Update the CIDR, then confirm via list
+	updated := "203.0.113.0/25"
+	mustRunCLI(t, "organizations", "sip-ip-ranges", "update", id, "--ip-range", updated)
+	out = mustRunCLI(t, "organizations", "sip-ip-ranges", "list")
+	assertContains(t, string(out), updated)
+
+	// Delete
+	mustRunCLI(t, "organizations", "sip-ip-ranges", "delete", id)
+}
+
+// ---------------------------------------------------------------------------
+// Tool History (gated on SYLLABLE_TEST_TOOL_ID — needs an existing tool)
+// ---------------------------------------------------------------------------
+
+func TestToolsHistory(t *testing.T) {
+	toolID := os.Getenv("SYLLABLE_TEST_TOOL_ID")
+	if toolID == "" {
+		t.Skip("SYLLABLE_TEST_TOOL_ID not set; skipping tool history test")
+	}
+	out := mustRunCLI(t, "tools", "history", toolID)
+	assertContains(t, string(out), "items")
+}
+
+// ---------------------------------------------------------------------------
+// Twilio A2P compliance check (gated — needs a Twilio channel + number)
+// ---------------------------------------------------------------------------
+
+func TestChannelsTwilioVerifyA2p(t *testing.T) {
+	channelID := os.Getenv("SYLLABLE_TEST_CHANNEL_ID")
+	phone := os.Getenv("SYLLABLE_TEST_PHONE")
+	if channelID == "" || phone == "" {
+		t.Skip("SYLLABLE_TEST_CHANNEL_ID / SYLLABLE_TEST_PHONE not set; skipping A2P compliance test")
+	}
+	out := mustRunCLI(t, "channels", "twilio", "numbers-verify-a2p-compliance", channelID, "--phone", phone)
+	assertContains(t, string(out), "a2p_approved")
+}
