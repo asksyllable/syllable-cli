@@ -68,9 +68,30 @@ The CLI develops against the embedded OpenAPI spec at `scripts/syllable-cli/inte
 https://raw.githubusercontent.com/asksyllable/syllable-sdk-typescript/main/openapi.json
 ```
 
-**Sync is manually triggered.** There's no automation watching the SDK repo for drift — someone has to notice the spec changed (or proactively run the diff) and kick off the reconciliation. When that happens, the `syllable-sync` skill ([.claude/skills/syllable-sync/SKILL.md](.claude/skills/syllable-sync/SKILL.md)) walks through the full workflow: diff old vs new, plan additions/removals/field changes, replace the embedded JSON, update `cmd/*.go` files and docs, run tests, commit in three logical groups (spec / code / docs).
+Drift is **detected automatically**, and reconciliation is assisted — but the embedded spec and the code that implements it must always move **together** (never merge a spec-only bump, or `schema get` will advertise endpoints the CLI can't call).
 
-Working without Claude? `SKILL.md` is the runbook — each phase is a self-contained block of shell commands. The diff script lives at `~/.claude/skills/syllable-sync/scripts/diff_specs.py` and reports new/removed/changed paths and schemas.
+**Detection — [`spec-drift.yml`](.github/workflows/spec-drift.yml).** Runs daily and on demand (`workflow_dispatch`). Fetches the upstream spec, compares it to the embedded copy by `sha256` (`info.version` is an unreliable signal — it rarely bumps when schemas change), and on a real *structural* change files/updates a single rolling **`spec-drift`** issue with the diff, auto-closing it when the spec is back in sync.
+
+**Reconciliation — the [`syllable-sync` skill](.claude/skills/syllable-sync/SKILL.md).** Diffs old vs new, plans additions/removals/field changes, replaces the embedded JSON, updates `cmd/*.go` files and docs, runs tests, and commits in three logical groups (spec / code / docs). Run it by hand, or have a scheduled **Claude Code routine** run it: create one at [claude.ai/code/routines](https://claude.ai/code/routines) (desktop app or `/schedule`) with the `asksyllable/syllable-cli` repo selected on a daily schedule, using the contents of `~/.claude/scheduled-tasks/syllable-spec-sync/SKILL.md` as the prompt. A **Remote** routine runs in the cloud (always-on, laptop-independent, on your Claude subscription) — give its environment a setup script that installs Go and allow `raw.githubusercontent.com` if it isn't already; a **Local** routine runs on your machine against local files. Either way it opens a reviewable PR labeled `spec-sync` and never self-merges.
+
+**Live validation — [`spec-live-check.yml`](.github/workflows/spec-live-check.yml).** Catches spec-vs-reality drift by building the CLI and running the integration suite against a **dedicated, non-customer CI org**, authenticating with the `SYLLABLE_CI_API_KEY` repo secret. Runs daily, on demand, and on any PR labeled `spec-sync` (so reconciliation PRs are live-validated). **The secret must be a key for that CI org, never a customer key** — the key itself is the org boundary (`SYLLABLE_ORG` is left unset; CI has no `~/.syllable/config.yaml`). Fork PRs don't receive secrets, so the job skips there automatically.
+
+**The diff script — [`diff_specs.py`](.claude/skills/syllable-sync/scripts/diff_specs.py)** (committed in the repo, so CI and the skill share one copy). Reports new/removed/changed paths and schemas. For CI/scripting it takes `--exit-code` (1 = structural differences, 0 = equivalent, 2 = usage error) and `--format json`:
+
+```bash
+python3 .claude/skills/syllable-sync/scripts/diff_specs.py --exit-code \
+  scripts/syllable-cli/internal/spec/openapi.json /tmp/upstream.json
+```
+
+### Activating this automation
+
+The workflows ship in the repo, but two one-time setup steps are required (until then `spec-drift.yml` works, but the live check and the routine's labeling don't):
+
+1. **Add the CI-org secret.** Create repository secret `SYLLABLE_CI_API_KEY` (Settings → Secrets and variables → Actions) holding the API key for a **dedicated, non-customer CI org** — never a customer key. Until it exists, `spec-live-check.yml` skips with a warning rather than failing.
+2. **Create the labels.** Trigger `spec-drift.yml` once via **workflow_dispatch** — it creates both `spec-drift` and `spec-sync`. Or by hand: `gh label create spec-sync -c 0E8A16 -d "Reconciliation PR — run the live integration check"`. The `spec-sync` label must exist before the routine can apply it to a PR.
+3. **Set up the reconciliation routine** (optional but recommended) — see *Reconciliation* above.
+
+`spec-drift.yml` itself needs no setup; it runs on the default `GITHUB_TOKEN`.
 
 ## Convention notes
 

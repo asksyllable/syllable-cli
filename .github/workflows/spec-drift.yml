@@ -1,0 +1,149 @@
+name: Spec Drift
+
+# Detects when the embedded OpenAPI spec has fallen behind the upstream SDK spec
+# and surfaces it as a single, rolling "spec-drift" tracking issue.
+#
+# Detection is content-based, not version-based: info.version is unreliable
+# (it rarely bumps even when schemas change), so we compare a sha256 of the
+# embedded spec against the freshly fetched upstream, then confirm with a
+# structural diff so formatting-only changes don't raise a false alarm.
+#
+# This workflow only NOTIFIES. Reconciliation (updating cmd files + docs and
+# replacing the spec atomically) is done by the `syllable-sync` skill / the
+# local `syllable-spec-sync` routine, which opens a reviewable PR.
+
+on:
+  schedule:
+    - cron: "0 13 * * *" # 13:00 UTC daily (~6am PT)
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: spec-drift
+  cancel-in-progress: false
+
+env:
+  UPSTREAM_URL: https://raw.githubusercontent.com/asksyllable/syllable-sdk-typescript/main/openapi.json
+  EMBEDDED_SPEC: scripts/syllable-cli/internal/spec/openapi.json
+  DIFF_SCRIPT: .claude/skills/syllable-sync/scripts/diff_specs.py
+  LABEL: spec-drift
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Detect drift
+        id: detect
+        run: |
+          set -eo pipefail
+
+          echo "Fetching upstream spec…"
+          curl -fsSL --retry 3 --retry-delay 5 -o /tmp/upstream.json "$UPSTREAM_URL"
+
+          # Guard against fetching an HTML error page instead of the spec.
+          python3 -c "import json; json.load(open('/tmp/upstream.json'))" \
+            || { echo "::error::Upstream is not valid JSON — aborting."; exit 1; }
+
+          emb="$(sha256sum "$EMBEDDED_SPEC" | cut -d' ' -f1)"
+          ups="$(sha256sum /tmp/upstream.json | cut -d' ' -f1)"
+          echo "embedded sha256: $emb"
+          echo "upstream sha256: $ups"
+
+          if [ "$emb" = "$ups" ]; then
+            echo "Specs are byte-identical — in sync."
+            echo "drift=none" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Hashes differ — running structural diff…"
+          set +e
+          python3 "$DIFF_SCRIPT" --exit-code "$EMBEDDED_SPEC" /tmp/upstream.json > /tmp/report.txt
+          rc=$?
+          set -e
+
+          if [ "$rc" -eq 0 ]; then
+            echo "Hash differs but no structural changes (formatting only) — treating as in sync."
+            echo "drift=none" >> "$GITHUB_OUTPUT"
+          elif [ "$rc" -eq 1 ]; then
+            echo "Structural drift detected."
+            cat /tmp/report.txt
+            echo "drift=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::diff_specs.py failed (exit $rc)"
+            cat /tmp/report.txt || true
+            exit 1
+          fi
+
+      - name: Open or update tracking issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRIFT: ${{ steps.detect.outputs.drift }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/blob/main/.github/workflows/spec-drift.yml
+        run: |
+          set -eo pipefail
+
+          # Ensure the labels we rely on exist (idempotent, runs every time):
+          #   spec-drift — this workflow's rolling tracking issue
+          #   spec-sync  — applied by the reconciliation routine to a PR, which is
+          #                what triggers spec-live-check.yml (GitHub rejects an
+          #                undefined label, so it must exist before the routine runs)
+          gh label create "$LABEL" -c FBCA04 \
+            -d "Embedded OpenAPI spec has drifted from the upstream SDK" --force >/dev/null 2>&1 || true
+          gh label create spec-sync -c 0E8A16 \
+            -d "Reconciliation PR — run the live integration check" --force >/dev/null 2>&1 || true
+
+          # Tolerate no existing issue / label absence — fall through to create.
+          existing="$(gh issue list --label "$LABEL" --state open --json number --jq '.[0].number // empty' 2>/dev/null || true)"
+
+          if [ "$DRIFT" = "yes" ]; then
+            {
+              echo "## 🛰️ OpenAPI spec drift detected"
+              echo
+              echo "The embedded spec \`$EMBEDDED_SPEC\` differs from upstream:"
+              echo
+              echo "> $UPSTREAM_URL"
+              echo
+              echo "### Structural diff"
+              echo
+              echo '```'
+              if [ "$(wc -c < /tmp/report.txt)" -gt 55000 ]; then
+                head -c 55000 /tmp/report.txt
+                printf '\n… (diff truncated — run diff_specs.py locally for the full report)\n'
+              else
+                cat /tmp/report.txt
+              fi
+              echo '```'
+              echo
+              echo "### How to reconcile"
+              echo
+              echo "Run the **\`syllable-sync\`** skill (or let the local **\`syllable-spec-sync\`** routine do it). It replaces the embedded spec **and** updates \`cmd/*.go\` + docs in a single atomic PR — never merge a spec-only bump, or \`schema get\` will advertise endpoints the CLI can't call."
+              echo
+              echo "_Auto-generated by [spec-drift.yml]($WORKFLOW_URL) · [run log]($RUN_URL). This issue is updated in place on each run and closed automatically when the spec is back in sync._"
+            } > /tmp/body.md
+
+            if [ -n "$existing" ]; then
+              gh issue edit "$existing" --body-file /tmp/body.md
+              echo "Updated existing issue #$existing"
+            else
+              gh issue create \
+                --title "OpenAPI spec drift: the CLI is behind the SDK" \
+                --label "$LABEL" \
+                --body-file /tmp/body.md
+              echo "Opened a new spec-drift issue"
+            fi
+          else
+            if [ -n "$existing" ]; then
+              gh issue close "$existing" \
+                --comment "Embedded spec is back in sync with upstream (run $RUN_URL). Closing automatically."
+              echo "Closed issue #$existing — back in sync"
+            else
+              echo "No drift and no open issue — nothing to do."
+            fi
+          fi
