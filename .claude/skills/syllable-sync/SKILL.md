@@ -197,6 +197,26 @@ For removed fields:
 Before deleting, check `cmd_test.go` for any tests referencing the command and
 remove those too. Then delete the cmd file and remove the `rootCmd.AddCommand()` line.
 
+### Integration tests for new commands
+
+Unit tests (stubbed HTTP in `cmd_test.go`) prove the request shape; they cannot
+catch spec-vs-reality drift. For **every new command**, also add a black-box test
+to `scripts/syllable-cli/integration/integration_test.go` so `spec-live-check.yml`
+exercises it against the live CI org:
+
+- **Mutable resource (create/update/delete):** a full create → list → update →
+  delete cycle, with `registerCleanup` so the resource is removed even on failure.
+  Use a safe, identifiable test value (a TEST-NET-3 `203.0.113.0/24` CIDR, or the
+  `[TEST-INTEG]` prefix via `testName(...)`). See `TestOrganizationsSipIPRangesCRUD`.
+- **Read-only (list/get):** call it with `mustRunCLI` — a clean exit proves the
+  path, auth, and parsing work against the live API. See `TestAgentsLabels`.
+- **Needs a precondition** (an existing tool, a Twilio channel, a phone number):
+  gate it behind an env var and `t.Skip` when unset, like `TestToolsCRUD`
+  (`SYLLABLE_TOOL_SERVICE_ID`) and `TestToolsHistory` (`SYLLABLE_TEST_TOOL_ID`).
+
+A new command with no live test means the QA gate isn't actually covering it —
+say so explicitly in the PR if you genuinely can't add one.
+
 ---
 
 ## Phase 6 — Update documentation
