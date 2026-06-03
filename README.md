@@ -291,6 +291,7 @@ syllable agents create --name NAME --type TYPE --prompt-id ID --timezone TZ
 syllable agents create --file agent.json
 syllable agents update <id> --file agent.json
 syllable agents delete <id>
+syllable agents labels
 ```
 
 ### Channels
@@ -315,6 +316,7 @@ syllable channels twilio get
 syllable channels twilio create --file twilio.json
 syllable channels twilio numbers-list
 syllable channels twilio numbers-add --file number.json
+syllable channels twilio numbers-verify-a2p-compliance <channel-id> --phone +18042221111
 ```
 
 ### Conversations
@@ -350,6 +352,7 @@ syllable tools create --name NAME --service-id ID
 syllable tools create --file tool.json
 syllable tools update <id> --file tool.json
 syllable tools delete <id>
+syllable tools history <id>
 ```
 
 ### Sessions
@@ -483,7 +486,7 @@ Use this when you need to know what fields a create or update body requires.
 | `permissions` | list | System-wide permissions (read-only). |
 | `conversation-config` | bridges, bridges-update | Configuration for transfer/handoff phrases. |
 | `dashboards` | list, fetch-info, ~~sessions~~, ~~session-events~~, ~~session-transfers~~, ~~session-summary~~ | The `sessions`, `session-events`, `session-transfers`, and `session-summary` endpoints are **deprecated** — use `list` and `fetch-info` instead. |
-| `organizations` | list (read-only) | Org listing — no create, update, or delete. |
+| `organizations` | get, update, sip-ip-ranges | The current org — no create or delete (high blast radius; use the console). `sip-ip-ranges` (list, create, update, delete) manages signaling/media SIP IP ranges in CIDR notation. |
 
 ---
 
