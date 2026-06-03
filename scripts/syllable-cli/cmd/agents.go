@@ -47,8 +47,41 @@ func agentsCmd() *cobra.Command {
 	cmd.AddCommand(agentsDeleteCmd())
 	cmd.AddCommand(agentsSendTestMessageCmd())
 	cmd.AddCommand(agentsVoicesCmd())
+	cmd.AddCommand(agentsLabelsCmd())
 
 	return cmd
+}
+
+func agentsLabelsCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "labels",
+		Short: "List active agent labels",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			data, _, err := apiClient.Get("/api/v1/agents/labels")
+			if err != nil {
+				return err
+			}
+
+			if getOutputFmt() == "json" {
+				output.PrintJSON(data)
+				return nil
+			}
+
+			var labels []string
+			if err := json.Unmarshal(data, &labels); err != nil {
+				output.PrintJSON(data)
+				return nil
+			}
+
+			rows := make([][]string, len(labels))
+			for i, l := range labels {
+				rows[i] = []string{l}
+			}
+			printTable([]string{"LABEL"}, rows)
+			fmt.Printf("\nTotal: %d\n", len(labels))
+			return nil
+		},
+	}
 }
 
 func agentsVoicesCmd() *cobra.Command {

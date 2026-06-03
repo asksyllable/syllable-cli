@@ -35,6 +35,76 @@ func toolsCmd() *cobra.Command {
 	cmd.AddCommand(toolsCreateCmd())
 	cmd.AddCommand(toolsUpdateCmd())
 	cmd.AddCommand(toolsDeleteCmd())
+	cmd.AddCommand(toolsHistoryCmd())
+
+	return cmd
+}
+
+func toolsHistoryCmd() *cobra.Command {
+	var page, limit int
+	var orderByDirection string
+
+	cmd := &cobra.Command{
+		Use:   "history <tool-id>",
+		Short: "List version history for a tool",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			path := fmt.Sprintf("/api/v1/tools/%s/history?page=%d&limit=%d", args[0], page, limit)
+			if orderByDirection != "" {
+				path += "&order_by_direction=" + orderByDirection
+			}
+
+			data, _, err := apiClient.Get(path)
+			if err != nil {
+				return err
+			}
+
+			if getOutputFmt() == "json" {
+				output.PrintJSON(data)
+				return nil
+			}
+
+			var result struct {
+				Items []struct {
+					VersionNumber json.Number `json:"version_number"`
+					Operation     string      `json:"operation"`
+					Name          string      `json:"name"`
+					UpdatedBy     string      `json:"updated_by"`
+					CreatedAt     string      `json:"created_at"`
+					Comments      *string     `json:"comments"`
+				} `json:"items"`
+				TotalCount int `json:"total_count"`
+			}
+			if err := json.Unmarshal(data, &result); err != nil {
+				output.PrintJSON(data)
+				return nil
+			}
+
+			headers := []string{"VERSION", "OPERATION", "NAME", "UPDATED_BY", "CREATED_AT", "COMMENTS"}
+			rows := make([][]string, len(result.Items))
+			for i, h := range result.Items {
+				comments := ""
+				if h.Comments != nil {
+					comments = output.Truncate(*h.Comments, 40)
+				}
+				rows[i] = []string{
+					h.VersionNumber.String(),
+					h.Operation,
+					h.Name,
+					h.UpdatedBy,
+					h.CreatedAt,
+					comments,
+				}
+			}
+			printTable(headers, rows)
+			fmt.Printf("\nTotal: %d\n", result.TotalCount)
+			return nil
+		},
+	}
+
+	cmd.Flags().IntVar(&page, "page", 0, "Page number (0-based)")
+	cmd.Flags().IntVar(&limit, "limit", 25, "Max items to return")
+	cmd.Flags().StringVar(&orderByDirection, "order-by-direction", "", "Sort direction: asc or desc")
 
 	return cmd
 }

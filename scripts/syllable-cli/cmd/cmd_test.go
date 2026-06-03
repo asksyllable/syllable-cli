@@ -2074,6 +2074,158 @@ func TestConversationConfigBridges(t *testing.T) {
 	}
 }
 
+// --- Spec-sync v0.0.3: new command coverage ---
+
+func TestAgentsLabels(t *testing.T) {
+	var method, path string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		path = r.URL.Path
+		json.NewEncoder(w).Encode([]string{"sales", "support"})
+	})
+	defer server.Close()
+
+	cmd := agentsLabelsCmd()
+	cmd.SetArgs([]string{})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "GET" {
+		t.Errorf("expected GET, got %s", method)
+	}
+	if path != "/api/v1/agents/labels" {
+		t.Errorf("unexpected path: %s", path)
+	}
+}
+
+func TestToolsHistory(t *testing.T) {
+	var method, path string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		path = r.URL.Path
+		json.NewEncoder(w).Encode(map[string]interface{}{"items": []interface{}{}, "total_count": 0})
+	})
+	defer server.Close()
+
+	cmd := toolsHistoryCmd()
+	cmd.SetArgs([]string{"5"})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "GET" {
+		t.Errorf("expected GET, got %s", method)
+	}
+	if path != "/api/v1/tools/5/history" {
+		t.Errorf("unexpected path: %s", path)
+	}
+}
+
+func TestChannelsTwilioVerifyA2p(t *testing.T) {
+	var method, path string
+	var body map[string]interface{}
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		path = r.URL.Path
+		json.NewDecoder(r.Body).Decode(&body)
+		json.NewEncoder(w).Encode(map[string]interface{}{"a2p_approved": true})
+	})
+	defer server.Close()
+
+	cmd := channelsTwilioNumbersVerifyA2pCmd()
+	cmd.SetArgs([]string{"5", "--phone", "+18042221111"})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "POST" {
+		t.Errorf("expected POST, got %s", method)
+	}
+	if path != "/api/v1/channels/twilio/5/numbers/verify-a2p-compliance" {
+		t.Errorf("unexpected path: %s", path)
+	}
+	if body["phone"] != "+18042221111" {
+		t.Errorf("expected phone in body, got %v", body["phone"])
+	}
+}
+
+func TestOrganizationsSipIPRangesList(t *testing.T) {
+	var method, path string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		path = r.URL.Path
+		json.NewEncoder(w).Encode([]interface{}{})
+	})
+	defer server.Close()
+
+	cmd := organizationsSipIPRangesListCmd()
+	cmd.SetArgs([]string{})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "GET" {
+		t.Errorf("expected GET, got %s", method)
+	}
+	// Trailing slash is load-bearing — a redirect would drop the API-key header.
+	if path != "/api/v1/organizations/sip_ip_ranges/" {
+		t.Errorf("unexpected path: %s", path)
+	}
+}
+
+func TestOrganizationsSipIPRangesCreate(t *testing.T) {
+	var method, path string
+	var body map[string]interface{}
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		path = r.URL.Path
+		json.NewDecoder(r.Body).Decode(&body)
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(map[string]interface{}{"id": 1})
+	})
+	defer server.Close()
+
+	cmd := organizationsSipIPRangesCreateCmd()
+	cmd.SetArgs([]string{"--type", "signaling", "--ip-range", "192.168.1.0/24"})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "POST" {
+		t.Errorf("expected POST, got %s", method)
+	}
+	if path != "/api/v1/organizations/sip_ip_ranges/" {
+		t.Errorf("unexpected path: %s", path)
+	}
+	if body["type"] != "signaling" || body["ip_range"] != "192.168.1.0/24" {
+		t.Errorf("unexpected body: %v", body)
+	}
+}
+
+func TestOrganizationsSipIPRangesDelete(t *testing.T) {
+	var method, path string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		path = r.URL.Path
+		w.WriteHeader(http.StatusNoContent)
+	})
+	defer server.Close()
+
+	cmd := organizationsSipIPRangesDeleteCmd()
+	cmd.SetArgs([]string{"7"})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "DELETE" {
+		t.Errorf("expected DELETE, got %s", method)
+	}
+	if path != "/api/v1/organizations/sip_ip_ranges/7" {
+		t.Errorf("unexpected path: %s", path)
+	}
+}
+
 func min(a, b int) int {
 	if a < b {
 		return a
