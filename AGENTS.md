@@ -14,7 +14,7 @@ Quick reference for every resource: what it is, key fields, and hard constraints
 |----------|---------|------------|-------------|
 | **Agents** | AI system that talks to users via a channel | prompt_id, timezone, opening_message, session_variables, tool_headers, voice_group_id | 1:1 with channel target — one agent per target. Test channel is auto-generated. |
 | **Prompts** | Natural language instructions defining agent behavior, backed by an LLM | name, provider, model, temperature, seed, tools, version | Every edit auto-creates a new version. Previous versions can be previewed and restored via `prompts history`. |
-| **Tools** | APIs agents call during sessions (look up data, transfer calls, schedule, etc.) | endpoint_url, method, function definition (name, description, JSON Schema params), service_id, static_params, dynamic vars (`{{ vars.field }}`) | Requires a Service for auth. Three types: agent, step, system. |
+| **Tools** | APIs agents call during sessions (look up data, transfer calls, schedule, etc.) | endpoint_url, method, function definition (name, description, JSON Schema params), service_id, static_params, dynamic vars (`{{ vars.field }}`) | Requires a Service for auth. Three types: agent, step, system. `tools history <id>` lists past versions (version_number, operation, updated_by). |
 | **Services** | Centralized credential store for tool authentication | name, auth_type (basic/bearer/custom), credentials | Credentials are masked and not stored by Syllable after configuration. Multiple tools may share one service. |
 | **Channels** | Communication modes (voice, SMS, chat) | name, service, is_system | System channels include Freeswitch Twilio (voice) and Syllable Webchat (chat). Twilio channels configurable via CLI; others via SDK. |
 | **Channel Targets** | Specific address (phone number or chat ID) where an agent operates | target (e.g., +18002832940 or chat-1-org-3), agent_id | 1:1 with agent — one agent per target. |
@@ -34,7 +34,7 @@ Quick reference for every resource: what it is, key fields, and hard constraints
 | **Dashboards** | Performance analytics | name | `sessions`, `session-events`, `session-transfers`, `session-summary` endpoints are **DEPRECATED** — use `list` and `fetch-info`. |
 | **Takeouts** | Data export jobs | job_id, status, file_name | Workflow: create → poll with get → download. |
 | **Incidents** | Platform incident tracking | name, status | — |
-| **Organizations** | Current organization | display_name, slug, description | API exposes the **current** org only — `get` returns it; `update` modifies it. Create and delete are intentionally not exposed via CLI — use the web console for both. |
+| **Organizations** | Current organization | display_name, slug, description | API exposes the **current** org only — `get` returns it; `update` modifies it. Create and delete are intentionally not exposed via CLI — use the web console for both. `sip-ip-ranges` (list/create/update/delete) manages signaling & media SIP IP ranges in CIDR notation. |
 | **Permissions** | System-wide permissions | name | Read-only. |
 | **Conversation Config (Bridges)** | Transfer/handoff phrase configuration | phrases | — |
 | **Schema** | Explore API request/response shapes from embedded OpenAPI spec | type name | No API call made. Use before create/update to find required fields. |
@@ -256,6 +256,7 @@ syllable agents create --name NAME --type TYPE --prompt-id ID --timezone TZ
 syllable agents update <agent-id> --file agent.json
 syllable agents delete <agent-id>
 syllable agents voices
+syllable agents labels
 syllable agents send-test-message <agent-id> --test-id ID [--session-start] [--text TEXT] [--override-timestamp ISO8601]
 ```
 **Table columns:** ID, NAME, TYPE, LABEL, DESCRIPTION, UPDATED
@@ -286,6 +287,7 @@ syllable channels twilio update --file twilio.json
 syllable channels twilio numbers-list
 syllable channels twilio numbers-add --file number.json
 syllable channels twilio numbers-update --file number.json
+syllable channels twilio numbers-verify-a2p-compliance <channel-id> --phone +18042221111
 ```
 **Table columns:** ID, NAME, SERVICE, IS_SYSTEM
 
@@ -318,8 +320,10 @@ syllable tools create --file tool.json
 syllable tools create --name NAME --service-id ID
 syllable tools update <tool-name> --file tool.json
 syllable tools delete <tool-name>
+syllable tools history <tool-id> [--page N] [--limit N] [--order-by-direction asc|desc]
 ```
 **Table columns:** ID, NAME, SERVICE, LAST_UPDATED, LAST_UPDATED_BY
+**`history` columns:** VERSION, OPERATION, NAME, UPDATED_BY, CREATED_AT, COMMENTS
 
 ### Sessions
 Individual voice or chat conversations. Captures transcript, AI summary, tool calls with arguments and API responses, duration, channel, user ID, labels, recording, and is_test flag. Read-only — no create/update/delete.
@@ -568,7 +572,14 @@ Org provisioning (create) and deletion are intentionally not exposed via the CLI
 ```bash
 syllable organizations get
 syllable organizations update --display-name NAME [--logo PATH] [--description TEXT] [--domains a.com,b.com] [--saml-provider-id ID] [--update-comments TEXT]
+
+# SIP IP ranges (signaling or media, CIDR notation)
+syllable organizations sip-ip-ranges list
+syllable organizations sip-ip-ranges create --type signaling --ip-range 192.168.1.0/24
+syllable organizations sip-ip-ranges update <sip-ip-range-id> [--type TYPE] [--ip-range CIDR]
+syllable organizations sip-ip-ranges delete <sip-ip-range-id>
 ```
+**`sip-ip-ranges list` columns:** ID, TYPE, IP_RANGE, VERIFIED, CREATED_AT
 
 ### Schema
 Explores API data structures from the embedded OpenAPI spec (no API call made). Use before create/update operations to discover required fields and body structure.

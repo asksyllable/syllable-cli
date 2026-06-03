@@ -436,7 +436,40 @@ func channelsTwilioCmd() *cobra.Command {
 	cmd.AddCommand(channelsTwilioNumbersListCmd())
 	cmd.AddCommand(channelsTwilioNumbersAddCmd())
 	cmd.AddCommand(channelsTwilioNumbersUpdateCmd())
+	cmd.AddCommand(channelsTwilioNumbersVerifyA2pCmd())
 
+	return cmd
+}
+
+func channelsTwilioNumbersVerifyA2pCmd() *cobra.Command {
+	var phone string
+
+	cmd := &cobra.Command{
+		Use:   "numbers-verify-a2p-compliance <channel-id>",
+		Short: "Check US A2P / Messaging Service compliance for a Twilio number",
+		Long: `Check whether a number on a Twilio channel is on a Messaging Service with an
+approved US A2P brand and verified campaign. Reflects Twilio configuration, not
+carrier per-number registration or legal/content compliance.`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if phone == "" {
+				return fmt.Errorf("required flag: --phone")
+			}
+
+			body := map[string]interface{}{"phone": phone}
+			path := fmt.Sprintf("/api/v1/channels/twilio/%s/numbers/verify-a2p-compliance", args[0])
+			data, _, err := apiClient.Post(path, body)
+			if err != nil {
+				return err
+			}
+
+			output.PrintJSON(data)
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&phone, "phone", "", "E.164 phone number exactly as Twilio stores it, e.g. +18042221111 (required)")
+	_ = cmd.MarkFlagRequired("phone")
 	return cmd
 }
 

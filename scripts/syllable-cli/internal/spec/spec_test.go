@@ -64,6 +64,10 @@ func TestBulkOperationPathsMatch(t *testing.T) {
 		"/api/v1/directory_members/download/",
 		"/api/v1/outbound/batches/{batch_id}/upload_batch",
 		"/api/v1/pronunciations/csv",
+		// SIP IP ranges: the collection endpoint has a trailing slash and the
+		// item endpoint does not — a mismatch drops the API-key header on a 307.
+		"/api/v1/organizations/sip_ip_ranges/",
+		"/api/v1/organizations/sip_ip_ranges/{sip_ip_range_id}",
 	}
 	for _, p := range want {
 		if _, ok := paths[p]; !ok {
