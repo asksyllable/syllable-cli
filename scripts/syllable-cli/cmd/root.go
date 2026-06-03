@@ -196,7 +196,7 @@ func init() {
 
 	// Global flags
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default: ~/.syllable/config.yaml)")
-	rootCmd.PersistentFlags().StringVar(&orgName, "org", "", "Organization name (e.g. sandbox, memorialcare)")
+	rootCmd.PersistentFlags().StringVar(&orgName, "org", "", "Organization name (e.g. sandbox)")
 	rootCmd.PersistentFlags().StringVar(&envName, "env", "", "Named environment — sets base URL from config (default: prod)")
 	rootCmd.PersistentFlags().StringVarP(&outputFmt, "output", "o", "table", "Output format: table or json")
 	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "Print the request that would be sent without executing it")
@@ -266,7 +266,7 @@ func initClient() {
 	key := resolveAPIKey()
 
 	if key == "" {
-		fmt.Fprintln(os.Stderr, "Error: not configured. Run `syllable setup` to configure orgs and API keys, then use --org <name> to select one.")
+		fmt.Fprintln(os.Stderr, "Error: not configured. Run `syllable setup` and select an org with --org <name>, or set SYLLABLE_API_KEY for non-interactive use.")
 		os.Exit(1)
 	}
 
@@ -279,6 +279,12 @@ func initClient() {
 // Priority: orgs.<org>.envs.<env>.api_key > orgs.<org>.api_key
 // Org is taken from --org flag or default_org in config.
 func resolveAPIKey() string {
+	// Non-interactive auth: an explicit key in the environment takes priority,
+	// so the CLI works in CI and automation without a ~/.syllable/config.yaml.
+	if k := os.Getenv("SYLLABLE_API_KEY"); k != "" {
+		return k
+	}
+
 	org := strings.ToLower(viper.GetString("org"))
 	if org == "" {
 		org = strings.ToLower(viper.GetString("default_org"))

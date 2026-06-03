@@ -1,14 +1,14 @@
 // Package integration_test runs black-box CRUD tests against a live Syllable
 // instance by invoking the CLI binary as a subprocess.
 //
-// Required env vars:
+// Auth — set one of:
 //
-//	SYLLABLE_API_KEY   — API key for the test org
+//	SYLLABLE_API_KEY   — API key used directly (non-interactive / CI)
+//	SYLLABLE_ORG       — org whose key is read from ~/.syllable/config.yaml (local dev)
 //
 // Optional env vars:
 //
-//	SYLLABLE_ORG              — org slug (default: sandbox)
-//	SYLLABLE_BASE_URL         — base URL (default: https://api.syllable.cloud)
+//	SYLLABLE_ENV              — named environment (default: prod)
 //	SYLLABLE_CLI_BINARY       — path to CLI binary (default: ../syllable)
 //	SYLLABLE_TOOL_SERVICE_ID  — integer service ID; enables TestToolsCRUD
 //	SYLLABLE_TEST_CALLER_ID   — phone number; enables TestOutboundCampaignsCRUD
@@ -27,11 +27,9 @@ import (
 func TestMain(m *testing.M) {
 	initConfig()
 
-	// Require at least one auth method.
-	// Prefer SYLLABLE_ORG (looks up key from ~/.syllable/config.yaml).
-	// Fall back to SYLLABLE_API_KEY for keyless-config environments.
-	if apiKey == "" && org == "" {
-		fmt.Fprintln(os.Stderr, "Set SYLLABLE_ORG or SYLLABLE_API_KEY to run integration tests")
+	// Require an auth source: SYLLABLE_API_KEY (direct) or SYLLABLE_ORG (config).
+	if org == "" && os.Getenv("SYLLABLE_API_KEY") == "" {
+		fmt.Fprintln(os.Stderr, "Set SYLLABLE_API_KEY or SYLLABLE_ORG to run integration tests")
 		os.Exit(0)
 	}
 

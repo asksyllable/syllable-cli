@@ -624,6 +624,16 @@ func TestAgentsSendTestMessageOverrideTimestamp(t *testing.T) {
 	}
 }
 
+// TestResolveAPIKeyFromEnv verifies the non-interactive auth path: a key in
+// SYLLABLE_API_KEY is used directly, taking priority over config resolution
+// (so the CLI authenticates in CI/automation with no ~/.syllable/config.yaml).
+func TestResolveAPIKeyFromEnv(t *testing.T) {
+	t.Setenv("SYLLABLE_API_KEY", "env-key-abc123")
+	if got := resolveAPIKey(); got != "env-key-abc123" {
+		t.Errorf("resolveAPIKey() = %q, want %q (SYLLABLE_API_KEY should take priority)", got, "env-key-abc123")
+	}
+}
+
 func TestAgentsSendTestMessageNoOverrideTimestampOmitsField(t *testing.T) {
 	var receivedBody map[string]interface{}
 	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
