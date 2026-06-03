@@ -22,6 +22,8 @@ cd scripts/syllable-cli && go test ./...
 
 Run `syllable setup` to open the browser-based config UI. This manages orgs, API keys, and environments in `~/.syllable/config.yaml`. Never edit that file directly or ask the user to paste keys into the terminal.
 
+For non-interactive use (CI, scripts, automation), set the `SYLLABLE_API_KEY` environment variable instead — the CLI reads it directly and it takes priority over the config file, so no `syllable setup` or `--org` is needed.
+
 ## Key Flags
 
 | Flag | Purpose |
