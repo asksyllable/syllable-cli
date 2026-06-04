@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -2335,5 +2336,166 @@ func TestHintForErrorThreadsCommand(t *testing.T) {
 	}
 	if h2 := hintForError(nil, err); h2 == "" {
 		t.Error("hintForError with nil command should still produce a 404 hint")
+	}
+}
+
+// --- Update positional identifier tests (#68) ---
+
+func writeTempJSON(t *testing.T, content string) string {
+	t.Helper()
+	f := filepath.Join(t.TempDir(), "body.json")
+	if err := os.WriteFile(f, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return f
+}
+
+func TestEnsureBodyIdentifier(t *testing.T) {
+	// inject numeric id when absent
+	body := map[string]interface{}{"description": "x"}
+	if err := ensureBodyIdentifier(body, "id", "574", true); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if body["id"] != int64(574) {
+		t.Errorf("expected injected id 574, got %#v", body["id"])
+	}
+
+	// matching body id passes (encoding/json decodes numbers as float64)
+	if err := ensureBodyIdentifier(map[string]interface{}{"id": float64(574)}, "id", "574", true); err != nil {
+		t.Errorf("matching id should pass: %v", err)
+	}
+
+	// conflicting body id is refused
+	if err := ensureBodyIdentifier(map[string]interface{}{"id": float64(575)}, "id", "574", true); err == nil {
+		t.Error("conflicting id should error")
+	}
+
+	// non-numeric positional for a numeric key is refused
+	if err := ensureBodyIdentifier(map[string]interface{}{}, "id", "abc", true); err == nil {
+		t.Error("non-numeric id should error")
+	}
+
+	// string keys inject as strings (users email, tools name)
+	body = map[string]interface{}{}
+	if err := ensureBodyIdentifier(body, "email", "a@b.co", false); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if body["email"] != "a@b.co" {
+		t.Errorf("expected injected email, got %#v", body["email"])
+	}
+
+	// conflicting string identifier is refused
+	if err := ensureBodyIdentifier(map[string]interface{}{"name": "other_tool"}, "name", "my_tool", false); err == nil {
+		t.Error("conflicting name should error")
+	}
+
+	// non-object bodies pass through untouched
+	if err := ensureBodyIdentifier([]interface{}{"x"}, "id", "574", true); err != nil {
+		t.Errorf("non-object body should be a no-op: %v", err)
+	}
+}
+
+func TestAgentsUpdateInjectsPositionalID(t *testing.T) {
+	var method, path string
+	var got map[string]interface{}
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		path = r.URL.Path
+		json.NewDecoder(r.Body).Decode(&got)
+		w.Write([]byte(`{}`))
+	})
+	defer server.Close()
+
+	cmd := agentsUpdateCmd()
+	cmd.SetArgs([]string{"574", "--file", writeTempJSON(t, `{"description":"noop"}`)})
+	captureStdout(func() {
+		if err := cmd.Execute(); err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+	})
+
+	if method != "PUT" || path != "/api/v1/agents/" {
+		t.Errorf("unexpected request: %s %s", method, path)
+	}
+	if got["id"] != float64(574) {
+		t.Errorf("expected body id 574, got %#v", got["id"])
+	}
+	if got["description"] != "noop" {
+		t.Errorf("body fields should survive injection, got %#v", got)
+	}
+}
+
+func TestAgentsUpdateConflictingBodyID(t *testing.T) {
+	hit := false
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		hit = true
+	})
+	defer server.Close()
+
+	cmd := agentsUpdateCmd()
+	cmd.SetArgs([]string{"574", "--file", writeTempJSON(t, `{"id": 575}`)})
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
+	var err error
+	captureStdout(func() { err = cmd.Execute() })
+
+	if err == nil || !strings.Contains(err.Error(), "conflicts") {
+		t.Errorf("expected conflict error, got %v", err)
+	}
+	if hit {
+		t.Error("request should not reach the API on identifier conflict")
+	}
+}
+
+func TestUsersUpdateInjectsPositionalEmail(t *testing.T) {
+	var got map[string]interface{}
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		json.NewDecoder(r.Body).Decode(&got)
+		w.Write([]byte(`{}`))
+	})
+	defer server.Close()
+
+	cmd := usersUpdateCmd()
+	cmd.SetArgs([]string{"a@b.co", "--file", writeTempJSON(t, `{"role_id": 2}`)})
+	captureStdout(func() {
+		if err := cmd.Execute(); err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+	})
+
+	if got["email"] != "a@b.co" {
+		t.Errorf("expected injected email, got %#v", got["email"])
+	}
+}
+
+func TestToolsUpdateValidatesPositionalName(t *testing.T) {
+	var got map[string]interface{}
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		json.NewDecoder(r.Body).Decode(&got)
+		w.Write([]byte(`{}`))
+	})
+	defer server.Close()
+
+	// name absent from body → injected from the positional
+	cmd := toolsUpdateCmd()
+	cmd.SetArgs([]string{"my_tool", "--file", writeTempJSON(t, `{"id": 425, "service_id": 1}`)})
+	captureStdout(func() {
+		if err := cmd.Execute(); err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+	})
+	if got["name"] != "my_tool" {
+		t.Errorf("expected injected name, got %#v", got["name"])
+	}
+
+	// conflicting name in body → refused
+	cmd = toolsUpdateCmd()
+	cmd.SetArgs([]string{"my_tool", "--file", writeTempJSON(t, `{"id": 425, "name": "other_tool"}`)})
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
+	var err error
+	captureStdout(func() { err = cmd.Execute() })
+	if err == nil || !strings.Contains(err.Error(), "conflicts") {
+		t.Errorf("expected conflict error, got %v", err)
 	}
 }

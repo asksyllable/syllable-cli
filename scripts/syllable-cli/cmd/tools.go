@@ -283,6 +283,12 @@ func toolsUpdateCmd() *cobra.Command {
 				return fmt.Errorf("use --file to provide update body")
 			}
 
+			// The positional is the tool name; the API routes this PUT by the
+			// body's numeric id, so the name is validated/injected only (#68).
+			if err := ensureBodyIdentifier(body, "name", args[0], false); err != nil {
+				return err
+			}
+
 			data, _, err := apiClient.Put("/api/v1/tools/", body)
 			if err != nil {
 				return err

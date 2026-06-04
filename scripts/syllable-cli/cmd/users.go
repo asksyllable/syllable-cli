@@ -295,6 +295,11 @@ func usersUpdateCmd() *cobra.Command {
 				return fmt.Errorf("use --file to provide update body")
 			}
 
+			// The API routes this PUT by the email inside the body (#68).
+			if err := ensureBodyIdentifier(body, "email", args[0], false); err != nil {
+				return err
+			}
+
 			data, _, err := apiClient.Put("/api/v1/users/", body)
 			if err != nil {
 				return err
