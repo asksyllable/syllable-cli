@@ -2,10 +2,12 @@ package cmd
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 
 	"github.com/spf13/cobra"
+	"github.com/asksyllable/syllable-cli/internal/client"
 	"github.com/asksyllable/syllable-cli/internal/output"
 )
 
@@ -17,17 +19,20 @@ func toolsCmd() *cobra.Command {
 		Example: `  # List all tools
   syllable tools list
 
-  # Get a tool as JSON (inspect full config)
-  syllable tools get 5 --output json
+  # Get a tool as JSON (inspect full config) — tools are name-keyed
+  syllable tools get my_tool --output json
+
+  # Numeric IDs from the list's ID column are resolved to the tool's name
+  syllable tools get 425
 
   # Create a tool from a JSON file
   syllable tools create --file tool.json
 
   # Update a tool
-  syllable tools update 5 --file tool.json
+  syllable tools update my_tool --file tool.json
 
   # Delete a tool
-  syllable tools delete 5`,
+  syllable tools delete my_tool`,
 	}
 
 	cmd.AddCommand(toolsListCmd())
@@ -173,15 +178,68 @@ func toolsListCmd() *cobra.Command {
 	return cmd
 }
 
+// resolveToolIDFallback maps a failed by-name lookup to a tool name when the
+// argument looks like a numeric ID copied from the `tools list` ID column (#69).
+// The tools get endpoint is name-keyed only, so the ID is resolved via the list
+// endpoint's id search, with an exact client-side match in case the server
+// searches by substring. Returns ok=false when the fallback doesn't apply or
+// finds nothing — callers keep the original by-name error.
+func resolveToolIDFallback(err error, arg string) (string, bool) {
+	var apiErr *client.APIError
+	if !errors.As(err, &apiErr) || apiErr.StatusCode != 404 || !isAllDigits(arg) {
+		return "", false
+	}
+	data, _, lerr := apiClient.Get("/api/v1/tools/?page=0&limit=100&search_fields=id&search_field_values=" + url.QueryEscape(arg))
+	if lerr != nil {
+		return "", false
+	}
+	var result struct {
+		Items []struct {
+			ID   json.Number `json:"id"`
+			Name string      `json:"name"`
+		} `json:"items"`
+	}
+	if json.Unmarshal(data, &result) != nil {
+		return "", false
+	}
+	for _, item := range result.Items {
+		if item.ID.String() == arg {
+			return item.Name, true
+		}
+	}
+	return "", false
+}
+
+// isAllDigits reports whether s is a non-empty ASCII digit string.
+func isAllDigits(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
 func toolsGetCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "get <tool-name>",
-		Short: "Get a tool by name",
+		Short: "Get a tool by name (numeric IDs are resolved via the list endpoint)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			data, _, err := apiClient.Get("/api/v1/tools/" + args[0])
 			if err != nil {
-				return err
+				// The get endpoint is name-keyed, but `tools list` leads with
+				// the ID column — resolve an all-digits arg by ID and retry (#69).
+				name, ok := resolveToolIDFallback(err, args[0])
+				if !ok {
+					return err
+				}
+				if data, _, err = apiClient.Get("/api/v1/tools/" + name); err != nil {
+					return err
+				}
 			}
 
 			if getOutputFmt() == "json" {
