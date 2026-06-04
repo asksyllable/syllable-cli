@@ -36,7 +36,7 @@ Quick reference for every resource: what it is, key fields, and hard constraints
 | **Incidents** | Platform incident tracking | name, status | — |
 | **Organizations** | Current organization | display_name, slug, description | API exposes the **current** org only — `get` returns it; `update` modifies it. Create and delete are intentionally not exposed via CLI — use the web console for both. `sip-ip-ranges` (list/create/update/delete) manages signaling & media SIP IP ranges in CIDR notation. |
 | **Permissions** | System-wide permissions | name | Read-only. |
-| **Conversation Config (Bridges)** | Transfer/handoff phrase configuration | phrases | — |
+| **Conversation Config (Bridges)** | Bridge phrases — filler messages spoken during delays and tool calls (Console: Voices → Phrases) | first_slow_messages, very_slow_messages, tool_responses | Supports per-language overrides via `localized`. |
 | **Schema** | Explore API request/response shapes from embedded OpenAPI spec | type name | No API call made. Use before create/update to find required fields. |
 
 ---
@@ -545,7 +545,7 @@ syllable permissions list
 ```
 
 ### Conversation Config
-Configuration for bridging/transfer phrases used when agents hand off to human agents.
+Bridge phrases — the filler messages an agent speaks while it is delayed or a tool call is in progress. This is the feature the Console shows under **Voices → Phrases**. Config fields: `first_slow_messages`, `very_slow_messages`, `tool_responses`, plus per-language overrides under `localized`.
 ```bash
 syllable conversation-config bridges
 syllable conversation-config bridges-update --file bridges.json

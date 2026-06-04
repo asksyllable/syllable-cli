@@ -78,19 +78,20 @@ Feedback: https://github.com/asksyllable/syllable-cli/issues`,
 // Execute runs the root command.
 func Execute() {
 	rootCmd.SilenceErrors = true
-	if err := rootCmd.Execute(); err != nil {
+	cmd, err := rootCmd.ExecuteC()
+	if err != nil {
 		var dryRun *client.DryRunResult
 		if errors.As(err, &dryRun) {
 			output.PrintJSON(dryRun.Output)
 			return
 		}
-		printError(err)
+		printError(cmd, err)
 		os.Exit(1)
 	}
 }
 
-func printError(err error) {
-	hint := hintForError(err)
+func printError(cmd *cobra.Command, err error) {
+	hint := hintForError(cmd, err)
 	if getOutputFmt() == "json" {
 		var apiErr *client.APIError
 		if errors.As(err, &apiErr) {
@@ -122,8 +123,9 @@ func printError(err error) {
 	}
 }
 
-// hintForError returns an actionable suggestion for common errors.
-func hintForError(err error) string {
+// hintForError returns an actionable suggestion for common errors. cmd is the
+// command that failed, used to tailor hints; it may be nil.
+func hintForError(cmd *cobra.Command, err error) string {
 	// Non-API errors: missing required flags
 	msg := err.Error()
 	if strings.Contains(msg, "required flags") || strings.Contains(msg, "use --file") {
@@ -141,13 +143,60 @@ func hintForError(err error) string {
 	case 403:
 		return "You don't have permission for this action. Check: syllable permissions list"
 	case 404:
-		return "Resource not found. Use the `list` subcommand to find valid IDs."
+		return hint404(cmd)
 	case 409:
+		if listPath := siblingListPath(cmd); listPath != "" {
+			return fmt.Sprintf("A resource with this name already exists. Use `%s` to find it.", listPath)
+		}
 		return "A resource with this name already exists. Use the `list` subcommand to find it."
 	case 422, 400:
 		return hint422(apiErr.Body)
 	case 500, 502, 503, 504:
 		return "Server error. This may be temporary — try again shortly."
+	}
+	return ""
+}
+
+// hint404 builds a 404 hint aware of which command failed. A 404 from `list`
+// means the org genuinely has nothing configured — pointing the user at `list`
+// would be a wild goose chase, so the API's own detail message stands alone.
+// Name-keyed commands (`get <tool-name>`, `update <user-email>`) steer users to
+// the right column instead of blaming an ID.
+func hint404(cmd *cobra.Command) string {
+	if cmd == nil {
+		return "Resource not found. Use the `list` subcommand to find valid IDs."
+	}
+	if cmd.Name() == "list" {
+		return ""
+	}
+	listPath := siblingListPath(cmd)
+	switch {
+	case strings.Contains(cmd.Use, "-name>"):
+		if listPath != "" {
+			return fmt.Sprintf("This command takes a name, not a numeric ID — copy the NAME column from `%s`.", listPath)
+		}
+		return "This command takes a name, not a numeric ID."
+	case strings.Contains(cmd.Use, "-email>"):
+		if listPath != "" {
+			return fmt.Sprintf("This command takes an email address — copy the EMAIL column from `%s`.", listPath)
+		}
+		return "This command takes an email address, not a numeric ID."
+	case listPath != "":
+		return fmt.Sprintf("Resource not found. Use `%s` to find valid IDs.", listPath)
+	}
+	return "Resource not found. Use the `list` subcommand to find valid IDs."
+}
+
+// siblingListPath returns the full command path of the `list` sibling of cmd
+// (e.g. "syllable tools list"), or "" when cmd has no list sibling.
+func siblingListPath(cmd *cobra.Command) string {
+	if cmd == nil || cmd.Parent() == nil {
+		return ""
+	}
+	for _, sib := range cmd.Parent().Commands() {
+		if sib.Name() == "list" {
+			return sib.CommandPath()
+		}
 	}
 	return ""
 }
