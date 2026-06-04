@@ -108,7 +108,11 @@ func schemaGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Printf("# %s\n\n", name)
+			// Heading is decoration for humans; suppress it under --output json
+			// so the output stays pipeable to jq.
+			if getOutputFmt() != "json" {
+				fmt.Printf("# %s\n\n", name)
+			}
 			output.PrintJSON(b)
 			return nil
 		},

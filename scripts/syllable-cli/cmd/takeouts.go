@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/asksyllable/syllable-cli/internal/output"
@@ -95,8 +96,9 @@ func takeoutsDownloadCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Print(string(data))
-			return nil
+			// Byte-safe write: takeout files may be binary (audio, archives).
+			_, err = os.Stdout.Write(data)
+			return err
 		},
 	}
 }

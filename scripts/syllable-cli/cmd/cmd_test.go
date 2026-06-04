@@ -2232,3 +2232,108 @@ func min(a, b int) int {
 	}
 	return b
 }
+
+// --- Output purity and hint tests ---
+
+func TestSchemaGetJSONOutputPure(t *testing.T) {
+	prev := viper.GetString("output")
+	defer viper.Set("output", prev)
+
+	// --output json: no markdown heading, stdout must parse as JSON
+	viper.Set("output", "json")
+	cmd := schemaGetCmd()
+	cmd.SetArgs([]string{"AgentCreate"})
+	out := captureStdout(func() {
+		cmd.Execute()
+	})
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(out), &parsed); err != nil {
+		t.Errorf("schema get -o json output is not pure JSON: %v\nfirst bytes: %.40q", err, out)
+	}
+
+	// table (default): heading stays
+	viper.Set("output", "table")
+	cmd = schemaGetCmd()
+	cmd.SetArgs([]string{"AgentCreate"})
+	out = captureStdout(func() {
+		cmd.Execute()
+	})
+	if !strings.HasPrefix(out, "# AgentCreate") {
+		t.Errorf("table output should keep the heading, got: %.40q", out)
+	}
+}
+
+func TestTakeoutsDownloadBytes(t *testing.T) {
+	// Invalid UTF-8 on purpose: takeout files may be binary (audio, archives).
+	payload := []byte{0x50, 0x4b, 0x03, 0x04, 0xff, 0xfe, 0x00, 0x9f}
+	var path string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		path = r.URL.Path
+		w.Write(payload)
+	})
+	defer server.Close()
+
+	cmd := takeoutsDownloadCmd()
+	cmd.SetArgs([]string{"job-1", "export.zip"})
+	out := captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if path != "/api/v1/takeouts/get/job-1/file/export.zip" {
+		t.Errorf("unexpected path: %s", path)
+	}
+	if !bytes.Equal([]byte(out), payload) {
+		t.Errorf("download not byte-exact: got %x, want %x", out, payload)
+	}
+}
+
+// fakeCommandTree builds syllable → tools → {list, get <tool-name>, update <agent-id>}
+// for hint tests without touching the real rootCmd.
+func fakeCommandTree() (list, getByName, updateByID *cobra.Command) {
+	root := &cobra.Command{Use: "syllable"}
+	parent := &cobra.Command{Use: "tools"}
+	list = &cobra.Command{Use: "list", Run: func(*cobra.Command, []string) {}}
+	getByName = &cobra.Command{Use: "get <tool-name>", Run: func(*cobra.Command, []string) {}}
+	updateByID = &cobra.Command{Use: "update <agent-id>", Run: func(*cobra.Command, []string) {}}
+	parent.AddCommand(list, getByName, updateByID)
+	root.AddCommand(parent)
+	return list, getByName, updateByID
+}
+
+func TestHint404ContextAware(t *testing.T) {
+	list, getByName, updateByID := fakeCommandTree()
+
+	// list itself 404ing → no hint; the API detail says it all (issue #73)
+	if h := hint404(list); h != "" {
+		t.Errorf("404 on list should produce no hint, got %q", h)
+	}
+
+	// name-keyed command → steer to the NAME column, not IDs (issue #69)
+	h := hint404(getByName)
+	if !strings.Contains(h, "name") || !strings.Contains(h, "`syllable tools list`") {
+		t.Errorf("name-keyed 404 hint should mention names and the list command path, got %q", h)
+	}
+
+	// id-keyed command → name the actual list command
+	h = hint404(updateByID)
+	if !strings.Contains(h, "`syllable tools list`") {
+		t.Errorf("id-keyed 404 hint should name the list command path, got %q", h)
+	}
+
+	// nil command (defensive) → generic fallback
+	if h := hint404(nil); !strings.Contains(h, "list") {
+		t.Errorf("nil-command 404 hint should keep the generic fallback, got %q", h)
+	}
+}
+
+func TestHintForErrorThreadsCommand(t *testing.T) {
+	_, getByName, _ := fakeCommandTree()
+	err := &client.APIError{StatusCode: 404, Body: []byte(`{"detail":"Tool with name 425 not found"}`)}
+	h := hintForError(getByName, err)
+	if !strings.Contains(h, "`syllable tools list`") {
+		t.Errorf("hintForError should thread the command into the 404 hint, got %q", h)
+	}
+	if h2 := hintForError(nil, err); h2 == "" {
+		t.Error("hintForError with nil command should still produce a 404 hint")
+	}
+}

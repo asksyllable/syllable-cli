@@ -11,14 +11,20 @@ import (
 func conversationConfigCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "conversation-config",
-		Short: "Manage conversation configuration",
-		Example: `  # Get the current bridge configuration
+		Short: "Manage conversation configuration (bridge phrases)",
+		Long: `Manage conversation configuration.
+
+Bridge phrases — the Console calls these "Voices → Phrases" — are the filler
+messages an agent speaks while it is delayed or a tool call is in progress
+(first_slow_messages, very_slow_messages, tool_responses), with optional
+per-language overrides.`,
+		Example: `  # Get the current bridge phrases configuration
   syllable conversation-config bridges
 
-  # Get bridge configuration as JSON
+  # Get bridge phrases configuration as JSON
   syllable conversation-config bridges --output json
 
-  # Update the bridge configuration from a JSON file
+  # Update the bridge phrases configuration from a JSON file
   syllable conversation-config bridges-update --file bridges.json`,
 	}
 
@@ -31,7 +37,7 @@ func conversationConfigCmd() *cobra.Command {
 func conversationConfigBridgesGetCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "bridges",
-		Short: "Get conversation bridge configuration",
+		Short: "Get bridge phrases configuration (Console: Voices → Phrases)",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			data, _, err := apiClient.Get("/api/v1/conversation-config/bridges")
 			if err != nil {
@@ -48,7 +54,7 @@ func conversationConfigBridgesUpdateCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "bridges-update",
-		Short: "Update conversation bridge configuration",
+		Short: "Update bridge phrases configuration (Console: Voices → Phrases)",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var body interface{}
 
