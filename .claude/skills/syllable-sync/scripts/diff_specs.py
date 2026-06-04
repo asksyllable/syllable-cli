@@ -12,6 +12,7 @@ Outputs a human+Claude-readable summary of what changed:
   - New schemas (components.schemas)
   - Removed schemas
   - Changed schemas (new/removed/changed fields)
+  - Changed enums (added/removed enum members — REMOVED values are breaking)
 
 Flags:
   --exit-code         Exit 1 if any structural differences are found, else 0.
@@ -19,7 +20,7 @@ Flags:
                       the original behaviour relied on by the syllable-sync skill.
   --format text|json  Output format. "text" (default) is the human-readable
                       report; "json" emits a machine-readable object carrying
-                      the six diff buckets, their counts, and a has_changes flag
+                      the diff buckets, their counts, and a has_changes flag
                       (for CI / scripted consumption).
 
 Exit codes:
@@ -81,8 +82,46 @@ def summarize_path(path, methods):
     return ops
 
 
+def enum_members(spec):
+    """Walk the entire spec and return {json_path: set(enum_values)} for every
+    `enum` array found, at any depth (schemas, properties, parameters, etc.).
+    Catches enum-member changes that the field-level schema diff cannot see."""
+    out = {}
+
+    def walk(node, path):
+        if isinstance(node, dict):
+            e = node.get("enum")
+            if isinstance(e, list):
+                out[path] = set(map(str, e))
+            for k, v in node.items():
+                walk(v, f"{path}/{k}")
+        elif isinstance(node, list):
+            for i, v in enumerate(node):
+                walk(v, f"{path}/{i}")
+
+    walk(spec, "")
+    return out
+
+
+def enum_label(path):
+    """Render a readable label for an enum's JSON path."""
+    parts = [p for p in path.split("/") if p]
+    if "schemas" in parts:
+        i = parts.index("schemas")
+        if i + 1 < len(parts):
+            name = parts[i + 1]
+            if "properties" in parts[i + 1:]:
+                j = parts.index("properties", i + 1)
+                if j + 1 < len(parts):
+                    return f"{name}.{parts[j + 1]}"
+            return name
+    if parts and parts[-1] == "enum":
+        parts = parts[:-1]
+    return "/".join(parts)
+
+
 def compute_diff(old, new):
-    """Compute the six diff buckets. Pure — no I/O."""
+    """Compute the diff buckets (paths, schemas, enums). Pure — no I/O."""
     old_paths = old.get("paths", {})
     new_paths = new.get("paths", {})
     old_schemas = old.get("components", {}).get("schemas", {})
@@ -112,6 +151,17 @@ def compute_diff(old, new):
         if added_f or removed_f or changed_f:
             changed_schema_summary.append((s, added_f, removed_f, changed_f))
 
+    # Enum-member diff (walks the whole spec). Removed values are breaking and
+    # are invisible to the field-level schema diff above.
+    old_enums = enum_members(old)
+    new_enums = enum_members(new)
+    enum_changes = []  # (label, added_values, removed_values)
+    for p in sorted(set(old_enums) | set(new_enums)):
+        a = old_enums.get(p, set())
+        b = new_enums.get(p, set())
+        if a != b:
+            enum_changes.append((enum_label(p), sorted(b - a), sorted(a - b)))
+
     return {
         "old_paths": old_paths,
         "new_paths": new_paths,
@@ -122,7 +172,13 @@ def compute_diff(old, new):
         "added_schemas": added_schemas,
         "removed_schemas": removed_schemas,
         "changed_schema_summary": changed_schema_summary,
+        "enum_changes": enum_changes,
     }
+
+
+def enum_removals(d):
+    """Enum changes that drop a value (breaking)."""
+    return [(label, add, rem) for label, add, rem in d["enum_changes"] if rem]
 
 
 def has_changes(d):
@@ -134,6 +190,7 @@ def has_changes(d):
             d["added_schemas"],
             d["removed_schemas"],
             d["changed_schema_summary"],
+            d["enum_changes"],
         ]
     )
 
@@ -145,6 +202,7 @@ def render_text(d):
     added_schemas = d["added_schemas"]
     removed_schemas = d["removed_schemas"]
     changed_schema_summary = d["changed_schema_summary"]
+    enum_changes = d["enum_changes"]
     new_paths = d["new_paths"]
     old_paths = d["old_paths"]
     new_schemas = d["new_schemas"]
@@ -200,10 +258,26 @@ def render_text(d):
             for f, vals in changed_f.items():
                 print(f"  ~ {f}: {vals['old']} → {vals['new']}")
 
+    if enum_changes:
+        print(f"\n## CHANGED ENUMS — member diffs ({len(enum_changes)})")
+        for label, added_v, removed_v in enum_changes:
+            print(f"\n~ {label}")
+            for v in added_v:
+                print(f"  + {v}")
+            for v in removed_v:
+                print(f"  - {v}  (REMOVED — breaking)")
+        breaking = enum_removals(d)
+        if breaking:
+            print(
+                f"\n  ⚠ {len(breaking)} enum(s) lost values — BREAKING for clients "
+                f"relying on them; do not treat as additive."
+            )
+
     print(f"""
 ## SUMMARY
   Paths:   +{len(added_paths)} added, -{len(removed_paths)} removed, ~{len(changed_paths)} changed
   Schemas: +{len(added_schemas)} added, -{len(removed_schemas)} removed, ~{len(changed_schema_summary)} changed
+  Enums:   ~{len(enum_changes)} changed ({len(enum_removals(d))} with removed values — breaking)
 """)
 
     if not has_changes(d):
@@ -229,6 +303,10 @@ def render_json(d):
             }
             for s, af, rf, cf in d["changed_schema_summary"]
         ],
+        "changed_enums": [
+            {"enum": label, "added": added_v, "removed": removed_v}
+            for label, added_v, removed_v in d["enum_changes"]
+        ],
         "summary": {
             "paths": {
                 "added": len(d["added_paths"]),
@@ -239,6 +317,10 @@ def render_json(d):
                 "added": len(d["added_schemas"]),
                 "removed": len(d["removed_schemas"]),
                 "changed": len(d["changed_schema_summary"]),
+            },
+            "enums": {
+                "changed": len(d["enum_changes"]),
+                "with_removed_values": len(enum_removals(d)),
             },
         },
         "has_changes": has_changes(d),

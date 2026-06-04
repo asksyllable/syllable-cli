@@ -76,7 +76,7 @@ Drift is **detected automatically**, and reconciliation is assisted — but the 
 
 **Live validation — [`spec-live-check.yml`](.github/workflows/spec-live-check.yml).** Catches spec-vs-reality drift by building the CLI and running the integration suite against a **dedicated, non-customer CI org**, authenticating with the `SYLLABLE_CI_API_KEY` repo secret. Runs daily, on demand, and on any PR labeled `spec-sync` (so reconciliation PRs are live-validated). **The secret must be a key for that CI org, never a customer key** — the key itself is the org boundary (`SYLLABLE_ORG` is left unset; CI has no `~/.syllable/config.yaml`). Fork PRs don't receive secrets, so the job skips there automatically.
 
-**The diff script — [`diff_specs.py`](.claude/skills/syllable-sync/scripts/diff_specs.py)** (committed in the repo, so CI and the skill share one copy). Reports new/removed/changed paths and schemas. For CI/scripting it takes `--exit-code` (1 = structural differences, 0 = equivalent, 2 = usage error) and `--format json`:
+**The diff script — [`diff_specs.py`](.claude/skills/syllable-sync/scripts/diff_specs.py)** (committed in the repo, so CI and the skill share one copy). Reports new/removed/changed paths, schemas, and enum members (a removed enum value is flagged as breaking). For CI/scripting it takes `--exit-code` (1 = structural differences, 0 = equivalent, 2 = usage error) and `--format json`:
 
 ```bash
 python3 .claude/skills/syllable-sync/scripts/diff_specs.py --exit-code \
