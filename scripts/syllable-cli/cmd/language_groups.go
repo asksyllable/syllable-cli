@@ -211,6 +211,11 @@ func languageGroupsUpdateCmd() *cobra.Command {
 				return fmt.Errorf("use --file to provide update body")
 			}
 
+			// The API routes this PUT by the id inside the body (#68).
+			if err := ensureBodyIdentifier(body, "id", args[0], true); err != nil {
+				return err
+			}
+
 			data, _, err := apiClient.Put("/api/v1/language_groups/", body)
 			if err != nil {
 				return err

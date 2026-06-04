@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -430,6 +431,53 @@ func readFile(path string) ([]byte, error) {
 		return io.ReadAll(os.Stdin)
 	}
 	return os.ReadFile(path)
+}
+
+// ensureBodyIdentifier reconciles an update command's positional identifier
+// with its --file body. The platform's collection-style PUT endpoints (e.g.
+// PUT /api/v1/agents/) route by an identifier field inside the body, not the
+// URL — without this guard the positional arg is accepted but ignored, and the
+// body's value silently decides which resource gets updated (#68).
+//
+// When the body lacks key, the positional value is injected (as a JSON number
+// when numeric is true). When the body carries a conflicting value, the update
+// is refused rather than guessing which resource the user meant.
+func ensureBodyIdentifier(body interface{}, key, positional string, numeric bool) error {
+	m, ok := body.(map[string]interface{})
+	if !ok {
+		// Non-object bodies cannot carry the identifier; let the API validate.
+		return nil
+	}
+	if existing, ok := m[key]; ok && existing != nil {
+		if !identifierMatches(existing, positional) {
+			return fmt.Errorf("positional argument %q conflicts with %s=%v in the request body — make them match or drop %s from the body", positional, key, existing, key)
+		}
+		return nil
+	}
+	if numeric {
+		n, err := strconv.ParseInt(positional, 10, 64)
+		if err != nil {
+			return fmt.Errorf("expected a numeric identifier, got %q", positional)
+		}
+		m[key] = n
+		return nil
+	}
+	m[key] = positional
+	return nil
+}
+
+// identifierMatches compares a JSON body value against a positional CLI string.
+func identifierMatches(existing interface{}, positional string) bool {
+	switch v := existing.(type) {
+	case string:
+		return v == positional
+	case float64: // encoding/json decodes JSON numbers to float64
+		p, err := strconv.ParseFloat(positional, 64)
+		return err == nil && p == v
+	case json.Number:
+		return v.String() == positional
+	}
+	return false
 }
 
 // printTable prints a table, applying --fields column filtering if set.
