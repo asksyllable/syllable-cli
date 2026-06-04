@@ -265,6 +265,7 @@ syllable agents send-test-message <agent-id> --test-id ID [--session-start] [--t
 Channels define communication modes (voice, SMS, chat). Targets are the specific phone number or chat ID where an agent operates. **Constraint: 1:1 agent-to-target.** Twilio channels configurable via CLI; other channels via SDK.
 ```bash
 syllable channels list [--page N] [--limit N] [--search TEXT]
+syllable channels get <channel-id>   # resolved via the list endpoint (the API has no by-ID GET)
 syllable channels create --file channel.json
 syllable channels create --name NAME --service SERVICE
 syllable channels update <channel-id> --file channel.json
@@ -315,7 +316,7 @@ syllable prompts supported-llms
 APIs agents call during sessions. Requires a Service for auth. Three types: agent tools (called during user sessions), step tools (structured multi-step workflows), system tools (pre-built: `hangup`, `transfer`, `web_search`, `summary-tool`). Dynamic variables use `{{ vars.field }}` syntax.
 ```bash
 syllable tools list [--page N] [--limit N] [--search TEXT]
-syllable tools get <tool-name>
+syllable tools get <tool-name>       # numeric IDs from the list's ID column are resolved to the name
 syllable tools create --file tool.json
 syllable tools create --name NAME --service-id ID
 syllable tools update <tool-name> --file tool.json

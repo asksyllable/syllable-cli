@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -2601,5 +2602,130 @@ func TestSendTestMessageWarnsButStillSends(t *testing.T) {
 	// Warn, don't block: the value is still sent unchanged.
 	if got["override_timestamp"] != "2030-12-25T09:30:00Z" {
 		t.Errorf("value should still be sent unchanged, got %#v", got["override_timestamp"])
+	}
+}
+
+// --- tools get ID fallback and channels get tests (#69, #70) ---
+
+func TestToolsGetByNumericIDFallback(t *testing.T) {
+	var paths []string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.Path)
+		switch {
+		case r.URL.Path == "/api/v1/tools/425":
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte(`{"detail":"Tool with name 425 not found"}`))
+		case r.URL.Path == "/api/v1/tools/" && r.URL.Query().Get("search_fields") == "id":
+			w.Write([]byte(`{"items":[{"id":425,"name":"ability_info"}],"total_count":1}`))
+		case r.URL.Path == "/api/v1/tools/ability_info":
+			w.Write([]byte(`{"id":425,"name":"ability_info","service_name":"pokeapi-v2","service_id":1}`))
+		default:
+			t.Errorf("unexpected request: %s", r.URL.String())
+			w.WriteHeader(http.StatusNotFound)
+		}
+	})
+	defer server.Close()
+
+	cmd := toolsGetCmd()
+	cmd.SetArgs([]string{"425"})
+	out := captureStdout(func() {
+		if err := cmd.Execute(); err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+	})
+
+	if len(paths) != 3 {
+		t.Errorf("expected name-miss → id-resolve → name-get, got %v", paths)
+	}
+	if !strings.Contains(out, "ability_info") {
+		t.Errorf("expected resolved tool in output, got %q", out)
+	}
+}
+
+func TestToolsGetByNameSingleRequest(t *testing.T) {
+	var count int
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		count++
+		w.Write([]byte(`{"id":425,"name":"ability_info","service_name":"pokeapi-v2","service_id":1}`))
+	})
+	defer server.Close()
+
+	cmd := toolsGetCmd()
+	cmd.SetArgs([]string{"ability_info"})
+	captureStdout(func() {
+		if err := cmd.Execute(); err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+	})
+
+	if count != 1 {
+		t.Errorf("by-name get should hit the API once, got %d", count)
+	}
+}
+
+func TestToolsGetUnknownIDKeepsOriginal404(t *testing.T) {
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v1/tools/" {
+			w.Write([]byte(`{"items":[],"total_count":0}`))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"detail":"Tool with name 999 not found"}`))
+	})
+	defer server.Close()
+
+	cmd := toolsGetCmd()
+	cmd.SetArgs([]string{"999"})
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
+	var err error
+	captureStdout(func() { err = cmd.Execute() })
+
+	var apiErr *client.APIError
+	if !errors.As(err, &apiErr) || apiErr.StatusCode != 404 {
+		t.Errorf("expected the original 404 to surface, got %v", err)
+	}
+}
+
+func TestChannelsGet(t *testing.T) {
+	var query string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		query = r.URL.RawQuery
+		// Substring-style result on purpose: ids 4 and 40 — exact match must win.
+		w.Write([]byte(`{"items":[{"id":40,"name":"other","channel_service":"twilio","is_system_channel":false},{"id":4,"name":"main-voice","channel_service":"twilio","is_system_channel":true}],"total_count":2}`))
+	})
+	defer server.Close()
+
+	cmd := channelsGetCmd()
+	cmd.SetArgs([]string{"4"})
+	out := captureStdout(func() {
+		if err := cmd.Execute(); err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+	})
+
+	if !strings.Contains(query, "search_fields=id") {
+		t.Errorf("expected id search in query, got %q", query)
+	}
+	if !strings.Contains(out, "main-voice") || strings.Contains(out, "other") {
+		t.Errorf("expected exactly the id-4 channel, got %q", out)
+	}
+}
+
+func TestChannelsGetNotFound(t *testing.T) {
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"items":[],"total_count":0}`))
+	})
+	defer server.Close()
+
+	cmd := channelsGetCmd()
+	cmd.SetArgs([]string{"77"})
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
+	var err error
+	captureStdout(func() { err = cmd.Execute() })
+
+	if err == nil || !strings.Contains(err.Error(), "syllable channels list") {
+		t.Errorf("expected not-found error pointing at channels list, got %v", err)
 	}
 }

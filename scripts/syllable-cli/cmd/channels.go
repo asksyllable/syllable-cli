@@ -17,6 +17,9 @@ func channelsCmd() *cobra.Command {
 		Example: `  # List all channels
   syllable channels list
 
+  # Get a single channel by ID
+  syllable channels get 5
+
   # Search channels by name
   syllable channels list --search "support"
 
@@ -46,6 +49,7 @@ func channelsCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(channelsListCmd())
+	cmd.AddCommand(channelsGetCmd())
 	cmd.AddCommand(channelsCreateCmd())
 	cmd.AddCommand(channelsUpdateCmd())
 	cmd.AddCommand(channelsDeleteCmd())
@@ -54,6 +58,75 @@ func channelsCmd() *cobra.Command {
 	cmd.AddCommand(channelsTwilioCmd())
 
 	return cmd
+}
+
+func channelsGetCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "get <channel-id>",
+		Short: "Get a channel by ID",
+		Long: `Get a single channel by ID.
+
+The API has no by-ID GET endpoint for channels (#70), so this resolves the
+channel via the list endpoint's id search and prints the matching item — the
+same shape as a single item from ` + "`channels list -o json`" + `.`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			path := "/api/v1/channels/?page=0&limit=100&search_fields=id&search_field_values=" + url.QueryEscape(args[0])
+			data, _, err := apiClient.Get(path)
+			if err != nil {
+				return err
+			}
+
+			var result struct {
+				Items []json.RawMessage `json:"items"`
+			}
+			if err := json.Unmarshal(data, &result); err != nil {
+				return fmt.Errorf("parsing channels list response: %w", err)
+			}
+			// Exact client-side match in case the server searches by substring.
+			var match json.RawMessage
+			for _, raw := range result.Items {
+				var probe struct {
+					ID json.Number `json:"id"`
+				}
+				if json.Unmarshal(raw, &probe) == nil && probe.ID.String() == args[0] {
+					match = raw
+					break
+				}
+			}
+			if match == nil {
+				return fmt.Errorf("channel %s not found — run `syllable channels list` to see available channels", args[0])
+			}
+
+			if getOutputFmt() == "json" {
+				output.PrintJSON(match)
+				return nil
+			}
+
+			var c struct {
+				ID             json.Number `json:"id"`
+				Name           string      `json:"name"`
+				ChannelService string      `json:"channel_service"`
+				IsSystem       bool        `json:"is_system_channel"`
+			}
+			if err := json.Unmarshal(match, &c); err != nil {
+				output.PrintJSON(match)
+				return nil
+			}
+			isSystem := "no"
+			if c.IsSystem {
+				isSystem = "yes"
+			}
+			rows := [][]string{
+				{"ID", c.ID.String()},
+				{"Name", c.Name},
+				{"Service", c.ChannelService},
+				{"Is System", isSystem},
+			}
+			printTable([]string{"FIELD", "VALUE"}, rows)
+			return nil
+		},
+	}
 }
 
 func channelsListCmd() *cobra.Command {
