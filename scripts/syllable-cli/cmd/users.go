@@ -393,59 +393,11 @@ func usersMeCmd() *cobra.Command {
 				return nil
 			}
 
-			// No email configured — fall back to listing users and taking the first result.
-			// Configure your email in `syllable setup` for a more accurate result.
-			data, _, err := apiClient.Get("/api/v1/users/?limit=1")
-			if err != nil {
-				return err
-			}
-
-			if getOutputFmt() == "json" {
-				output.PrintJSON(data)
-				return nil
-			}
-
-			var result struct {
-				Items []struct {
-					ID             json.Number `json:"id"`
-					Email          string      `json:"email"`
-					FirstName      *string     `json:"first_name"`
-					LastName       *string     `json:"last_name"`
-					RoleName       string      `json:"role_name"`
-					ActivityStatus string      `json:"activity_status"`
-					LastUpdated    string      `json:"last_updated"`
-					LastSessionAt  string      `json:"last_session_at"`
-				} `json:"items"`
-			}
-			if err := json.Unmarshal(data, &result); err != nil || len(result.Items) == 0 {
-				output.PrintJSON(data)
-				return nil
-			}
-
-			u := result.Items[0]
-			name := ""
-			if u.FirstName != nil {
-				name = *u.FirstName
-			}
-			if u.LastName != nil {
-				if name != "" {
-					name += " "
-				}
-				name += *u.LastName
-			}
-
-			fmt.Fprintln(cmd.ErrOrStderr(), "Hint: configure your email in `syllable setup` for an exact lookup.")
-			rows := [][]string{
-				{"ID", u.ID.String()},
-				{"Email", u.Email},
-				{"Name", name},
-				{"Role", u.RoleName},
-				{"Status", u.ActivityStatus},
-				{"Last Updated", u.LastUpdated},
-				{"Last Session", u.LastSessionAt},
-			}
-			printTable([]string{"FIELD", "VALUE"}, rows)
-			return nil
+			// No email configured. The API has no identity endpoint (nothing
+			// maps an API key to its owner), so any fallback would return an
+			// arbitrary user — worse than failing, because callers build on
+			// the answer ("I'm Admin → writes will work") (#71).
+			return fmt.Errorf("no email configured — run `syllable setup` and set your email so `users me` can look up your account")
 		},
 	}
 }

@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -389,6 +391,9 @@ the same --test-id).`,
 				body["text"] = ""
 			}
 			if cmd.Flags().Changed("override-timestamp") {
+				if w := overrideTimestampWarning(overrideTimestamp); w != "" {
+					fmt.Fprintln(cmd.ErrOrStderr(), w)
+				}
 				body["override_timestamp"] = overrideTimestamp
 			}
 
@@ -438,4 +443,32 @@ the same --test-id).`,
 	_ = cmd.MarkFlagRequired("test-id")
 
 	return cmd
+}
+
+// timestampOffsetRe matches a trailing ±HH:MM timezone offset (after the time —
+// date dashes never match because an offset requires a colon).
+var timestampOffsetRe = regexp.MustCompile(`[+-][0-9]{2}:[0-9]{2}$`)
+
+// overrideTimestampWarning returns a non-empty warning when ts carries a
+// signal the conversation-test server is confirmed to silently ignore: a
+// trailing Z, a ±HH:MM offset, or a space instead of the 'T' separator. The
+// flag still sends the value (warn, don't block) — a hard rejection would
+// break the thin-passthrough contract and become wrong once the server
+// accepts tz-aware values. Negative checks only: a positive validator would
+// false-positive on forms not confirmed either way (#77). Remove once
+// ZOO-7814 lands server-side — the spec-drift workflow will flag the
+// TestMessage.override_timestamp schema change.
+func overrideTimestampWarning(ts string) string {
+	var reason string
+	switch {
+	case strings.HasSuffix(ts, "Z") || strings.HasSuffix(ts, "z"):
+		reason = "ends in 'Z' (UTC designator)"
+	case timestampOffsetRe.MatchString(ts):
+		reason = "carries a timezone offset"
+	case strings.Contains(ts, " ") && !strings.Contains(ts, "T"):
+		reason = "uses a space instead of the 'T' separator"
+	default:
+		return ""
+	}
+	return fmt.Sprintf("warning: --override-timestamp %q %s; the server only honors timezone-naive ISO 8601 (e.g. 2030-12-25T09:30:00) and will silently ignore this value, falling back to the real clock", ts, reason)
 }

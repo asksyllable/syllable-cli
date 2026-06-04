@@ -27,7 +27,7 @@ Quick reference for every resource: what it is, key fields, and hard constraints
 | **Custom Messages** | Opening greetings for agents | name, text | Configured per agent. |
 | **Voice Groups** | Voice configuration for agents | name, voices | Replaces language groups. |
 | **Language Groups** | Voice configuration (deprecated) | name | **DEPRECATED — use voice-groups instead.** |
-| **Users** | Platform accounts | email, role_id, first_name, last_name | `users me` returns the current authenticated user. |
+| **Users** | Platform accounts | email, role_id, first_name, last_name | `users me` looks up the email configured in `syllable setup`; it errors if no email is set (the API has no key-identity endpoint). |
 | **Directory** | Member/contact list for call routing and transfers | name, type, phone | Used by agents at runtime for transfer targets and contact lookups. |
 | **Roles** | User roles with associated permissions | name, permissions | — |
 | **Pronunciations** | Custom TTS pronunciation dictionary | word, pronunciation | Downloadable as CSV. |
