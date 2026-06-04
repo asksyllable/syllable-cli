@@ -2532,13 +2532,13 @@ func TestUsersMeWithEmailLooksUpExactUser(t *testing.T) {
 	var path string
 	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 		path = r.URL.Path
-		w.Write([]byte(`{"id": 1, "email": "josh@syllable.ai"}`))
+		w.Write([]byte(`{"id": 1, "email": "user@example.com"}`))
 	})
 	defer server.Close()
 
 	prev := viper.GetString("email")
 	defer viper.Set("email", prev)
-	viper.Set("email", "josh@syllable.ai")
+	viper.Set("email", "user@example.com")
 
 	cmd := usersMeCmd()
 	captureStdout(func() {
@@ -2547,7 +2547,7 @@ func TestUsersMeWithEmailLooksUpExactUser(t *testing.T) {
 		}
 	})
 
-	if path != "/api/v1/users/josh@syllable.ai" {
+	if path != "/api/v1/users/user@example.com" {
 		t.Errorf("expected exact email lookup, got %s", path)
 	}
 }
