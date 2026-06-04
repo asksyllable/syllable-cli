@@ -2499,3 +2499,107 @@ func TestToolsUpdateValidatesPositionalName(t *testing.T) {
 		t.Errorf("expected conflict error, got %v", err)
 	}
 }
+
+// --- No-silent-wrong-answers tests (#71, #77) ---
+
+func TestUsersMeNoEmailFailsLoudly(t *testing.T) {
+	hit := false
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		hit = true
+	})
+	defer server.Close()
+
+	prev := viper.GetString("email")
+	defer viper.Set("email", prev)
+	viper.Set("email", "")
+
+	cmd := usersMeCmd()
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
+	var err error
+	captureStdout(func() { err = cmd.Execute() })
+
+	if err == nil || !strings.Contains(err.Error(), "syllable setup") {
+		t.Errorf("expected loud failure pointing at setup, got %v", err)
+	}
+	if hit {
+		t.Error("no request should be made when email is unconfigured")
+	}
+}
+
+func TestUsersMeWithEmailLooksUpExactUser(t *testing.T) {
+	var path string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		path = r.URL.Path
+		w.Write([]byte(`{"id": 1, "email": "josh@syllable.ai"}`))
+	})
+	defer server.Close()
+
+	prev := viper.GetString("email")
+	defer viper.Set("email", prev)
+	viper.Set("email", "josh@syllable.ai")
+
+	cmd := usersMeCmd()
+	captureStdout(func() {
+		if err := cmd.Execute(); err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+	})
+
+	if path != "/api/v1/users/josh@syllable.ai" {
+		t.Errorf("expected exact email lookup, got %s", path)
+	}
+}
+
+func TestOverrideTimestampWarning(t *testing.T) {
+	cases := []struct {
+		ts   string
+		warn bool
+	}{
+		{"2030-12-25T09:30:00", false},        // the honored tz-naive form
+		{"2030-12-25T09:30:00.123456", false}, // unconfirmed → no warning (negative checks only)
+		{"not-a-real-timestamp", false},       // documented limitation: pure garbage passes silently
+		{"2030-12-25", false},                 // date dashes are not an offset
+		{"2030-12-25T09:30:00Z", true},        // UTC designator
+		{"2030-12-25T09:30:00z", true},        // lowercase z
+		{"2030-12-25T09:30:00-07:00", true},   // negative offset
+		{"2030-12-25T09:30:00+05:30", true},   // positive offset
+		{"2030-12-25 09:30:00", true},         // space separator
+	}
+	for _, c := range cases {
+		got := overrideTimestampWarning(c.ts)
+		if c.warn && got == "" {
+			t.Errorf("%q should warn", c.ts)
+		}
+		if !c.warn && got != "" {
+			t.Errorf("%q should not warn, got %q", c.ts, got)
+		}
+	}
+}
+
+func TestSendTestMessageWarnsButStillSends(t *testing.T) {
+	var got map[string]interface{}
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		json.NewDecoder(r.Body).Decode(&got)
+		w.Write([]byte(`{}`))
+	})
+	defer server.Close()
+
+	cmd := agentsSendTestMessageCmd()
+	var stderr bytes.Buffer
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"42", "--test-id", "t1", "--override-timestamp", "2030-12-25T09:30:00Z"})
+	captureStdout(func() {
+		if err := cmd.Execute(); err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+	})
+
+	if !strings.Contains(stderr.String(), "warning: --override-timestamp") {
+		t.Errorf("expected stderr warning, got %q", stderr.String())
+	}
+	// Warn, don't block: the value is still sent unchanged.
+	if got["override_timestamp"] != "2030-12-25T09:30:00Z" {
+		t.Errorf("value should still be sent unchanged, got %#v", got["override_timestamp"])
+	}
+}
