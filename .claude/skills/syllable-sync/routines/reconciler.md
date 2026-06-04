@@ -10,7 +10,7 @@ Check whether the Syllable CLI's embedded OpenAPI spec has drifted from upstream
 
 1. Get onto a clean main:
    - **Cloud (Remote) routine:** the repo is already cloned at the working directory on the default branch — skip to step 2.
-   - **Local run:** `cd ~/Documents/Claude/syllable-cli && git fetch origin && git switch main && git pull --ff-only`.
+   - **Local run:** from your local checkout of the repo, `git fetch origin && git switch main && git pull --ff-only`.
 2. Check for drift (either signal is enough):
    - Download the upstream spec from `https://raw.githubusercontent.com/asksyllable/syllable-sdk-typescript/main/openapi.json` and run `python3 .claude/skills/syllable-sync/scripts/diff_specs.py --exit-code scripts/syllable-cli/internal/spec/openapi.json <downloaded.json>` (exit 1 = real structural drift, exit 0 = in sync).
    - Or check for an open tracking issue: `gh issue list --label spec-drift --state open` (note its number — you'll reference it in the PR so merging closes it).
