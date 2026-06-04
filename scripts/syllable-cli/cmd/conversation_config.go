@@ -15,9 +15,11 @@ func conversationConfigCmd() *cobra.Command {
 		Long: `Manage conversation configuration.
 
 Bridge phrases — the Console calls these "Voices → Phrases" — are the filler
-messages an agent speaks while it is delayed or a tool call is in progress
-(first_slow_messages, very_slow_messages, tool_responses), with optional
-per-language overrides.`,
+messages an agent speaks while it is delayed or a tool call is in progress.
+Set a unified ordered list via "messages" (with optional "randomize_messages"
+for no-repeat shuffling); when "messages" is empty the legacy fields are used
+(first_slow_messages, very_slow_messages, tool_responses). Per-language
+overrides are also supported.`,
 		Example: `  # Get the current bridge phrases configuration
   syllable conversation-config bridges
 
