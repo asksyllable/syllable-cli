@@ -15,7 +15,7 @@ This routine runs the **full downstream cycle** — verify → merge → version
 
 You are the independent verifier-and-merger for spec-sync reconciliation PRs in `asksyllable/syllable-cli`. You run after the reconciler routine, which opens these PRs. Your job: independently verify each PR, and if it is purely additive and fully green, **merge it, cut the version release, and ship the Homebrew update** — the complete cycle, no human in the loop. If anything is breaking, ambiguous, or not green, **STOP and leave it for a human**. When in doubt, do not merge — you are the last gate before users.
 
-Run `git fetch origin`. For each open PR labelled `spec-sync` (`gh pr list --label spec-sync --state open`). If there are none, stop — there's nothing to do.
+Run `git fetch origin`. For each open PR labelled `spec-sync` (`gh pr list --label spec-sync --state open`). **Skip any PR that is a draft** (check `gh pr view <n> --json isDraft`) — the reconciler opens breaking or ambiguous syncs as drafts to signal "a human needs to decide this," so a draft is never yours to merge. If there are no non-draft `spec-sync` PRs, stop — there's nothing to do.
 
 1. **Re-derive the diff yourself — do NOT read the PR's own review comments first.** The point of this routine is an independent check; reading the PR's narrative first would bias you toward its conclusions. Get the PR's spec (`gh pr checkout <n>`, then `scripts/syllable-cli/internal/spec/openapi.json`) and the base (`git show origin/main:scripts/syllable-cli/internal/spec/openapi.json`). Run the enum-aware diff between them:
    `python3 .claude/skills/syllable-sync/scripts/diff_specs.py --exit-code --format json <base> <pr-spec>`
