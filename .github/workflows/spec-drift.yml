@@ -10,7 +10,8 @@ name: Spec Drift
 #
 # This workflow only NOTIFIES. Reconciliation (updating cmd files + docs and
 # replacing the spec atomically) is done by the `syllable-sync` skill / the
-# local `syllable-spec-sync` routine, which opens a reviewable PR.
+# local `syllable-spec-sync` routine, which carries the full cycle from
+# reconcile through independent verify, merge, and release.
 
 on:
   schedule:
