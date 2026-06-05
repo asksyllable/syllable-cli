@@ -26,7 +26,11 @@ Run `git fetch origin`. For each open PR labelled `spec-sync` (`gh pr list --lab
    - **Purely additive** = new paths/commands + new *optional* fields + new enum values, and nothing else.
    - If breaking or ambiguous → **do not merge.** Comment exactly what you found, leave it for a human, and move on to the next PR.
 
-3. **Verify the gates are independently green** (`gh pr checks <n>`): `test` (unit) **and** `spec-live-check` (live `cli-test` org) must both be present and **passing**. If either is missing, pending, or red → do not merge; comment and leave for a human. Confirm `spec-live-check` actually exercised the **new** commands (Stage 1 coverage), not just pre-existing ones — if a new command has no integration test, treat the QA as incomplete and leave it for a human.
+3. **Verify the gates mechanically — read the actual check results, never infer.** This is the only enforcement standing between an automated change and users for the integration tests (GoReleaser's pre-release hook re-runs the *unit* tests before publishing, but not the live ones), so be strict. Run `gh pr checks <n> --json name,state,bucket` (or `gh pr view <n> --json statusCheckRollup`) and inspect **every** entry:
+   - The unit-test check (`test`) must be **SUCCESS**.
+   - The live integration check (`live-check` — the job from `spec-live-check.yml` against the `cli-test` org) must be **SUCCESS**, meaning it actually ran. A **SKIPPED** `live-check` means the `spec-sync` label wasn't applied so the live QA never ran — do **not** merge; apply the label, let it run, then re-check.
+   - Every other check must be SUCCESS or SKIPPED. If **any** check is pending, queued, in progress, failed, cancelled, or absent → do not merge; comment and leave for a human. Only an explicit pass/skip in the JSON counts — never assume "it's probably fine."
+   Also confirm `live-check` actually exercised the **new** commands (Stage 1 coverage), not just pre-existing ones — if a new command has no integration test, treat the QA as incomplete and leave it for a human.
 
 4. **Spot-check the code yourself** (don't rely on the author's notes): new command paths match the spec including trailing slashes (a collection path ends in `/`, an item path does not — a mismatch drops the `Syllable-API-Key` header on a 307), required fields are covered by flags, IDs handled correctly (int vs string), and each new command has a test.
 
