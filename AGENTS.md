@@ -546,7 +546,7 @@ syllable permissions list
 ```
 
 ### Conversation Config
-Bridge phrases — the filler messages an agent speaks while it is delayed or a tool call is in progress. This is the feature the Console shows under **Voices → Phrases**. Config fields: `first_slow_messages`, `very_slow_messages`, `tool_responses`, plus per-language overrides under `localized`.
+Bridge phrases — the filler messages an agent speaks while it is delayed or a tool call is in progress. This is the feature the Console shows under **Voices → Phrases**. Config fields: `first_slow_messages`, `very_slow_messages`, `tool_responses`, `smart_turn_timeout_seconds` (seconds of caller silence before the first bridge phrase; subsequent intervals are 2x/3x/4x this base), plus per-language overrides under `localized`.
 ```bash
 syllable conversation-config bridges
 syllable conversation-config bridges-update --file bridges.json
