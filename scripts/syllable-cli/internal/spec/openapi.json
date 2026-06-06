@@ -8465,6 +8465,7 @@
           "channels.targets"
         ],
         "summary": "Get Channel Targets",
+        "description": "List channel targets for the current suborg.\n\nSupports the standard `ListManager` filters via `search_fields`/`search_field_values`. In\naddition to `target_mode` (single value), `target_mode_list` accepts a comma-separated list of\nmodes (e.g. `voice,sms`) and matches targets whose mode is any of the listed values. Whitespace\naround tokens is tolerated and empty tokens are ignored. If both `target_mode` and\n`target_mode_list` are supplied, the two filters are combined with AND. `target_mode_list` is\nfilter-only and cannot be used as `order_by`.",
         "operationId": "channel_targets_list",
         "security": [
           {
@@ -8554,7 +8555,7 @@
             "schema": {
               "anyOf": [
                 {
-                  "$ref": "#/components/schemas/ChannelTargetProperties"
+                  "$ref": "#/components/schemas/ChannelTargetOrderProperties"
                 },
                 {
                   "type": "null"
@@ -8562,7 +8563,7 @@
               ],
               "description": "The field whose value should be used to order the results",
               "examples": [
-                "name"
+                "target"
               ],
               "title": "Order By"
             },
@@ -14686,7 +14687,7 @@
             "title": "Batch Id",
             "description": "Unique ID for conversation batch",
             "examples": [
-              "20260605.9"
+              "20260606.9"
             ]
           },
           "campaign_id": {
@@ -14710,7 +14711,7 @@
             "title": "Expires On",
             "description": "Timestamp of batch expiration",
             "examples": [
-              "2026-06-06T00:00:00Z"
+              "2026-06-07T00:00:00Z"
             ]
           },
           "paused": {
@@ -14778,7 +14779,7 @@
             "title": "Created At",
             "description": "Timestamp of batch creation",
             "examples": [
-              "2026-06-05T00:00:00Z"
+              "2026-06-06T00:00:00Z"
             ]
           },
           "deleted_at": {
@@ -14794,7 +14795,7 @@
             "title": "Deleted At",
             "description": "Timestamp of batch deletion",
             "examples": [
-              "2026-06-05T00:00:00Z"
+              "2026-06-06T00:00:00Z"
             ]
           },
           "deleted_reason": {
@@ -14825,7 +14826,7 @@
             "title": "Last Updated At",
             "description": "Timestamp of last change to batch",
             "examples": [
-              "2026-06-05T00:00:00Z"
+              "2026-06-06T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -15711,7 +15712,7 @@
         "title": "ChannelTargetCreateRequest",
         "description": "Request model to create a channel target."
       },
-      "ChannelTargetProperties": {
+      "ChannelTargetOrderProperties": {
         "type": "string",
         "enum": [
           "id",
@@ -15725,8 +15726,26 @@
           "updated_at",
           "a2p_verified"
         ],
+        "title": "ChannelTargetOrderProperties",
+        "description": "Subset of [[ChannelTargetProperties]] that is valid as ``order_by``. Filter-only fields are\nexcluded so the generated OpenAPI client does not surface them as sortable."
+      },
+      "ChannelTargetProperties": {
+        "type": "string",
+        "enum": [
+          "id",
+          "channel_id",
+          "channel_name",
+          "agent_id",
+          "target",
+          "target_mode",
+          "target_mode_list",
+          "fallback_target",
+          "is_test",
+          "updated_at",
+          "a2p_verified"
+        ],
         "title": "ChannelTargetProperties",
-        "description": "Names of channel target fields supported for filtering/sorting on full channel targets list\nendpoint."
+        "description": "Names of channel target fields supported for filtering on the full channel targets list\nendpoint. Superset of [[ChannelTargetOrderProperties]] — includes filter-only fields like\n``target_mode_list`` that are not valid as ``order_by``."
       },
       "ChannelTargetResponse": {
         "properties": {
@@ -15941,7 +15960,7 @@
             "title": "Batch Id",
             "description": "Unique ID for conversation batch",
             "examples": [
-              "20260605.9"
+              "20260606.9"
             ]
           },
           "campaign_id": {
@@ -15965,7 +15984,7 @@
             "title": "Expires On",
             "description": "Timestamp of batch expiration",
             "examples": [
-              "2026-06-06T00:00:00Z"
+              "2026-06-07T00:00:00Z"
             ]
           },
           "paused": {
@@ -16033,7 +16052,7 @@
             "title": "Created At",
             "description": "Timestamp of batch creation",
             "examples": [
-              "2026-06-05T00:00:00Z"
+              "2026-06-06T00:00:00Z"
             ]
           },
           "deleted_at": {
@@ -16049,7 +16068,7 @@
             "title": "Deleted At",
             "description": "Timestamp of batch deletion",
             "examples": [
-              "2026-06-05T00:00:00Z"
+              "2026-06-06T00:00:00Z"
             ]
           },
           "deleted_reason": {
@@ -16080,7 +16099,7 @@
             "title": "Last Updated At",
             "description": "Timestamp of last change to batch",
             "examples": [
-              "2026-06-05T00:00:00Z"
+              "2026-06-06T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -16123,7 +16142,7 @@
             "title": "Batch Id",
             "description": "Unique ID for conversation batch",
             "examples": [
-              "20260605.9"
+              "20260606.9"
             ]
           },
           "campaign_id": {
@@ -16147,7 +16166,7 @@
             "title": "Expires On",
             "description": "Timestamp of batch expiration",
             "examples": [
-              "2026-06-06T00:00:00Z"
+              "2026-06-07T00:00:00Z"
             ]
           },
           "paused": {
@@ -16296,7 +16315,7 @@
             "title": "Created At",
             "description": "Timestamp of request creation",
             "examples": [
-              "2026-06-04T00:00:00Z"
+              "2026-06-05T00:00:00Z"
             ]
           },
           "sent_at": {
@@ -16312,7 +16331,7 @@
             "title": "Sent At",
             "description": "Timestamp at which request was sent",
             "examples": [
-              "2026-06-05T00:00:00Z"
+              "2026-06-06T00:00:00Z"
             ]
           },
           "attempt_count": {
@@ -19694,7 +19713,7 @@
             "title": "Created At",
             "description": "Timestamp at which insight upload folder was created",
             "examples": [
-              "2026-06-04T00:00:00Z"
+              "2026-06-05T00:00:00Z"
             ]
           },
           "updated_at": {
@@ -19703,7 +19722,7 @@
             "title": "Updated At",
             "description": "Timestamp at which insight upload folder was last updated",
             "examples": [
-              "2026-06-05T00:00:00Z"
+              "2026-06-06T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -20706,7 +20725,7 @@
             "title": "Created At",
             "description": "Timestamp of at which insight tool configuration was created",
             "examples": [
-              "2026-06-04T00:00:00Z"
+              "2026-06-05T00:00:00Z"
             ]
           },
           "updated_at": {
@@ -20715,7 +20734,7 @@
             "title": "Updated At",
             "description": "Timestamp at which insight tool configuration was last updated",
             "examples": [
-              "2026-06-05T00:00:00Z"
+              "2026-06-06T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -21096,7 +21115,7 @@
             "title": "Start Datetime",
             "description": "Target session timestamp the workflow (backfill) should start. An empty value indicates start on activation - live sessions only",
             "examples": [
-              "2026-06-04T00:00:00Z"
+              "2026-06-05T00:00:00Z"
             ]
           },
           "end_datetime": {
@@ -21112,7 +21131,7 @@
             "title": "End Datetime",
             "description": "Target session timestamp the workflow (backfill) should end. An empty value indicates no end, i.e., include live sessions until deactivation",
             "examples": [
-              "2026-06-05T00:00:00Z"
+              "2026-06-06T00:00:00Z"
             ]
           }
         },
@@ -21187,7 +21206,7 @@
             "title": "Start Datetime",
             "description": "Target session timestamp the workflow (backfill) should start. An empty value indicates start on activation - live sessions only",
             "examples": [
-              "2026-06-04T00:00:00Z"
+              "2026-06-05T00:00:00Z"
             ]
           },
           "end_datetime": {
@@ -21203,7 +21222,7 @@
             "title": "End Datetime",
             "description": "Target session timestamp the workflow (backfill) should end. An empty value indicates no end, i.e., include live sessions until deactivation",
             "examples": [
-              "2026-06-05T00:00:00Z"
+              "2026-06-06T00:00:00Z"
             ]
           },
           "id": {
@@ -21271,7 +21290,7 @@
             "title": "Created At",
             "description": "Timestamp at which the insight workflow was created",
             "examples": [
-              "2026-06-04T00:00:00Z"
+              "2026-06-05T00:00:00Z"
             ]
           },
           "updated_at": {
@@ -21280,7 +21299,7 @@
             "title": "Updated At",
             "description": "Timestamp of most recent update to the insight workflow",
             "examples": [
-              "2026-06-05T00:00:00Z"
+              "2026-06-06T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -21376,7 +21395,7 @@
             "title": "Created At",
             "description": "Timestamp at which insight upload folder was created",
             "examples": [
-              "2026-06-04T00:00:00Z"
+              "2026-06-05T00:00:00Z"
             ]
           },
           "updated_at": {
@@ -21385,7 +21404,7 @@
             "title": "Updated At",
             "description": "Timestamp at which insight upload folder was last updated",
             "examples": [
-              "2026-06-05T00:00:00Z"
+              "2026-06-06T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -21635,7 +21654,7 @@
             "title": "Created At",
             "description": "Timestamp at which insight tool result was created",
             "examples": [
-              "2026-06-04T00:00:00Z"
+              "2026-06-05T00:00:00Z"
             ]
           },
           "updated_at": {
@@ -21644,7 +21663,7 @@
             "title": "Updated At",
             "description": "Timestamp at which insight tool result was last updated",
             "examples": [
-              "2026-06-05T00:00:00Z"
+              "2026-06-06T00:00:00Z"
             ]
           },
           "upload_file_metadata": {
@@ -21789,7 +21808,7 @@
             "title": "Start Time",
             "description": "Start time of the uploaded file",
             "examples": [
-              "2026-06-04T00:00:00Z"
+              "2026-06-05T00:00:00Z"
             ]
           },
           "end_time": {
@@ -21805,7 +21824,7 @@
             "title": "End Time",
             "description": "End time of the uploaded file",
             "examples": [
-              "2026-06-05T00:00:00Z"
+              "2026-06-06T00:00:00Z"
             ]
           },
           "error_message": {
@@ -21860,7 +21879,7 @@
             "title": "Created At",
             "description": "Timestamp at which insight upload file was created",
             "examples": [
-              "2026-06-04T00:00:00Z"
+              "2026-06-05T00:00:00Z"
             ]
           }
         },
@@ -25595,7 +25614,7 @@
             "title": "Created At",
             "description": "Timestamp of campaign creation",
             "examples": [
-              "2026-06-05T00:00:00Z"
+              "2026-06-06T00:00:00Z"
             ]
           },
           "updated_at": {
@@ -25604,7 +25623,7 @@
             "title": "Updated At",
             "description": "Timestamp of campaign update",
             "examples": [
-              "2026-06-05T00:00:00Z"
+              "2026-06-06T00:00:00Z"
             ]
           },
           "last_updated_by": {
