@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/spf13/cobra"
 	"github.com/asksyllable/syllable-cli/internal/client"
 	"github.com/asksyllable/syllable-cli/internal/output"
+	"github.com/spf13/cobra"
 )
 
 func toolsCmd() *cobra.Command {
@@ -143,8 +143,8 @@ func toolsListCmd() *cobra.Command {
 					Name        string      `json:"name"`
 					ServiceName string      `json:"service_name"`
 					ServiceID   json.Number `json:"service_id"`
-					LastUpdated string `json:"last_updated"`
-					LastUpdBy   string `json:"last_updated_by"`
+					LastUpdated string      `json:"last_updated"`
+					LastUpdBy   string      `json:"last_updated_by"`
 				} `json:"items"`
 				TotalCount int `json:"total_count"`
 			}
@@ -252,8 +252,8 @@ func toolsGetCmd() *cobra.Command {
 				Name        string      `json:"name"`
 				ServiceName string      `json:"service_name"`
 				ServiceID   json.Number `json:"service_id"`
-				LastUpdated string `json:"last_updated"`
-				LastUpdBy   string `json:"last_updated_by"`
+				LastUpdated string      `json:"last_updated"`
+				LastUpdBy   string      `json:"last_updated_by"`
 			}
 			if err := json.Unmarshal(data, &t); err != nil {
 				output.PrintJSON(data)

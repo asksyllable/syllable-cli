@@ -110,12 +110,12 @@ func TestCustomMessagesCRUD(t *testing.T) {
 	// Update
 	updName := name + " Updated"
 	updateBody := map[string]interface{}{
-		"id":      id,
-		"name":    updName,
-		"text":    "Hello, this is an updated test greeting.",
-		"type":    "greeting",
-		"label":   "",
-		"rules":   []interface{}{},
+		"id":       id,
+		"name":     updName,
+		"text":     "Hello, this is an updated test greeting.",
+		"type":     "greeting",
+		"label":    "",
+		"rules":    []interface{}{},
 		"preamble": nil,
 		"subject":  nil,
 	}
@@ -225,20 +225,20 @@ func TestAgentsCRUD(t *testing.T) {
 
 	name := testName("Agent")
 	createBody := map[string]interface{}{
-		"name":              name,
-		"description":       "Integration test agent",
-		"type":              "ca_v1",
-		"prompt_id":         promptID,
-		"custom_message_id": greetingID,
-		"language_group_id": nil,
-		"timezone":          "America/New_York",
-		"stt_provider":      "Deepgram Nova 3",
-		"wait_sound":        "Keyboard 1",
-		"agent_initiated":   false,
-		"variables":         map[string]interface{}{},
-		"tool_headers":      map[string]interface{}{},
+		"name":                 name,
+		"description":          "Integration test agent",
+		"type":                 "ca_v1",
+		"prompt_id":            promptID,
+		"custom_message_id":    greetingID,
+		"language_group_id":    nil,
+		"timezone":             "America/New_York",
+		"stt_provider":         "Deepgram Nova 3",
+		"wait_sound":           "Keyboard 1",
+		"agent_initiated":      false,
+		"variables":            map[string]interface{}{},
+		"tool_headers":         map[string]interface{}{},
 		"prompt_tool_defaults": []interface{}{},
-		"labels":            []interface{}{},
+		"labels":               []interface{}{},
 	}
 	af := writeTempJSON(t, createBody)
 
@@ -262,21 +262,21 @@ func TestAgentsCRUD(t *testing.T) {
 	// Update
 	updName := name + " Updated"
 	updateBody := map[string]interface{}{
-		"id":                id,
-		"name":              updName,
-		"description":       "Updated integration test agent",
-		"type":              "ca_v1",
-		"prompt_id":         promptID,
-		"custom_message_id": greetingID,
-		"language_group_id": nil,
-		"timezone":          "America/New_York",
-		"stt_provider":      "Deepgram Nova 3",
-		"wait_sound":        "Keyboard 1",
-		"agent_initiated":   false,
-		"variables":         map[string]interface{}{},
-		"tool_headers":      map[string]interface{}{},
+		"id":                   id,
+		"name":                 updName,
+		"description":          "Updated integration test agent",
+		"type":                 "ca_v1",
+		"prompt_id":            promptID,
+		"custom_message_id":    greetingID,
+		"language_group_id":    nil,
+		"timezone":             "America/New_York",
+		"stt_provider":         "Deepgram Nova 3",
+		"wait_sound":           "Keyboard 1",
+		"agent_initiated":      false,
+		"variables":            map[string]interface{}{},
+		"tool_headers":         map[string]interface{}{},
 		"prompt_tool_defaults": []interface{}{},
-		"labels":            []interface{}{},
+		"labels":               []interface{}{},
 	}
 	uf := writeTempJSON(t, updateBody)
 	out = mustRunCLI(t, "agents", "update", id, "--file", uf)

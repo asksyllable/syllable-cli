@@ -27,7 +27,8 @@ var (
 // Auth (either works):
 //   - SYLLABLE_API_KEY — the CLI reads this key directly (non-interactive / CI).
 //   - SYLLABLE_ORG     — the CLI resolves that org's key from ~/.syllable/config.yaml
-//                        (local dev; configure it with `syllable setup`).
+//     (local dev; configure it with `syllable setup`).
+//
 // The CLI has no --api-key/--base-url flag. Set SYLLABLE_ENV for a non-default
 // environment; base URL defaults to prod (https://api.syllable.cloud).
 func initConfig() {

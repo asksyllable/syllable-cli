@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/spf13/cobra"
 	"github.com/asksyllable/syllable-cli/internal/output"
+	"github.com/spf13/cobra"
 )
 
 func languageGroupsCmd() *cobra.Command {
@@ -68,10 +68,10 @@ func languageGroupsListCmd() *cobra.Command {
 			var result struct {
 				Items []struct {
 					ID          json.Number `json:"id"`
-					Name        string `json:"name"`
-					Description string `json:"description"`
-					UpdatedAt   string `json:"updated_at"`
-					LastUpdBy   string `json:"last_updated_by"`
+					Name        string      `json:"name"`
+					Description string      `json:"description"`
+					UpdatedAt   string      `json:"updated_at"`
+					LastUpdBy   string      `json:"last_updated_by"`
 				} `json:"items"`
 				TotalCount int `json:"total_count"`
 			}
@@ -122,10 +122,10 @@ func languageGroupsGetCmd() *cobra.Command {
 
 			var g struct {
 				ID          json.Number `json:"id"`
-				Name        string `json:"name"`
-				Description string `json:"description"`
-				UpdatedAt   string `json:"updated_at"`
-				LastUpdBy   string `json:"last_updated_by"`
+				Name        string      `json:"name"`
+				Description string      `json:"description"`
+				UpdatedAt   string      `json:"updated_at"`
+				LastUpdBy   string      `json:"last_updated_by"`
 			}
 			if err := json.Unmarshal(data, &g); err != nil {
 				output.PrintJSON(data)
@@ -167,8 +167,8 @@ func languageGroupsCreateCmd() *cobra.Command {
 					return fmt.Errorf("required flags: --name (or use --file)")
 				}
 				body = map[string]interface{}{
-					"name":                           name,
-					"language_configs":               []interface{}{},
+					"name":                             name,
+					"language_configs":                 []interface{}{},
 					"skip_current_language_in_message": false,
 				}
 			}

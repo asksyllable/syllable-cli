@@ -7,8 +7,8 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/spf13/cobra"
 	"github.com/asksyllable/syllable-cli/internal/output"
+	"github.com/spf13/cobra"
 )
 
 func sessionsCmd() *cobra.Command {
@@ -121,14 +121,14 @@ func sessionsListCmd() *cobra.Command {
 
 			var result struct {
 				Items []struct {
-					SessionID    string  `json:"session_id"`
-					Timestamp    string  `json:"timestamp"`
-					AgentName    string  `json:"agent_name"`
-					AgentType    string  `json:"agent_type"`
-					Duration     float64 `json:"duration"`
-					Source       string  `json:"source"`
-					Target       string  `json:"target"`
-					IsTest       bool    `json:"is_test"`
+					SessionID string  `json:"session_id"`
+					Timestamp string  `json:"timestamp"`
+					AgentName string  `json:"agent_name"`
+					AgentType string  `json:"agent_type"`
+					Duration  float64 `json:"duration"`
+					Source    string  `json:"source"`
+					Target    string  `json:"target"`
+					IsTest    bool    `json:"is_test"`
 				} `json:"items"`
 				TotalCount *int `json:"total_count"`
 			}
@@ -192,18 +192,18 @@ func sessionsGetCmd() *cobra.Command {
 			}
 
 			var s struct {
-				SessionID                  string   `json:"session_id"`
-				ConversationID             string   `json:"conversation_id"`
-				Timestamp                  string   `json:"timestamp"`
-				AgentName                  string   `json:"agent_name"`
-				AgentType                  string   `json:"agent_type"`
-				AgentTimezone              string   `json:"agent_timezone"`
-				PromptName                 string   `json:"prompt_name"`
-				Duration                   float64  `json:"duration"`
-				Source                     string   `json:"source"`
-				Target                     string   `json:"target"`
-				IsTest                     bool     `json:"is_test"`
-				TransferVoicemailDetected  *bool    `json:"transfer_voicemail_detected"`
+				SessionID                 string  `json:"session_id"`
+				ConversationID            string  `json:"conversation_id"`
+				Timestamp                 string  `json:"timestamp"`
+				AgentName                 string  `json:"agent_name"`
+				AgentType                 string  `json:"agent_type"`
+				AgentTimezone             string  `json:"agent_timezone"`
+				PromptName                string  `json:"prompt_name"`
+				Duration                  float64 `json:"duration"`
+				Source                    string  `json:"source"`
+				Target                    string  `json:"target"`
+				IsTest                    bool    `json:"is_test"`
+				TransferVoicemailDetected *bool   `json:"transfer_voicemail_detected"`
 			}
 			if err := json.Unmarshal(data, &s); err != nil {
 				output.PrintJSON(data)
@@ -259,7 +259,7 @@ func sessionsTranscriptCmd() *cobra.Command {
 			}
 
 			var result struct {
-				SessionID    string `json:"session_id"`
+				SessionID     string `json:"session_id"`
 				Transcription []struct {
 					Source    string `json:"source"`
 					Text      string `json:"text"`

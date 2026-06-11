@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/spf13/cobra"
 	"github.com/asksyllable/syllable-cli/internal/output"
+	"github.com/spf13/cobra"
 )
 
 func channelsCmd() *cobra.Command {
@@ -318,10 +318,10 @@ func channelsTargetsListCmd() *cobra.Command {
 					ID          json.Number `json:"id"`
 					AgentID     json.Number `json:"agent_id"`
 					ChannelID   json.Number `json:"channel_id"`
-					ChannelName string `json:"channel_name"`
-					Target      string `json:"target"`
-					TargetMode  string `json:"target_mode"`
-					IsTest      bool   `json:"is_test"`
+					ChannelName string      `json:"channel_name"`
+					Target      string      `json:"target"`
+					TargetMode  string      `json:"target_mode"`
+					IsTest      bool        `json:"is_test"`
 				} `json:"items"`
 				TotalCount int `json:"total_count"`
 			}
@@ -663,7 +663,7 @@ func channelsTwilioNumbersAddCmd() *cobra.Command {
 				return fmt.Errorf("use --file to provide numbers body")
 			}
 
-			data, _, err := apiClient.Post("/api/v1/channels/twilio/"+ url.PathEscape(args[0]) +"/numbers", body)
+			data, _, err := apiClient.Post("/api/v1/channels/twilio/"+url.PathEscape(args[0])+"/numbers", body)
 			if err != nil {
 				return err
 			}
@@ -699,7 +699,7 @@ func channelsTwilioNumbersUpdateCmd() *cobra.Command {
 				return fmt.Errorf("use --file to provide update body")
 			}
 
-			data, _, err := apiClient.Put("/api/v1/channels/twilio/"+ url.PathEscape(args[0]) +"/numbers", body)
+			data, _, err := apiClient.Put("/api/v1/channels/twilio/"+url.PathEscape(args[0])+"/numbers", body)
 			if err != nil {
 				return err
 			}

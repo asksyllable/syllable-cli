@@ -12,9 +12,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/asksyllable/syllable-cli/internal/client"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/asksyllable/syllable-cli/internal/client"
 )
 
 // setupTestServer creates a test HTTP server and configures the global apiClient.

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/spf13/cobra"
 	"github.com/asksyllable/syllable-cli/internal/output"
+	"github.com/spf13/cobra"
 )
 
 func customMessagesCmd() *cobra.Command {
@@ -68,11 +68,11 @@ func customMessagesListCmd() *cobra.Command {
 			var result struct {
 				Items []struct {
 					ID         json.Number `json:"id"`
-					Name       string `json:"name"`
-					Type       string `json:"type"`
-					AgentCount int    `json:"agent_count"`
-					UpdatedAt  string `json:"updated_at"`
-					LastUpdBy  string `json:"last_updated_by"`
+					Name       string      `json:"name"`
+					Type       string      `json:"type"`
+					AgentCount int         `json:"agent_count"`
+					UpdatedAt  string      `json:"updated_at"`
+					LastUpdBy  string      `json:"last_updated_by"`
 				} `json:"items"`
 				TotalCount int `json:"total_count"`
 			}

@@ -25,6 +25,16 @@ jobs:
           go-version-file: scripts/syllable-cli/go.mod
           cache-dependency-path: scripts/syllable-cli/go.sum
 
+      - name: Format and vet
+        working-directory: scripts/syllable-cli
+        run: |
+          if [ -n "$(gofmt -l .)" ]; then
+            echo "::error::gofmt drift — run 'gofmt -w .' in scripts/syllable-cli"
+            gofmt -l .
+            exit 1
+          fi
+          go vet ./...
+
       - name: Run unit tests
         working-directory: scripts/syllable-cli
         # The integration suite is gated behind the `integration` build tag, so

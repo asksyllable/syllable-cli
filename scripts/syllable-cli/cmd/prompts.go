@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/spf13/cobra"
 	"github.com/asksyllable/syllable-cli/internal/output"
+	"github.com/spf13/cobra"
 )
 
 func promptsCmd() *cobra.Command {
@@ -70,13 +70,13 @@ func promptsListCmd() *cobra.Command {
 			var result struct {
 				Items []struct {
 					ID          json.Number `json:"id"`
-					Name        string `json:"name"`
-					Description string `json:"description"`
-					Type        string `json:"type"`
-					AgentCount  int    `json:"agent_count"`
-					LastUpdated string `json:"last_updated"`
-					LastUpdBy   string `json:"last_updated_by"`
-					Version     int    `json:"version_number"`
+					Name        string      `json:"name"`
+					Description string      `json:"description"`
+					Type        string      `json:"type"`
+					AgentCount  int         `json:"agent_count"`
+					LastUpdated string      `json:"last_updated"`
+					LastUpdBy   string      `json:"last_updated_by"`
+					Version     int         `json:"version_number"`
 				} `json:"items"`
 				TotalCount int `json:"total_count"`
 			}
@@ -129,14 +129,14 @@ func promptsGetCmd() *cobra.Command {
 
 			var p struct {
 				ID          json.Number `json:"id"`
-				Name        string `json:"name"`
-				Description string `json:"description"`
-				Type        string `json:"type"`
-				AgentCount  int    `json:"agent_count"`
-				LastUpdated string `json:"last_updated"`
-				LastUpdBy   string `json:"last_updated_by"`
-				Version     int    `json:"version_number"`
-				Context     string `json:"context"`
+				Name        string      `json:"name"`
+				Description string      `json:"description"`
+				Type        string      `json:"type"`
+				AgentCount  int         `json:"agent_count"`
+				LastUpdated string      `json:"last_updated"`
+				LastUpdBy   string      `json:"last_updated_by"`
+				Version     int         `json:"version_number"`
+				Context     string      `json:"context"`
 			}
 			if err := json.Unmarshal(data, &p); err != nil {
 				output.PrintJSON(data)

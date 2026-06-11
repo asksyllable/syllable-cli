@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"net/url"
 
+	"github.com/asksyllable/syllable-cli/internal/output"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/asksyllable/syllable-cli/internal/output"
 )
 
 func usersCmd() *cobra.Command {
@@ -419,7 +419,7 @@ func usersSendEmailCmd() *cobra.Command {
 		Short: "Send an email to a user",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Post("/api/v1/users/"+ url.PathEscape(args[0]) +"/send_email", map[string]interface{}{})
+			data, _, err := apiClient.Post("/api/v1/users/"+url.PathEscape(args[0])+"/send_email", map[string]interface{}{})
 			if err != nil {
 				return err
 			}
