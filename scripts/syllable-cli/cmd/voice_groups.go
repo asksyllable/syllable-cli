@@ -271,6 +271,9 @@ func voiceGroupsDeleteCmd() *cobra.Command {
 		Short: "Delete a voice group",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := confirmDelete(cmd, args); err != nil {
+				return err
+			}
 			data, _, err := apiClient.Delete("/api/v1/voice_groups/" + args[0])
 			if err != nil {
 				return err

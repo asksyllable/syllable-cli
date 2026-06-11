@@ -100,10 +100,10 @@ func sessionsListCmd() *cobra.Command {
 				path += fmt.Sprintf("&search_fields=%s&search_field_values=%s", searchField, url.QueryEscape(search))
 			}
 			if startDate != "" {
-				path += fmt.Sprintf("&start_datetime=%s", startDate)
+				path += fmt.Sprintf("&start_datetime=%s", url.QueryEscape(startDate))
 			}
 			if endDate != "" {
-				path += fmt.Sprintf("&end_datetime=%s", endDate)
+				path += fmt.Sprintf("&end_datetime=%s", url.QueryEscape(endDate))
 			}
 			if includeTest {
 				path += "&search_fields=is_test&search_field_values=true"

@@ -295,9 +295,13 @@ func toolsCreateCmd() *cobra.Command {
 				if name == "" || serviceID == "" {
 					return fmt.Errorf("required flags: --name, --service-id (or use --file)")
 				}
+				serviceIDInt, err := parseIDFlag("service-id", serviceID)
+				if err != nil {
+					return err
+				}
 				body = map[string]interface{}{
 					"name":       name,
-					"service_id": serviceID,
+					"service_id": serviceIDInt,
 					"definition": map[string]interface{}{},
 				}
 			}
@@ -367,6 +371,9 @@ func toolsDeleteCmd() *cobra.Command {
 		Short: "Delete a tool",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := confirmDelete(cmd, args); err != nil {
+				return err
+			}
 			data, _, err := apiClient.Delete("/api/v1/tools/" + args[0])
 			if err != nil {
 				return err

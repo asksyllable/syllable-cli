@@ -214,9 +214,13 @@ func outboundBatchesCreateCmd() *cobra.Command {
 				if batchID == "" || campaignID == "" {
 					return fmt.Errorf("required flags: --batch-id, --campaign-id (or use --file)")
 				}
+				campaignIDInt, err := parseIDFlag("campaign-id", campaignID)
+				if err != nil {
+					return err
+				}
 				body = map[string]interface{}{
 					"batch_id":    batchID,
-					"campaign_id": campaignID,
+					"campaign_id": campaignIDInt,
 					"paused":      paused,
 				}
 			}
@@ -282,6 +286,9 @@ func outboundBatchesDeleteCmd() *cobra.Command {
 		Short: "Delete an outbound batch",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := confirmDelete(cmd, args); err != nil {
+				return err
+			}
 			data, _, err := apiClient.DeleteWithForm("/api/v1/outbound/batches/"+args[0], map[string]string{"delete_reason": reason})
 			if err != nil {
 				return err
@@ -652,6 +659,9 @@ func outboundCampaignsDeleteCmd() *cobra.Command {
 		Short: "Delete an outbound campaign",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := confirmDelete(cmd, args); err != nil {
+				return err
+			}
 			data, _, err := apiClient.Delete("/api/v1/outbound/campaigns/" + args[0])
 			if err != nil {
 				return err

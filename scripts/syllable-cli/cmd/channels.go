@@ -52,7 +52,6 @@ func channelsCmd() *cobra.Command {
 	cmd.AddCommand(channelsGetCmd())
 	cmd.AddCommand(channelsCreateCmd())
 	cmd.AddCommand(channelsUpdateCmd())
-	cmd.AddCommand(channelsDeleteCmd())
 	cmd.AddCommand(channelsTargetsCmd())
 	cmd.AddCommand(channelsAvailableTargetsCmd())
 	cmd.AddCommand(channelsTwilioCmd())
@@ -256,7 +255,13 @@ func channelsUpdateCmd() *cobra.Command {
 				return fmt.Errorf("use --file to provide update body")
 			}
 
-			data, _, err := apiClient.Put("/api/v1/channels/"+args[0], body)
+			// PUT exists only on the collection; the API routes by the id inside
+			// the body, so reconcile the positional with it (#68, #114).
+			if err := ensureBodyIdentifier(body, "id", args[0], true); err != nil {
+				return err
+			}
+
+			data, _, err := apiClient.Put("/api/v1/channels/", body)
 			if err != nil {
 				return err
 			}
@@ -268,26 +273,6 @@ func channelsUpdateCmd() *cobra.Command {
 
 	cmd.Flags().StringVar(&file, "file", "", "Path to JSON body file")
 	return cmd
-}
-
-func channelsDeleteCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "delete <channel-id>",
-		Short: "Delete a channel",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Delete("/api/v1/channels/" + args[0])
-			if err != nil {
-				return err
-			}
-			if len(data) > 0 {
-				output.PrintJSON(data)
-			} else {
-				fmt.Printf("Channel %s deleted.\n", args[0])
-			}
-			return nil
-		},
-	}
 }
 
 func channelsTargetsCmd() *cobra.Command {
@@ -465,7 +450,15 @@ func channelsTargetsDeleteCmd() *cobra.Command {
 		Short: "Delete a channel target",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			path := fmt.Sprintf("/api/v1/channels/%s/targets/%s", args[0], args[1])
+			if err := confirmDelete(cmd, args); err != nil {
+				return err
+			}
+			// Delete-target is DELETE /channels/{channel_id}?target_id=<id>; the
+			// /targets/{target_id} path only supports GET/PUT (#114). The query
+			// string also suppresses the client's auto-reason param, which this
+			// operation does not declare.
+			path := fmt.Sprintf("/api/v1/channels/%s?target_id=%s",
+				url.PathEscape(args[0]), url.QueryEscape(args[1]))
 			data, _, err := apiClient.Delete(path)
 			if err != nil {
 				return err

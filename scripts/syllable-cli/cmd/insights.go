@@ -337,6 +337,9 @@ func insightsWorkflowsDeleteCmd() *cobra.Command {
 		Short: "Delete an insight workflow",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := confirmDelete(cmd, args); err != nil {
+				return err
+			}
 			data, _, err := apiClient.Delete("/api/v1/insights/workflows/" + args[0])
 			if err != nil {
 				return err
@@ -434,7 +437,7 @@ func insightsFoldersListCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			path := fmt.Sprintf("/api/v1/insights/folders/?page=%d&limit=%d", page, limit)
 			if search != "" {
-				path += fmt.Sprintf("&search_fields=name&search_field_values=%s", search)
+				path += fmt.Sprintf("&search_fields=name&search_field_values=%s", url.QueryEscape(search))
 			}
 
 			data, _, err := apiClient.Get(path)
@@ -602,6 +605,9 @@ func insightsFoldersDeleteCmd() *cobra.Command {
 		Short: "Delete an insight folder",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := confirmDelete(cmd, args); err != nil {
+				return err
+			}
 			data, _, err := apiClient.Delete("/api/v1/insights/folders/" + args[0])
 			if err != nil {
 				return err
@@ -836,6 +842,9 @@ func insightsToolConfigsDeleteCmd() *cobra.Command {
 		Short: "Delete an insight tool configuration",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := confirmDelete(cmd, args); err != nil {
+				return err
+			}
 			data, _, err := apiClient.Delete("/api/v1/insights/tool-configurations/" + args[0])
 			if err != nil {
 				return err

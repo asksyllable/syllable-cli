@@ -24,6 +24,9 @@ func setupTestServer(t *testing.T, handler http.HandlerFunc) *httptest.Server {
 	server := httptest.NewServer(handler)
 	apiClient = client.New(server.URL, "test-key")
 	viper.Set("output", "json")
+	// Tests run non-interactively; skip the destructive-action confirmation
+	// prompt (#118) unless a test opts back in by setting assumeYes = false.
+	assumeYes = true
 	return server
 }
 
@@ -160,7 +163,8 @@ func TestSessionsCommandHasSubcommands(t *testing.T) {
 
 func TestChannelsCommandHasSubcommands(t *testing.T) {
 	cmd := channelsCmd()
-	expected := []string{"list", "create", "update", "delete", "targets", "available-targets", "twilio"}
+	// "delete" intentionally absent — the API has no delete-channel operation (#114).
+	expected := []string{"list", "create", "update", "targets", "available-targets", "twilio"}
 	subs := make(map[string]bool)
 	for _, c := range cmd.Commands() {
 		subs[c.Name()] = true
@@ -343,7 +347,7 @@ func TestAgentsCreateWithFlags(t *testing.T) {
 	defer server.Close()
 
 	cmd := agentsCreateCmd()
-	cmd.SetArgs([]string{"--name", "flag-agent", "--type", "inbound", "--prompt-id", "p1", "--timezone", "UTC"})
+	cmd.SetArgs([]string{"--name", "flag-agent", "--type", "inbound", "--prompt-id", "7", "--timezone", "UTC"})
 	captureStdout(func() {
 		if err := cmd.Execute(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -352,6 +356,10 @@ func TestAgentsCreateWithFlags(t *testing.T) {
 
 	if receivedBody["name"] != "flag-agent" {
 		t.Errorf("expected name=flag-agent, got %v", receivedBody["name"])
+	}
+	// prompt_id must be sent as a JSON number, not a string (#116).
+	if receivedBody["prompt_id"] != float64(7) {
+		t.Errorf("expected prompt_id=7 (number), got %#v", receivedBody["prompt_id"])
 	}
 	// Verify default empty maps are included
 	if receivedBody["variables"] == nil {
@@ -631,7 +639,11 @@ func TestAgentsSendTestMessageOverrideTimestamp(t *testing.T) {
 // (so the CLI authenticates in CI/automation with no ~/.syllable/config.yaml).
 func TestResolveAPIKeyFromEnv(t *testing.T) {
 	t.Setenv("SYLLABLE_API_KEY", "env-key-abc123")
-	if got := resolveAPIKey(); got != "env-key-abc123" {
+	got, err := resolveAPIKey()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "env-key-abc123" {
 		t.Errorf("resolveAPIKey() = %q, want %q (SYLLABLE_API_KEY should take priority)", got, "env-key-abc123")
 	}
 }
@@ -696,13 +708,19 @@ func TestToolsCreateWithFlags(t *testing.T) {
 	defer server.Close()
 
 	cmd := toolsCreateCmd()
-	cmd.SetArgs([]string{"--name", "my_tool", "--service-id", "svc-1"})
+	cmd.SetArgs([]string{"--name", "my_tool", "--service-id", "1"})
 	captureStdout(func() {
-		cmd.Execute()
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 	})
 
 	if receivedBody["name"] != "my_tool" {
 		t.Errorf("expected name=my_tool, got %v", receivedBody["name"])
+	}
+	// service_id must be sent as a JSON number, not a string (#116).
+	if receivedBody["service_id"] != float64(1) {
+		t.Errorf("expected service_id=1 (number), got %#v", receivedBody["service_id"])
 	}
 	if receivedBody["definition"] == nil {
 		t.Error("expected empty definition map in body")
@@ -712,9 +730,12 @@ func TestToolsCreateWithFlags(t *testing.T) {
 // --- Sessions functional tests ---
 
 func TestSessionsList(t *testing.T) {
-	var requestPath string
+	var startVal, endVal string
 	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		requestPath = r.URL.String()
+		// Read the decoded query values so the assertion is independent of
+		// escaping style and proves the value round-trips intact (#116).
+		startVal = r.URL.Query().Get("start_datetime")
+		endVal = r.URL.Query().Get("end_datetime")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"items":       []interface{}{},
 			"total_count": 0,
@@ -722,17 +743,19 @@ func TestSessionsList(t *testing.T) {
 	})
 	defer server.Close()
 
+	// A non-UTC offset contains "+", which is corrupted to a space unless the
+	// value is URL-escaped — the exact bug this guards against.
 	cmd := sessionsListCmd()
-	cmd.SetArgs([]string{"--start-date", "2024-01-01T00:00:00Z", "--end-date", "2024-01-31T23:59:59Z"})
+	cmd.SetArgs([]string{"--start-date", "2024-01-01T00:00:00+05:00", "--end-date", "2024-01-31T23:59:59Z"})
 	captureStdout(func() {
 		cmd.Execute()
 	})
 
-	if !strings.Contains(requestPath, "start_datetime=2024-01-01T00:00:00Z") {
-		t.Errorf("expected start_datetime in path, got: %s", requestPath)
+	if startVal != "2024-01-01T00:00:00+05:00" {
+		t.Errorf("start_datetime not round-tripped, got: %q", startVal)
 	}
-	if !strings.Contains(requestPath, "end_datetime=2024-01-31T23:59:59Z") {
-		t.Errorf("expected end_datetime in path, got: %s", requestPath)
+	if endVal != "2024-01-31T23:59:59Z" {
+		t.Errorf("end_datetime not round-tripped, got: %q", endVal)
 	}
 }
 
@@ -2727,5 +2750,156 @@ func TestChannelsGetNotFound(t *testing.T) {
 
 	if err == nil || !strings.Contains(err.Error(), "syllable channels list") {
 		t.Errorf("expected not-found error pointing at channels list, got %v", err)
+	}
+}
+
+// --- API-contract regression tests (#114, #115) ---
+
+func TestUsersDeleteSendsJSONBody(t *testing.T) {
+	var method, path string
+	var body map[string]interface{}
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		path = r.URL.Path
+		json.NewDecoder(r.Body).Decode(&body)
+		w.Write([]byte(`{}`))
+	})
+	defer server.Close()
+
+	cmd := usersDeleteCmd()
+	cmd.SetArgs([]string{"alice@example.com"})
+	captureStdout(func() {
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	if method != http.MethodDelete || path != "/api/v1/users/" {
+		t.Errorf("expected DELETE /api/v1/users/, got %s %s", method, path)
+	}
+	if body["email"] != "alice@example.com" {
+		t.Errorf("expected email in body, got %#v", body["email"])
+	}
+	if body["reason"] == nil || body["reason"] == "" {
+		t.Errorf("expected a non-empty reason in body, got %#v", body["reason"])
+	}
+}
+
+func TestChannelsUpdateRoutesToCollection(t *testing.T) {
+	var method, path string
+	var body map[string]interface{}
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		path = r.URL.Path
+		json.NewDecoder(r.Body).Decode(&body)
+		w.Write([]byte(`{}`))
+	})
+	defer server.Close()
+
+	// PUT must hit the collection path, and the positional id must be injected
+	// into the body since the API routes by it.
+	cmd := channelsUpdateCmd()
+	cmd.SetArgs([]string{"5", "--file", writeTempJSON(t, `{"name":"main","channel_service":"twilio","config":{}}`)})
+	captureStdout(func() {
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	if method != http.MethodPut || path != "/api/v1/channels/" {
+		t.Errorf("expected PUT /api/v1/channels/, got %s %s", method, path)
+	}
+	if body["id"] != float64(5) {
+		t.Errorf("expected id=5 injected into body, got %#v", body["id"])
+	}
+}
+
+func TestChannelsTargetsDeleteUsesChannelQueryParam(t *testing.T) {
+	var method, path, target string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		path = r.URL.Path
+		target = r.URL.Query().Get("target_id")
+		w.Write([]byte(``))
+	})
+	defer server.Close()
+
+	cmd := channelsTargetsDeleteCmd()
+	cmd.SetArgs([]string{"5", "42"})
+	captureStdout(func() {
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	if method != http.MethodDelete || path != "/api/v1/channels/5" {
+		t.Errorf("expected DELETE /api/v1/channels/5, got %s %s", method, path)
+	}
+	if target != "42" {
+		t.Errorf("expected target_id=42 query param, got %q", target)
+	}
+}
+
+func TestDeleteRequiresConfirmation(t *testing.T) {
+	hit := false
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		hit = true
+		w.Write([]byte(`{}`))
+	})
+	defer server.Close()
+
+	// Force a non-interactive stdin so the gate is deterministic regardless of
+	// whether `go test` runs from a terminal.
+	origStdin := os.Stdin
+	r, w, _ := os.Pipe()
+	w.Close() // immediate EOF
+	os.Stdin = r
+	defer func() { os.Stdin = origStdin }()
+
+	prev := assumeYes
+	defer func() { assumeYes = prev }()
+
+	// Without --yes and no TTY: refuse, and do not touch the server.
+	assumeYes = false
+	cmd := agentsDeleteCmd()
+	cmd.SetArgs([]string{"42"})
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
+	var err error
+	captureStdout(func() { err = cmd.Execute() })
+	if err == nil || !strings.Contains(err.Error(), "without confirmation") {
+		t.Errorf("expected a refusal error, got %v", err)
+	}
+	if hit {
+		t.Error("delete must not issue a request without confirmation")
+	}
+
+	// With --yes: proceed and issue the request.
+	assumeYes = true
+	cmd = agentsDeleteCmd()
+	cmd.SetArgs([]string{"42"})
+	captureStdout(func() {
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("unexpected error with --yes: %v", err)
+		}
+	})
+	if !hit {
+		t.Error("delete with --yes should issue the request")
+	}
+}
+
+func TestValidateOutputFmt(t *testing.T) {
+	prev := viper.GetString("output")
+	defer viper.Set("output", prev)
+
+	for _, ok := range []string{"table", "json", ""} {
+		viper.Set("output", ok)
+		if err := validateOutputFmt(); err != nil {
+			t.Errorf("validateOutputFmt(%q) = %v, want nil", ok, err)
+		}
+	}
+	viper.Set("output", "yaml")
+	if err := validateOutputFmt(); err == nil {
+		t.Error(`validateOutputFmt("yaml") = nil, want error`)
 	}
 }
