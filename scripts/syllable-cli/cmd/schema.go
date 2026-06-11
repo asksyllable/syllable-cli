@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 
@@ -100,8 +99,7 @@ func schemaGetCmd() *cobra.Command {
 				}
 			}
 			if !ok {
-				fmt.Fprintf(os.Stderr, "Schema %q not found. Run `syllable schema list` to see available schemas.\n", args[0])
-				os.Exit(1)
+				return fmt.Errorf("schema %q not found — run `syllable schema list` to see available schemas", args[0])
 			}
 
 			b, err := json.MarshalIndent(schema, "", "  ")

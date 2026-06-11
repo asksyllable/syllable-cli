@@ -232,6 +232,9 @@ func rolesDeleteCmd() *cobra.Command {
 		Short: "Delete a role",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := confirmDelete(cmd, args); err != nil {
+				return err
+			}
 			data, _, err := apiClient.Delete("/api/v1/roles/" + args[0])
 			if err != nil {
 				return err

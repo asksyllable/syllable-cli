@@ -324,6 +324,9 @@ func usersDeleteCmd() *cobra.Command {
 		Short: "Delete a user",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := confirmDelete(cmd, args); err != nil {
+				return err
+			}
 			// DELETE /api/v1/users/ takes a JSON body (email + reason both
 			// required), not a query param (#115).
 			body := map[string]interface{}{

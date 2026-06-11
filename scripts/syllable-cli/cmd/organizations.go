@@ -233,6 +233,9 @@ func organizationsSipIPRangesDeleteCmd() *cobra.Command {
 		Short: "Delete a SIP IP range",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := confirmDelete(cmd, args); err != nil {
+				return err
+			}
 			path := fmt.Sprintf("/api/v1/organizations/sip_ip_ranges/%s", args[0])
 			data, _, err := apiClient.Delete(path)
 			if err != nil {

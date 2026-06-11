@@ -237,6 +237,9 @@ func dataSourcesDeleteCmd() *cobra.Command {
 		Short: "Delete a data source",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := confirmDelete(cmd, args); err != nil {
+				return err
+			}
 			data, _, err := apiClient.Delete("/api/v1/data_sources/" + args[0])
 			if err != nil {
 				return err

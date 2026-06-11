@@ -52,7 +52,6 @@ func channelsCmd() *cobra.Command {
 	cmd.AddCommand(channelsGetCmd())
 	cmd.AddCommand(channelsCreateCmd())
 	cmd.AddCommand(channelsUpdateCmd())
-	cmd.AddCommand(channelsDeleteCmd())
 	cmd.AddCommand(channelsTargetsCmd())
 	cmd.AddCommand(channelsAvailableTargetsCmd())
 	cmd.AddCommand(channelsTwilioCmd())
@@ -276,22 +275,6 @@ func channelsUpdateCmd() *cobra.Command {
 	return cmd
 }
 
-func channelsDeleteCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "delete <channel-id>",
-		Short: "Delete a channel target (the API has no delete-channel operation)",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// The only DELETE under /api/v1/channels/{channel_id} is "Delete
-			// Channel Target", which requires a target_id — there is no
-			// operation that deletes a whole channel (#114). Fail fast instead
-			// of sending a request that always 422s.
-			return fmt.Errorf("deleting a channel is not supported by the Syllable API; " +
-				"to remove a target from a channel use: syllable channels targets delete <channel-id> <target-id>")
-		},
-	}
-}
-
 func channelsTargetsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "targets",
@@ -467,6 +450,9 @@ func channelsTargetsDeleteCmd() *cobra.Command {
 		Short: "Delete a channel target",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := confirmDelete(cmd, args); err != nil {
+				return err
+			}
 			// Delete-target is DELETE /channels/{channel_id}?target_id=<id>; the
 			// /targets/{target_id} path only supports GET/PUT (#114). The query
 			// string also suppresses the client's auto-reason param, which this

@@ -259,6 +259,9 @@ func directoryDeleteCmd() *cobra.Command {
 		Short: "Delete a directory member",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := confirmDelete(cmd, args); err != nil {
+				return err
+			}
 			data, _, err := apiClient.Delete("/api/v1/directory_members/" + args[0] + "?comment=deleted+via+cli")
 			if err != nil {
 				return err

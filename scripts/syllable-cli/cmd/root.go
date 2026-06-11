@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -28,6 +29,7 @@ var (
 	dryRun     bool
 	debugMode  bool
 	fieldsFlag string
+	assumeYes  bool
 	apiClient  *client.Client
 )
 
@@ -74,8 +76,7 @@ Feedback: https://github.com/asksyllable/syllable-cli/issues`,
 		if cmd.Root() == cmd && len(args) == 0 {
 			return nil
 		}
-		initClient()
-		return nil
+		return initClient()
 	},
 }
 
@@ -255,6 +256,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "Print the request that would be sent without executing it")
 	rootCmd.PersistentFlags().BoolVar(&debugMode, "debug", false, "Print HTTP request and response details to stderr")
 	rootCmd.PersistentFlags().StringVar(&fieldsFlag, "fields", "", "Comma-separated columns to show in table output (e.g. id,name,type)")
+	rootCmd.PersistentFlags().BoolVarP(&assumeYes, "yes", "y", false, "Skip the confirmation prompt on destructive commands (for non-interactive use)")
 
 	// Bind flags to viper
 	viper.BindPFlag("org", rootCmd.PersistentFlags().Lookup("org"))
@@ -314,28 +316,37 @@ func initConfig() {
 	viper.ReadInConfig()
 }
 
-func initClient() {
-	url := resolveBaseURL()
-	key := resolveAPIKey()
+func initClient() error {
+	url, err := resolveBaseURL()
+	if err != nil {
+		return err
+	}
+	key, err := resolveAPIKey()
+	if err != nil {
+		return err
+	}
 
 	if key == "" {
-		fmt.Fprintln(os.Stderr, "Error: not configured. Run `syllable setup` and select an org with --org <name>, or set SYLLABLE_API_KEY for non-interactive use.")
-		os.Exit(1)
+		return errors.New("not configured — run `syllable setup` and select an org with --org <name>, or set SYLLABLE_API_KEY for non-interactive use")
 	}
 
 	apiClient = client.New(url, key)
 	apiClient.DryRun = dryRun
 	apiClient.Verbose = debugMode
+	return nil
 }
 
 // resolveAPIKey determines the API key to use from config.
 // Priority: orgs.<org>.envs.<env>.api_key > orgs.<org>.api_key
-// Org is taken from --org flag or default_org in config.
-func resolveAPIKey() string {
+// Org is taken from --org flag or default_org in config. It returns "" with a
+// nil error when nothing is configured, so the caller can render a single
+// "not configured" message; config problems (unknown org, missing key) are
+// returned as errors that flow through the normal --output json error path (#128).
+func resolveAPIKey() (string, error) {
 	// Non-interactive auth: an explicit key in the environment takes priority,
 	// so the CLI works in CI and automation without a ~/.syllable/config.yaml.
 	if k := os.Getenv("SYLLABLE_API_KEY"); k != "" {
-		return k
+		return k, nil
 	}
 
 	org := strings.ToLower(viper.GetString("org"))
@@ -344,19 +355,17 @@ func resolveAPIKey() string {
 	}
 
 	if org == "" {
-		return ""
+		return "", nil
 	}
 
 	orgs := viper.GetStringMap("orgs")
 	orgData, ok := orgs[org]
 	if !ok {
-		fmt.Fprintf(os.Stderr, "Error: org %q not found in ~/.syllable/config.yaml — run `syllable setup` to add it\n", org)
-		os.Exit(1)
+		return "", fmt.Errorf("org %q not found in ~/.syllable/config.yaml — run `syllable setup` to add it", org)
 	}
 	orgMap, ok := orgData.(map[string]interface{})
 	if !ok {
-		fmt.Fprintf(os.Stderr, "Error: invalid config for org %q in ~/.syllable/config.yaml\n", org)
-		os.Exit(1)
+		return "", fmt.Errorf("invalid config for org %q in ~/.syllable/config.yaml", org)
 	}
 
 	// env-specific key: orgs.<org>.envs.<env>.api_key
@@ -364,7 +373,7 @@ func resolveAPIKey() string {
 		if envs, ok := orgMap["envs"].(map[string]interface{}); ok {
 			if envData, ok := envs[env].(map[string]interface{}); ok {
 				if k, _ := envData["api_key"].(string); k != "" {
-					return k
+					return k, nil
 				}
 			}
 		}
@@ -380,13 +389,11 @@ func resolveAPIKey() string {
 				names = append(names, e)
 			}
 			sort.Strings(names)
-			fmt.Fprintf(os.Stderr, "Error: org %q has per-environment keys (%s) but no environment was specified.\nUse --env <name> or set default_env in `syllable setup`.\n", org, strings.Join(names, ", "))
-		} else {
-			fmt.Fprintf(os.Stderr, "Error: no api_key found for org %q — run `syllable setup` to configure it\n", org)
+			return "", fmt.Errorf("org %q has per-environment keys (%s) but no environment was specified — use --env <name> or set default_env in `syllable setup`", org, strings.Join(names, ", "))
 		}
-		os.Exit(1)
+		return "", fmt.Errorf("no api_key found for org %q — run `syllable setup` to configure it", org)
 	}
-	return k
+	return k, nil
 }
 
 // resolveEnvName returns the active environment name from --env flag, SYLLABLE_ENV,
@@ -400,7 +407,7 @@ func resolveEnvName() string {
 
 // resolveBaseURL determines the base URL from config.
 // Priority: --env config lookup > --env builtin alias (prod) > https://api.syllable.cloud
-func resolveBaseURL() string {
+func resolveBaseURL() (string, error) {
 	env := resolveEnvName()
 	if env != "" {
 		// Check config-defined environments first
@@ -408,20 +415,19 @@ func resolveBaseURL() string {
 		if envData, ok := environments[env]; ok {
 			if envMap, ok := envData.(map[string]interface{}); ok {
 				if u, _ := envMap["base_url"].(string); u != "" {
-					return u
+					return u, nil
 				}
 			}
 		}
 		// Built-in alias: prod
 		if env == "prod" {
-			return "https://api.syllable.cloud"
+			return "https://api.syllable.cloud", nil
 		}
-		// Unknown env — exit with a clear error
-		fmt.Fprintf(os.Stderr, "Error: environment %q not found in ~/.syllable/config.yaml — add it with `syllable setup`\n", env)
-		os.Exit(1)
+		// Unknown env — surface a clear error through the normal error path.
+		return "", fmt.Errorf("environment %q not found in ~/.syllable/config.yaml — add it with `syllable setup`", env)
 	}
 
-	return "https://api.syllable.cloud"
+	return "https://api.syllable.cloud", nil
 }
 
 func getOutputFmt() string {
@@ -491,6 +497,44 @@ func parseIDFlag(flagName, value string) (int64, error) {
 		return 0, fmt.Errorf("--%s must be a whole number, got %q", flagName, value)
 	}
 	return n, nil
+}
+
+// confirmDelete prompts for confirmation before a destructive command runs (#118).
+// It returns nil — proceed without prompting — when --yes is set or --dry-run is
+// in effect (dry-run never executes the call). When stdin is not a terminal and
+// --yes was not passed, it refuses with an actionable error so scripts can't
+// delete by accident; otherwise it asks for y/N on stderr and reads the answer
+// from stdin. The target shown is derived from the command path and positional
+// args, e.g. "syllable agents delete 42".
+func confirmDelete(cmd *cobra.Command, args []string) error {
+	if assumeYes || dryRun {
+		return nil
+	}
+	target := cmd.CommandPath()
+	if len(args) > 0 {
+		target += " " + strings.Join(args, " ")
+	}
+	if !isStdinTTY() {
+		return fmt.Errorf("refusing to run %q without confirmation; pass --yes to confirm non-interactively", target)
+	}
+	fmt.Fprintf(os.Stderr, "About to run: %s\nThis is destructive and cannot be undone. Continue? [y/N]: ", target)
+	line, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+	switch strings.ToLower(strings.TrimSpace(line)) {
+	case "y", "yes":
+		return nil
+	default:
+		return fmt.Errorf("aborted")
+	}
+}
+
+// isStdinTTY reports whether stdin is connected to a terminal (vs a pipe/file),
+// used to decide whether an interactive confirmation prompt is possible.
+func isStdinTTY() bool {
+	fi, err := os.Stdin.Stat()
+	if err != nil {
+		return false
+	}
+	return fi.Mode()&os.ModeCharDevice != 0
 }
 
 // identifierMatches compares a JSON body value against a positional CLI string.
