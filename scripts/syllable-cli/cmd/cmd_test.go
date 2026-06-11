@@ -2901,6 +2901,71 @@ func TestDeleteRequiresConfirmation(t *testing.T) {
 	}
 }
 
+func TestSetupGuardRequest(t *testing.T) {
+	const host = "127.0.0.1:54321"
+	const token = "sekret-token"
+
+	newReq := func(h, origin, tok string) *http.Request {
+		r, _ := http.NewRequest(http.MethodPost, "http://"+h+"/save", nil)
+		r.Host = h
+		if origin != "" {
+			r.Header.Set("Origin", origin)
+		}
+		if tok != "" {
+			r.Header.Set("X-Syllable-CSRF", tok)
+		}
+		return r
+	}
+
+	// Valid: correct host, matching origin, correct token.
+	if err := setupGuardRequest(newReq(host, "http://"+host, token), token, host); err != nil {
+		t.Errorf("valid request rejected: %v", err)
+	}
+	// Valid: no Origin header (token + Host still required and present).
+	if err := setupGuardRequest(newReq(host, "", token), token, host); err != nil {
+		t.Errorf("valid no-origin request rejected: %v", err)
+	}
+	// Rejected: mismatched Host (DNS rebinding).
+	if err := setupGuardRequest(newReq("evil.example.com:54321", "", token), token, host); err == nil {
+		t.Error("expected rejection on mismatched Host")
+	}
+	// Rejected: cross-origin.
+	if err := setupGuardRequest(newReq(host, "http://evil.example.com", token), token, host); err == nil {
+		t.Error("expected rejection on cross-origin Origin")
+	}
+	// Rejected: missing token.
+	if err := setupGuardRequest(newReq(host, "http://"+host, ""), token, host); err == nil {
+		t.Error("expected rejection on missing CSRF token")
+	}
+	// Rejected: wrong token.
+	if err := setupGuardRequest(newReq(host, "http://"+host, "wrong"), token, host); err == nil {
+		t.Error("expected rejection on wrong CSRF token")
+	}
+}
+
+func TestSetupRandomToken(t *testing.T) {
+	a, err := setupRandomToken()
+	if err != nil || len(a) != 64 {
+		t.Fatalf("setupRandomToken() = %q, err=%v; want 64 hex chars", a, err)
+	}
+	if b, _ := setupRandomToken(); a == b {
+		t.Error("tokens should be unique per call")
+	}
+}
+
+func TestSetupPageInjectsToken(t *testing.T) {
+	if !strings.Contains(setupHTMLPage, "%%CSRF_TOKEN%%") {
+		t.Fatal("page template is missing the %%CSRF_TOKEN%% placeholder")
+	}
+	page := strings.ReplaceAll(setupHTMLPage, "%%CSRF_TOKEN%%", "TOK123")
+	if strings.Contains(page, "%%CSRF_TOKEN%%") {
+		t.Error("token placeholder was not replaced")
+	}
+	if !strings.Contains(page, "TOK123") {
+		t.Error("token not present in the served page")
+	}
+}
+
 func TestWarnIfInsecureBaseURL(t *testing.T) {
 	cases := []struct {
 		url  string
