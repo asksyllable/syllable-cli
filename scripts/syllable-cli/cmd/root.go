@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -317,7 +318,7 @@ func initConfig() {
 }
 
 func initClient() error {
-	url, err := resolveBaseURL()
+	baseURL, err := resolveBaseURL()
 	if err != nil {
 		return err
 	}
@@ -330,10 +331,26 @@ func initClient() error {
 		return errors.New("not configured — run `syllable setup` and select an org with --org <name>, or set SYLLABLE_API_KEY for non-interactive use")
 	}
 
-	apiClient = client.New(url, key)
+	warnIfInsecureBaseURL(baseURL)
+	apiClient = client.New(baseURL, key)
 	apiClient.DryRun = dryRun
 	apiClient.Verbose = debugMode
 	return nil
+}
+
+// warnIfInsecureBaseURL prints a stderr warning when the API would be reached
+// over plaintext http on a non-loopback host, since the API key travels in the
+// request headers (#125). Loopback dev servers are exempt.
+func warnIfInsecureBaseURL(rawURL string) {
+	u, err := url.Parse(rawURL)
+	if err != nil || u.Scheme == "https" {
+		return
+	}
+	switch u.Hostname() {
+	case "localhost", "127.0.0.1", "::1", "":
+		return
+	}
+	fmt.Fprintf(os.Stderr, "warning: base URL %q is not https — your API key will be sent in plaintext\n", rawURL)
 }
 
 // resolveAPIKey determines the API key to use from config.

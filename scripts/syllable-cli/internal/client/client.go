@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -44,11 +45,78 @@ type Client struct {
 // New creates a new Client.
 func New(baseURL, apiKey string) *Client {
 	return &Client{
-		BaseURL: baseURL,
-		APIKey:  apiKey,
-		HTTPClient: &http.Client{
-			Timeout: 30 * time.Second,
-		},
+		BaseURL:    baseURL,
+		APIKey:     apiKey,
+		HTTPClient: newHTTPClient(30 * time.Second),
+	}
+}
+
+// newHTTPClient builds an http.Client with the credential-safe redirect policy.
+func newHTTPClient(timeout time.Duration) *http.Client {
+	return &http.Client{
+		Timeout:       timeout,
+		CheckRedirect: checkRedirect,
+	}
+}
+
+// checkRedirect strips the Syllable-API-Key header when a redirect crosses to a
+// different host. Go's default policy only strips standard auth headers
+// (Authorization, Cookie), not custom ones, so without this the API key would
+// be forwarded to whatever host a 3xx points at (#125).
+func checkRedirect(req *http.Request, via []*http.Request) error {
+	if len(via) >= 10 {
+		return errors.New("stopped after 10 redirects")
+	}
+	if len(via) > 0 && req.URL.Host != via[0].URL.Host {
+		req.Header.Del("Syllable-API-Key")
+	}
+	return nil
+}
+
+const redactedPlaceholder = "***REDACTED***"
+
+// isSensitiveKey reports whether a body/field key's value is a credential that
+// must be masked in --debug output (e.g. service auth_values) (#124).
+func isSensitiveKey(key string) bool {
+	k := strings.ToLower(key)
+	for _, s := range []string{"password", "secret", "token", "api_key", "apikey", "auth_values", "authorization", "hmac", "credential", "private_key"} {
+		if strings.Contains(k, s) {
+			return true
+		}
+	}
+	return false
+}
+
+// redactSensitive parses JSON and replaces the values of sensitive keys with a
+// placeholder, returning compact JSON for display. Non-JSON or marshal failures
+// return the input unchanged (the caller only uses this for debug output).
+func redactSensitive(raw []byte) []byte {
+	var v interface{}
+	if err := json.Unmarshal(raw, &v); err != nil {
+		return raw
+	}
+	redactValue(v)
+	out, err := json.Marshal(v)
+	if err != nil {
+		return raw
+	}
+	return out
+}
+
+func redactValue(v interface{}) {
+	switch t := v.(type) {
+	case map[string]interface{}:
+		for k, val := range t {
+			if isSensitiveKey(k) {
+				t[k] = redactedPlaceholder
+			} else {
+				redactValue(val)
+			}
+		}
+	case []interface{}:
+		for _, item := range t {
+			redactValue(item)
+		}
 	}
 }
 
@@ -100,7 +168,7 @@ func (c *Client) Do(method, path string, body interface{}) ([]byte, int, error) 
 		if bodyBytes != nil {
 			fmt.Fprintf(os.Stderr, "> Content-Type: application/json\n")
 			var pretty bytes.Buffer
-			if json.Indent(&pretty, bodyBytes, "> ", "  ") == nil {
+			if json.Indent(&pretty, redactSensitive(bodyBytes), "> ", "  ") == nil {
 				fmt.Fprintf(os.Stderr, ">\n> %s\n", pretty.String())
 			}
 		}
@@ -183,7 +251,7 @@ func (c *Client) GetStream(path string) (io.ReadCloser, int, error) {
 		fmt.Fprintln(os.Stderr)
 	}
 
-	streamClient := &http.Client{Timeout: 30 * time.Minute}
+	streamClient := newHTTPClient(30 * time.Minute)
 	resp, err := streamClient.Do(req)
 	if err != nil {
 		return nil, 0, fmt.Errorf("executing request: %w", err)
@@ -240,7 +308,7 @@ func (c *Client) DeleteWithBody(path string, body interface{}) ([]byte, int, err
 // it never mutates the shared client's timeout and is safe to call concurrently (#132).
 func (c *Client) PostWithTimeout(path string, body interface{}, timeout time.Duration) ([]byte, int, error) {
 	tmp := *c
-	tmp.HTTPClient = &http.Client{Timeout: timeout}
+	tmp.HTTPClient = newHTTPClient(timeout)
 	return tmp.Do(http.MethodPost, path, body)
 }
 
@@ -312,7 +380,7 @@ func (c *Client) doMultipart(method, path, fieldName, filePath string) ([]byte, 
 	}
 
 	// Use a longer timeout for file uploads
-	uploadClient := &http.Client{Timeout: 5 * time.Minute}
+	uploadClient := newHTTPClient(5 * time.Minute)
 	resp, err := uploadClient.Do(req)
 	if err != nil {
 		return nil, 0, fmt.Errorf("executing request: %w", err)
@@ -409,6 +477,9 @@ func (c *Client) doMultipartForm(method, path string, fields map[string]string, 
 		fmt.Fprintf(os.Stderr, "> Syllable-API-Key: %s\n", maskKey(c.APIKey))
 		fmt.Fprintf(os.Stderr, "> Content-Type: %s\n", w.FormDataContentType())
 		for k, v := range fields {
+			if isSensitiveKey(k) {
+				v = redactedPlaceholder
+			}
 			fmt.Fprintf(os.Stderr, "> (form field) %s=%s\n", k, v)
 		}
 		if fileField != "" && filePath != "" {
@@ -417,7 +488,7 @@ func (c *Client) doMultipartForm(method, path string, fields map[string]string, 
 		fmt.Fprintln(os.Stderr)
 	}
 
-	uploadClient := &http.Client{Timeout: 5 * time.Minute}
+	uploadClient := newHTTPClient(5 * time.Minute)
 	resp, err := uploadClient.Do(req)
 	if err != nil {
 		return nil, 0, fmt.Errorf("executing request: %w", err)

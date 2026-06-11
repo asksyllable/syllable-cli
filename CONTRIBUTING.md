@@ -30,16 +30,16 @@ For everything else, `--dry-run` prints the request that would be sent without e
 
 ### Live integration tests
 
-`scripts/syllable-cli/integration/` is a black-box suite that builds the CLI binary as a subprocess and exercises it against a live Syllable instance. It is **opt-in**, run by the developer:
+`scripts/syllable-cli/integration/` is a black-box suite that builds the CLI binary as a subprocess and exercises it against a live Syllable instance. It is gated behind the `integration` build tag **and** an auth env var, so it never runs from a plain `go test ./...` (including the GoReleaser pre-release hook). It is **opt-in**, run by the developer:
 
 ```bash
 cd scripts/syllable-cli
-SYLLABLE_API_KEY=... go test ./integration/...
+SYLLABLE_API_KEY=... go test -tags integration ./integration/...
 # or
-SYLLABLE_ORG=sandbox go test ./integration/...
+SYLLABLE_ORG=sandbox go test -tags integration ./integration/...
 ```
 
-`SYLLABLE_API_KEY` is read directly by the CLI (no config file needed — this is how CI authenticates); `SYLLABLE_ORG` instead resolves the key from `~/.syllable/config.yaml`. **Do not point integration tests at customer orgs** — use a dedicated throwaway org such as `cli-test`. The org slugs in [AGENTS.md](AGENTS.md) examples (`acme`, `globex`, etc.) are placeholders, not test targets.
+Without `-tags integration` the suite's files are excluded from the build, so `go test ./...` reports no tests for the package and makes no live calls. `SYLLABLE_API_KEY` is read directly by the CLI (no config file needed — this is how CI authenticates); `SYLLABLE_ORG` instead resolves the key from `~/.syllable/config.yaml`. **Do not point integration tests at customer orgs** — use a dedicated throwaway org such as `cli-test`. The org slugs in [AGENTS.md](AGENTS.md) examples (`acme`, `globex`, etc.) are placeholders, not test targets.
 
 ## Branch and release workflow
 

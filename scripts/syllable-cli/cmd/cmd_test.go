@@ -43,6 +43,19 @@ func captureStdout(fn func()) string {
 	return buf.String()
 }
 
+// captureStderr captures stderr output from a function call.
+func captureStderr(fn func()) string {
+	old := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+	fn()
+	w.Close()
+	os.Stderr = old
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	return buf.String()
+}
+
 // --- Command structure tests ---
 
 func TestCmdRequiresNoAuth(t *testing.T) {
@@ -2885,6 +2898,24 @@ func TestDeleteRequiresConfirmation(t *testing.T) {
 	})
 	if !hit {
 		t.Error("delete with --yes should issue the request")
+	}
+}
+
+func TestWarnIfInsecureBaseURL(t *testing.T) {
+	cases := []struct {
+		url  string
+		warn bool
+	}{
+		{"https://api.syllable.cloud", false},
+		{"http://localhost:8080", false},
+		{"http://127.0.0.1:8080", false},
+		{"http://api.internal.example.com", true},
+	}
+	for _, tc := range cases {
+		out := captureStderr(func() { warnIfInsecureBaseURL(tc.url) })
+		if got := strings.Contains(out, "plaintext"); got != tc.warn {
+			t.Errorf("warnIfInsecureBaseURL(%q): warned=%v, want %v", tc.url, got, tc.warn)
+		}
 	}
 }
 
