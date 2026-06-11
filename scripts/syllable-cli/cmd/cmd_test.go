@@ -3202,3 +3202,46 @@ func TestRolesUpdateInjectsPositionalID(t *testing.T) {
 func TestIncidentsUpdateInjectsPositionalID(t *testing.T) {
 	assertBodyIDUpdate(t, incidentsUpdateCmd, "/api/v1/incidents/")
 }
+
+// --- Spec-based --dry-run preflight (#143) ---
+
+func TestSpecPreflight(t *testing.T) {
+	has := func(list []string, want string) bool {
+		for _, s := range list {
+			if s == want {
+				return true
+			}
+		}
+		return false
+	}
+
+	// AgentCreate requires name/type/prompt_id/timezone/variables/tool_headers.
+	missing := specPreflight("POST", "/api/v1/agents/", []byte(`{"name":"x"}`))
+	for _, want := range []string{"type", "prompt_id", "timezone"} {
+		if !has(missing, want) {
+			t.Errorf("expected %q reported missing, got %v", want, missing)
+		}
+	}
+	if has(missing, "name") {
+		t.Errorf("name was provided and must not be reported missing: %v", missing)
+	}
+
+	// A complete body reports nothing.
+	if got := specPreflight("POST", "/api/v1/agents/",
+		[]byte(`{"name":"x","type":"ca_v1","prompt_id":1,"timezone":"UTC","variables":{},"tool_headers":{}}`)); len(got) != 0 {
+		t.Errorf("expected no missing fields, got %v", got)
+	}
+
+	// A query string is stripped before lookup.
+	if got := specPreflight("POST", "/api/v1/agents/?x=1", []byte(`{}`)); len(got) == 0 {
+		t.Error("expected missing fields even with a query string present")
+	}
+
+	// Unknown path / non-object body → no findings (best-effort).
+	if got := specPreflight("POST", "/api/v1/nonexistent/", []byte(`{}`)); got != nil {
+		t.Errorf("unknown path should yield nil, got %v", got)
+	}
+	if got := specPreflight("POST", "/api/v1/agents/", []byte(`["not","an","object"]`)); got != nil {
+		t.Errorf("non-object body should yield nil, got %v", got)
+	}
+}
