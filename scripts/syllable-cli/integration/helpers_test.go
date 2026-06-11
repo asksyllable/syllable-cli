@@ -67,6 +67,19 @@ func runCleanup() {
 	}
 }
 
+// registerDelete schedules a cleanup that runs the CLI (typically a delete) and
+// logs any failure to stderr instead of silently leaking the resource (#139).
+func registerDelete(args ...string) {
+	registerCleanup(func() {
+		out, err := runCLI(args...)
+		// A 404 means the test already deleted it on the happy path — not a leak,
+		// so only surface genuine cleanup failures.
+		if err != nil && !strings.Contains(string(out), "404") && !strings.Contains(strings.ToLower(string(out)), "not found") {
+			fmt.Fprintf(os.Stderr, "cleanup failed: %s: %v\n%s\n", strings.Join(args, " "), err, out)
+		}
+	})
+}
+
 // ---------------------------------------------------------------------------
 // CLI runner
 // ---------------------------------------------------------------------------
@@ -75,7 +88,10 @@ func runCleanup() {
 // --org when SYLLABLE_ORG is set and --env when SYLLABLE_ENV is set). The CLI
 // gets its key from SYLLABLE_API_KEY (inherited env) or that org's config entry.
 func runCLI(args ...string) ([]byte, error) {
-	base := []string{"-o", "json"}
+	// --yes skips the destructive-action confirmation prompt; it's a persistent
+	// flag that non-destructive commands ignore, so injecting it unconditionally
+	// keeps delete steps and cleanup working in this non-interactive suite (#118/#139).
+	base := []string{"-o", "json", "--yes"}
 	if org != "" {
 		base = append(base, "--org", org)
 	}
@@ -162,7 +178,9 @@ func writeTempJSON(t *testing.T, v interface{}) string {
 
 // testName returns a unique resource name with a test prefix.
 func testName(suffix string) string {
-	return "[TEST-INTEG] " + suffix
+	// Suffix with the PID so concurrent runs (e.g. a scheduled run overlapping a
+	// labeled-PR run) don't fight over identically-named resources (#139).
+	return fmt.Sprintf("[TEST-INTEG] %s %d", suffix, os.Getpid())
 }
 
 // assertContains fails the test if sub is not found in s.

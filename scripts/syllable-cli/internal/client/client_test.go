@@ -273,3 +273,22 @@ func TestCheckRedirectStripsKeyCrossHost(t *testing.T) {
 		t.Error("expected an error after 10 redirects")
 	}
 }
+
+func TestMaskKey(t *testing.T) {
+	cases := map[string]string{
+		"":               "****",     // empty
+		"short":          "****",     // <= 8 chars: fully masked
+		"12345678":       "****",     // exactly 8
+		"123456789":      "1234****", // > 8: short prefix only, no suffix or length
+		"syl_abcdef1234": "syl_****",
+	}
+	for in, want := range cases {
+		if got := maskKey(in); got != want {
+			t.Errorf("maskKey(%q) = %q, want %q", in, got, want)
+		}
+		// Never leak the tail of a key.
+		if len(in) > 8 && strings.Contains(maskKey(in), in[len(in)-4:]) {
+			t.Errorf("maskKey(%q) leaked the key suffix", in)
+		}
+	}
+}

@@ -2,6 +2,10 @@ package spec
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -74,4 +78,66 @@ func TestBulkOperationPathsMatch(t *testing.T) {
 			t.Errorf("bulk operation path %q missing from spec — CLI command will hit a slash-mismatch redirect", p)
 		}
 	}
+}
+
+// TestCLIPathsExistInSpec extracts every "/api/v1/..." string literal from the
+// cmd/*.go sources and asserts each one's static prefix corresponds to a real
+// endpoint in the embedded spec. This mechanically catches typo'd or removed
+// paths (the class behind #114) in CI instead of via a live 404/405 (#117).
+//
+// It's a prefix check at a segment boundary: the dynamic tail of a path is built
+// at runtime (concatenation or %s), so we verify the static resource prefix is
+// real, not the full templated path.
+func TestCLIPathsExistInSpec(t *testing.T) {
+	var parsed map[string]interface{}
+	if err := json.Unmarshal(OpenAPI, &parsed); err != nil {
+		t.Fatalf("spec not valid JSON: %v", err)
+	}
+	pathsMap := parsed["paths"].(map[string]interface{})
+	specPaths := make([]string, 0, len(pathsMap))
+	for p := range pathsMap {
+		specPaths = append(specPaths, p)
+	}
+
+	files, err := filepath.Glob("../../cmd/*.go")
+	if err != nil || len(files) == 0 {
+		t.Fatalf("could not list cmd sources: %v", err)
+	}
+	re := regexp.MustCompile(`"(/api/v1/[^"]*)"`)
+	checked := 0
+	for _, f := range files {
+		if strings.HasSuffix(f, "_test.go") {
+			continue
+		}
+		src, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, m := range re.FindAllStringSubmatch(string(src), -1) {
+			// Static prefix: up to the first format verb or query, trimmed to a segment.
+			prefix := m[1]
+			if i := strings.IndexAny(prefix, "%?"); i >= 0 {
+				prefix = prefix[:i]
+			}
+			prefix = strings.TrimRight(prefix, "/")
+			if prefix == "/api/v1" || prefix == "" {
+				continue // too generic to be meaningful
+			}
+			ok := false
+			for _, sp := range specPaths {
+				if sp == prefix || strings.HasPrefix(sp, prefix+"/") {
+					ok = true
+					break
+				}
+			}
+			if !ok {
+				t.Errorf("%s: path %q has no matching endpoint in the embedded spec (static prefix %q)", filepath.Base(f), m[1], prefix)
+			}
+			checked++
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no /api/v1 path literals found in cmd/*.go — the extractor is broken")
+	}
+	t.Logf("checked %d CLI path literals against the spec", checked)
 }
