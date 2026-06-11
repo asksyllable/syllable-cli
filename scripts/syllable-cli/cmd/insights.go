@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/spf13/cobra"
 	"github.com/asksyllable/syllable-cli/internal/output"
+	"github.com/spf13/cobra"
 )
 
 func insightsCmd() *cobra.Command {
@@ -177,8 +177,8 @@ func insightsWorkflowsListCmd() *cobra.Command {
 					Description string      `json:"description"`
 					Source      string      `json:"source"`
 					Status      string      `json:"status"`
-					CreatedAt   string `json:"created_at"`
-					UpdatedAt   string `json:"updated_at"`
+					CreatedAt   string      `json:"created_at"`
+					UpdatedAt   string      `json:"updated_at"`
 				} `json:"items"`
 				TotalCount int `json:"total_count"`
 			}
@@ -224,14 +224,14 @@ func insightsWorkflowsGetCmd() *cobra.Command {
 
 			var w struct {
 				ID          json.Number `json:"id"`
-				Name        string `json:"name"`
-				Description string `json:"description"`
-				Source      string `json:"source"`
-				Status      string `json:"status"`
-				FailedCount *int   `json:"failed_count"`
-				CreatedAt   string `json:"created_at"`
-				UpdatedAt   string `json:"updated_at"`
-				LastUpdBy   string `json:"last_updated_by"`
+				Name        string      `json:"name"`
+				Description string      `json:"description"`
+				Source      string      `json:"source"`
+				Status      string      `json:"status"`
+				FailedCount *int        `json:"failed_count"`
+				CreatedAt   string      `json:"created_at"`
+				UpdatedAt   string      `json:"updated_at"`
+				LastUpdBy   string      `json:"last_updated_by"`
 			}
 			if err := json.Unmarshal(data, &w); err != nil {
 				output.PrintJSON(data)
@@ -455,8 +455,8 @@ func insightsFoldersListCmd() *cobra.Command {
 					ID        json.Number `json:"id"`
 					Name      string      `json:"name"`
 					Label     string      `json:"label"`
-					CreatedAt string `json:"created_at"`
-					UpdatedAt string `json:"updated_at"`
+					CreatedAt string      `json:"created_at"`
+					UpdatedAt string      `json:"updated_at"`
 				} `json:"items"`
 				TotalCount int `json:"total_count"`
 			}
@@ -501,12 +501,12 @@ func insightsFoldersGetCmd() *cobra.Command {
 
 			var f struct {
 				ID          json.Number `json:"id"`
-				Name        string `json:"name"`
-				Label       string `json:"label"`
-				Description string `json:"description"`
-				CreatedAt   string `json:"created_at"`
-				UpdatedAt   string `json:"updated_at"`
-				LastUpdBy   string `json:"last_updated_by"`
+				Name        string      `json:"name"`
+				Label       string      `json:"label"`
+				Description string      `json:"description"`
+				CreatedAt   string      `json:"created_at"`
+				UpdatedAt   string      `json:"updated_at"`
+				LastUpdBy   string      `json:"last_updated_by"`
 			}
 			if err := json.Unmarshal(data, &f); err != nil {
 				output.PrintJSON(data)

@@ -13,10 +13,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"github.com/asksyllable/syllable-cli/internal/client"
 	"github.com/asksyllable/syllable-cli/internal/output"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // Version is set at build time via -ldflags "-X github.com/asksyllable/syllable-cli/cmd.Version=x.y.z"

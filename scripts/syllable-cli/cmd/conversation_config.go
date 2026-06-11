@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/spf13/cobra"
 	"github.com/asksyllable/syllable-cli/internal/output"
+	"github.com/spf13/cobra"
 )
 
 func conversationConfigCmd() *cobra.Command {

@@ -26,11 +26,11 @@ import (
 // ---------------------------------------------------------------------------
 
 type setupConfig struct {
-	DefaultOrg   string                `yaml:"default_org,omitempty"   json:"default_org"`
-	DefaultEnv   string                `yaml:"default_env,omitempty"   json:"default_env"`
-	Email        string                `yaml:"email,omitempty"         json:"email"`
-	Environments map[string]setupEnv   `yaml:"environments,omitempty"  json:"environments"`
-	Orgs         map[string]setupOrg   `yaml:"orgs,omitempty"          json:"orgs"`
+	DefaultOrg   string              `yaml:"default_org,omitempty"   json:"default_org"`
+	DefaultEnv   string              `yaml:"default_env,omitempty"   json:"default_env"`
+	Email        string              `yaml:"email,omitempty"         json:"email"`
+	Environments map[string]setupEnv `yaml:"environments,omitempty"  json:"environments"`
+	Orgs         map[string]setupOrg `yaml:"orgs,omitempty"          json:"orgs"`
 }
 
 type setupEnv struct {
@@ -38,8 +38,8 @@ type setupEnv struct {
 }
 
 type setupOrg struct {
-	APIKey string                  `yaml:"api_key,omitempty" json:"api_key"`
-	Envs   map[string]setupOrgEnv  `yaml:"envs,omitempty"    json:"envs"`
+	APIKey string                 `yaml:"api_key,omitempty" json:"api_key"`
+	Envs   map[string]setupOrgEnv `yaml:"envs,omitempty"    json:"envs"`
 }
 
 type setupOrgEnv struct {
@@ -54,9 +54,9 @@ const setupKeyPlaceholder = "__existing__"
 
 func setupCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "setup",
-		Short: "Configure orgs, API keys, and environments",
-		Long:  "Opens a browser-based UI to configure ~/.syllable/config.yaml.\nExisting API keys are never sent to the browser.",
+		Use:     "setup",
+		Short:   "Configure orgs, API keys, and environments",
+		Long:    "Opens a browser-based UI to configure ~/.syllable/config.yaml.\nExisting API keys are never sent to the browser.",
 		Example: `  syllable setup`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfgPath, err := setupConfigFilePath()

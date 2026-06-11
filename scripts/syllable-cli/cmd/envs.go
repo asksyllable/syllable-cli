@@ -63,7 +63,6 @@ func envsCmd() *cobra.Command {
 			fmt.Printf("Default org: %s\n", defaultOrg)
 			fmt.Printf("Default env: %s\n\n", defaultEnv)
 
-
 			sortedEnvs := make([]string, 0, len(envSet))
 			for e := range envSet {
 				sortedEnvs = append(sortedEnvs, e)

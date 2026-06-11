@@ -7,8 +7,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/spf13/cobra"
 	"github.com/asksyllable/syllable-cli/internal/output"
+	"github.com/spf13/cobra"
 )
 
 func directoryCmd() *cobra.Command {
@@ -90,10 +90,10 @@ func directoryListCmd() *cobra.Command {
 			var result struct {
 				Items []struct {
 					ID        json.Number `json:"id"`
-					Name      string `json:"name"`
-					Type      string `json:"type"`
-					CreatedAt string `json:"created_at"`
-					UpdatedAt string `json:"updated_at"`
+					Name      string      `json:"name"`
+					Type      string      `json:"type"`
+					CreatedAt string      `json:"created_at"`
+					UpdatedAt string      `json:"updated_at"`
 				} `json:"items"`
 				TotalCount int `json:"total_count"`
 			}
@@ -139,13 +139,13 @@ func directoryGetCmd() *cobra.Command {
 
 			var m struct {
 				ID        json.Number `json:"id"`
-				Name      string `json:"name"`
-				Type      string `json:"type"`
-				Comments  string `json:"comments"`
-				CreatedBy string `json:"created_by"`
-				CreatedAt string `json:"created_at"`
-				UpdatedAt string `json:"updated_at"`
-				LastUpdBy string `json:"last_updated_by"`
+				Name      string      `json:"name"`
+				Type      string      `json:"type"`
+				Comments  string      `json:"comments"`
+				CreatedBy string      `json:"created_by"`
+				CreatedAt string      `json:"created_at"`
+				UpdatedAt string      `json:"updated_at"`
+				LastUpdBy string      `json:"last_updated_by"`
 			}
 			if err := json.Unmarshal(data, &m); err != nil {
 				output.PrintJSON(data)
@@ -367,7 +367,7 @@ func directoryRestoreCmd() *cobra.Command {
 			if comments != "" {
 				body["comments"] = comments
 			}
-			data, _, err := apiClient.Put("/api/v1/directory_members/"+ url.PathEscape(args[0]) +"/restore", body)
+			data, _, err := apiClient.Put("/api/v1/directory_members/"+url.PathEscape(args[0])+"/restore", body)
 			if err != nil {
 				return err
 			}

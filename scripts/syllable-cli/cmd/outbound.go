@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/spf13/cobra"
 	"github.com/asksyllable/syllable-cli/internal/output"
+	"github.com/spf13/cobra"
 )
 
 func outboundCmd() *cobra.Command {
@@ -95,10 +95,10 @@ func outboundBatchesListCmd() *cobra.Command {
 				Items []struct {
 					BatchID    string      `json:"batch_id"`
 					CampaignID json.Number `json:"campaign_id"`
-					Status     string `json:"status"`
-					Paused     bool   `json:"paused"`
-					ExpiresOn  string `json:"expires_on"`
-					CreatedAt  string `json:"created_at"`
+					Status     string      `json:"status"`
+					Paused     bool        `json:"paused"`
+					ExpiresOn  string      `json:"expires_on"`
+					CreatedAt  string      `json:"created_at"`
 				} `json:"items"`
 				TotalCount int `json:"total_count"`
 			}
@@ -343,7 +343,7 @@ func outboundBatchesRequestsCmd() *cobra.Command {
 				return fmt.Errorf("use --file to provide requests body")
 			}
 
-			data, _, err := apiClient.Post("/api/v1/outbound/batches/"+ url.PathEscape(args[0]) +"/requests", body)
+			data, _, err := apiClient.Post("/api/v1/outbound/batches/"+url.PathEscape(args[0])+"/requests", body)
 			if err != nil {
 				return err
 			}
@@ -379,7 +379,7 @@ func outboundBatchesRemoveRequestsCmd() *cobra.Command {
 				return fmt.Errorf("use --file to provide requests body")
 			}
 
-			data, _, err := apiClient.Post("/api/v1/outbound/batches/"+ url.PathEscape(args[0]) +"/remove-requests", body)
+			data, _, err := apiClient.Post("/api/v1/outbound/batches/"+url.PathEscape(args[0])+"/remove-requests", body)
 			if err != nil {
 				return err
 			}
@@ -462,10 +462,10 @@ func outboundCampaignsListCmd() *cobra.Command {
 				Items []struct {
 					ID           json.Number `json:"id"`
 					CampaignName string      `json:"campaign_name"`
-					Description  string `json:"description"`
-					Mode         string `json:"mode"`
-					CallerID     string `json:"caller_id"`
-					UpdatedAt    string `json:"updated_at"`
+					Description  string      `json:"description"`
+					Mode         string      `json:"mode"`
+					CallerID     string      `json:"caller_id"`
+					UpdatedAt    string      `json:"updated_at"`
 				} `json:"items"`
 				TotalCount int `json:"total_count"`
 			}
@@ -518,15 +518,15 @@ func outboundCampaignsGetCmd() *cobra.Command {
 
 			var c struct {
 				ID           json.Number `json:"id"`
-				CampaignName string `json:"campaign_name"`
-				Description  string `json:"description"`
-				Mode         string `json:"mode"`
-				CallerID     string `json:"caller_id"`
-				Source       string `json:"source"`
-				HourlyRate   int    `json:"hourly_rate"`
-				RetryCount   int    `json:"retry_count"`
-				UpdatedAt    string `json:"updated_at"`
-				LastUpdBy    string `json:"last_updated_by"`
+				CampaignName string      `json:"campaign_name"`
+				Description  string      `json:"description"`
+				Mode         string      `json:"mode"`
+				CallerID     string      `json:"caller_id"`
+				Source       string      `json:"source"`
+				HourlyRate   int         `json:"hourly_rate"`
+				RetryCount   int         `json:"retry_count"`
+				UpdatedAt    string      `json:"updated_at"`
+				LastUpdBy    string      `json:"last_updated_by"`
 				Webhooks     []struct {
 					ID              int      `json:"id"`
 					URL             string   `json:"url"`

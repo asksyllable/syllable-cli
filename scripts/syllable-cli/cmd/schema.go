@@ -6,9 +6,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/spf13/cobra"
 	"github.com/asksyllable/syllable-cli/internal/output"
 	apispec "github.com/asksyllable/syllable-cli/internal/spec"
+	"github.com/spf13/cobra"
 )
 
 func schemaCmd() *cobra.Command {

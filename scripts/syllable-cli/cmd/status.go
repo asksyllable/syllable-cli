@@ -13,9 +13,9 @@ import (
 
 func statusCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "status",
-		Short: "Show configuration status",
-		Long:  "Reports whether the CLI is configured and lists available orgs and environments.\nExits with code 1 if not configured (no orgs found).",
+		Use:     "status",
+		Short:   "Show configuration status",
+		Long:    "Reports whether the CLI is configured and lists available orgs and environments.\nExits with code 1 if not configured (no orgs found).",
 		Example: `  syllable status`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			home, _ := os.UserHomeDir()

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/spf13/cobra"
 	"github.com/asksyllable/syllable-cli/internal/output"
+	"github.com/spf13/cobra"
 )
 
 func incidentsCmd() *cobra.Command {
@@ -71,12 +71,12 @@ func incidentsListCmd() *cobra.Command {
 
 			var result struct {
 				Items []struct {
-					ID              json.Number `json:"id"`
-					Description     string      `json:"description"`
-					ImpactCategory  string      `json:"impact_category"`
-					SessionsImpacted int        `json:"sessions_impacted"`
-					StartDatetime   string      `json:"start_datetime"`
-					CreatedAt       string      `json:"created_at"`
+					ID               json.Number `json:"id"`
+					Description      string      `json:"description"`
+					ImpactCategory   string      `json:"impact_category"`
+					SessionsImpacted int         `json:"sessions_impacted"`
+					StartDatetime    string      `json:"start_datetime"`
+					CreatedAt        string      `json:"created_at"`
 				} `json:"items"`
 				TotalCount int `json:"total_count"`
 			}

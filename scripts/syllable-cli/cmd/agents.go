@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/spf13/cobra"
 	"github.com/asksyllable/syllable-cli/internal/output"
+	"github.com/spf13/cobra"
 )
 
 func agentsCmd() *cobra.Command {
@@ -150,11 +150,11 @@ func agentsListCmd() *cobra.Command {
 			var result struct {
 				Items []struct {
 					ID          json.Number `json:"id"`
-					Name        string `json:"name"`
-					Description string `json:"description"`
-					Type        string `json:"type"`
-					Label       string `json:"label"`
-					UpdatedAt   string `json:"updated_at"`
+					Name        string      `json:"name"`
+					Description string      `json:"description"`
+					Type        string      `json:"type"`
+					Label       string      `json:"label"`
+					UpdatedAt   string      `json:"updated_at"`
 				} `json:"items"`
 				TotalCount int `json:"total_count"`
 			}
@@ -212,9 +212,9 @@ func agentsGetCmd() *cobra.Command {
 				Type        string      `json:"type"`
 				Label       string      `json:"label"`
 				PromptID    json.Number `json:"prompt_id"`
-				Timezone    string `json:"timezone"`
-				UpdatedAt   string `json:"updated_at"`
-				LastUpdBy   string `json:"last_updated_by"`
+				Timezone    string      `json:"timezone"`
+				UpdatedAt   string      `json:"updated_at"`
+				LastUpdBy   string      `json:"last_updated_by"`
 			}
 			if err := json.Unmarshal(data, &a); err != nil {
 				output.PrintJSON(data)
