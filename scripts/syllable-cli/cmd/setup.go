@@ -2,6 +2,9 @@ package cmd
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/subtle"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -11,6 +14,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -69,15 +73,27 @@ func setupCmd() *cobra.Command {
 			}
 			port := ln.Addr().(*net.TCPAddr).Port
 			url := fmt.Sprintf("http://127.0.0.1:%d", port)
+			expectedHost := fmt.Sprintf("127.0.0.1:%d", port)
+
+			token, err := setupRandomToken()
+			if err != nil {
+				return fmt.Errorf("cannot generate session token: %w", err)
+			}
 
 			mux := http.NewServeMux()
 			srv := &http.Server{Handler: mux}
 			done := make(chan struct{})
+			// saveMu serializes /save so concurrent submits can't race on the
+			// real/masked config; exitOnce ensures the shutdown channel is closed
+			// at most once, even if "Save & Exit" is double-clicked (#129).
+			var saveMu sync.Mutex
+			var exitOnce sync.Once
 
 			mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 				cfgJSON, _ := json.Marshal(masked)
 				w.Header().Set("Content-Type", "text/html; charset=utf-8")
 				page := strings.ReplaceAll(setupHTMLPage, "%%INIT_CONFIG%%", string(cfgJSON))
+				page = strings.ReplaceAll(page, "%%CSRF_TOKEN%%", token)
 				fmt.Fprint(w, page)
 			})
 
@@ -86,6 +102,16 @@ func setupCmd() *cobra.Command {
 					http.Error(w, "method not allowed", 405)
 					return
 				}
+				// Reject cross-origin / DNS-rebinding / token-less requests so a
+				// malicious page in the user's browser can't poison the config (#123).
+				if err := setupGuardRequest(r, token, expectedHost); err != nil {
+					http.Error(w, err.Error(), http.StatusForbidden)
+					return
+				}
+
+				saveMu.Lock()
+				defer saveMu.Unlock()
+
 				var incoming setupConfig
 				if err := json.NewDecoder(r.Body).Decode(&incoming); err != nil {
 					http.Error(w, "bad request", 400)
@@ -108,10 +134,12 @@ func setupCmd() *cobra.Command {
 				w.Header().Set("Content-Type", "application/json")
 				json.NewEncoder(w).Encode(map[string]string{"path": cfgPath})
 				if exit {
-					go func() {
-						time.Sleep(500 * time.Millisecond)
-						close(done)
-					}()
+					exitOnce.Do(func() {
+						go func() {
+							time.Sleep(500 * time.Millisecond)
+							close(done)
+						}()
+					})
 				}
 			})
 
@@ -138,6 +166,35 @@ func setupCmd() *cobra.Command {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+// setupRandomToken returns a cryptographically random hex token used as a
+// per-session CSRF secret for the local config server (#123).
+func setupRandomToken() (string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
+}
+
+// setupGuardRequest defends the local config server's mutating endpoint against
+// cross-origin abuse and DNS rebinding (#123). It requires:
+//   - the per-session CSRF token (a cross-origin page can't read it, and sending
+//     the custom header forces a CORS preflight the server never approves),
+//   - a loopback Host header (a rebound DNS name would carry a different Host),
+//   - a matching Origin when the browser supplies one.
+func setupGuardRequest(r *http.Request, token, expectedHost string) error {
+	if r.Host != expectedHost {
+		return fmt.Errorf("unexpected Host header %q", r.Host)
+	}
+	if origin := r.Header.Get("Origin"); origin != "" && origin != "http://"+expectedHost {
+		return fmt.Errorf("cross-origin request rejected")
+	}
+	if subtle.ConstantTimeCompare([]byte(r.Header.Get("X-Syllable-CSRF")), []byte(token)) != 1 {
+		return fmt.Errorf("missing or invalid CSRF token")
+	}
+	return nil
+}
 
 func setupConfigFilePath() (string, error) {
 	home, err := os.UserHomeDir()
@@ -379,6 +436,7 @@ input.input-warn:focus { border-color: var(--warn) !important; }
 
 <script>
 var EXISTING = '__existing__';
+var CSRF = '%%CSRF_TOKEN%%';
 var state = %%INIT_CONFIG%%;
 if (!state.environments) state.environments = {};
 if (!state.orgs) state.orgs = {};
@@ -674,7 +732,7 @@ function save(exit) {
 
   fetch('/save?exit=' + (exit ? 'true' : 'false'), {
     method: 'POST',
-    headers: {'Content-Type': 'application/json'},
+    headers: {'Content-Type': 'application/json', 'X-Syllable-CSRF': CSRF},
     body: JSON.stringify(payload)
   })
   .then(function(r) { return r.json(); })

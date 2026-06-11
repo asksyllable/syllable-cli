@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -209,5 +210,66 @@ func TestDoNilBody(t *testing.T) {
 	_, _, err := c.Do(http.MethodPost, "/test", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestRedactSensitive(t *testing.T) {
+	in := []byte(`{"name":"svc","auth_values":{"password":"p","token":"t"},"nested":{"client_secret":"s","keep":"ok"},"count":3}`)
+	out := redactSensitive(in)
+
+	var m map[string]interface{}
+	if err := json.Unmarshal(out, &m); err != nil {
+		t.Fatalf("redacted output is not valid JSON: %v", err)
+	}
+	if m["name"] != "svc" || m["count"] != float64(3) {
+		t.Errorf("non-sensitive fields altered: %#v", m)
+	}
+	// auth_values is itself a sensitive key → whole value replaced.
+	if m["auth_values"] != redactedPlaceholder {
+		t.Errorf("auth_values not redacted: %#v", m["auth_values"])
+	}
+	nested, _ := m["nested"].(map[string]interface{})
+	if nested == nil || nested["client_secret"] != redactedPlaceholder {
+		t.Errorf("nested client_secret not redacted: %#v", m["nested"])
+	}
+	if nested["keep"] != "ok" {
+		t.Errorf("non-sensitive nested field altered: %#v", nested["keep"])
+	}
+	// No secret value should survive anywhere in the output.
+	if strings.Contains(string(out), `"p"`) || strings.Contains(string(out), `"s"`) || strings.Contains(string(out), `"t"`) {
+		t.Errorf("a secret value leaked into redacted output: %s", out)
+	}
+}
+
+func TestCheckRedirectStripsKeyCrossHost(t *testing.T) {
+	orig, _ := http.NewRequest(http.MethodGet, "https://api.syllable.cloud/x", nil)
+
+	// Cross-host redirect: the API key header must be stripped.
+	cross, _ := http.NewRequest(http.MethodGet, "https://evil.example.com/x", nil)
+	cross.Header.Set("Syllable-API-Key", "secret")
+	if err := checkRedirect(cross, []*http.Request{orig}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cross.Header.Get("Syllable-API-Key") != "" {
+		t.Error("API key must be stripped on a cross-host redirect")
+	}
+
+	// Same-host redirect: the header is retained.
+	same, _ := http.NewRequest(http.MethodGet, "https://api.syllable.cloud/y", nil)
+	same.Header.Set("Syllable-API-Key", "secret")
+	if err := checkRedirect(same, []*http.Request{orig}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if same.Header.Get("Syllable-API-Key") != "secret" {
+		t.Error("API key must be retained on a same-host redirect")
+	}
+
+	// Too many redirects → error.
+	via := make([]*http.Request, 10)
+	for i := range via {
+		via[i] = orig
+	}
+	if err := checkRedirect(same, via); err == nil {
+		t.Error("expected an error after 10 redirects")
 	}
 }

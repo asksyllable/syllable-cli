@@ -43,6 +43,19 @@ func captureStdout(fn func()) string {
 	return buf.String()
 }
 
+// captureStderr captures stderr output from a function call.
+func captureStderr(fn func()) string {
+	old := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+	fn()
+	w.Close()
+	os.Stderr = old
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	return buf.String()
+}
+
 // --- Command structure tests ---
 
 func TestCmdRequiresNoAuth(t *testing.T) {
@@ -2885,6 +2898,89 @@ func TestDeleteRequiresConfirmation(t *testing.T) {
 	})
 	if !hit {
 		t.Error("delete with --yes should issue the request")
+	}
+}
+
+func TestSetupGuardRequest(t *testing.T) {
+	const host = "127.0.0.1:54321"
+	const token = "sekret-token"
+
+	newReq := func(h, origin, tok string) *http.Request {
+		r, _ := http.NewRequest(http.MethodPost, "http://"+h+"/save", nil)
+		r.Host = h
+		if origin != "" {
+			r.Header.Set("Origin", origin)
+		}
+		if tok != "" {
+			r.Header.Set("X-Syllable-CSRF", tok)
+		}
+		return r
+	}
+
+	// Valid: correct host, matching origin, correct token.
+	if err := setupGuardRequest(newReq(host, "http://"+host, token), token, host); err != nil {
+		t.Errorf("valid request rejected: %v", err)
+	}
+	// Valid: no Origin header (token + Host still required and present).
+	if err := setupGuardRequest(newReq(host, "", token), token, host); err != nil {
+		t.Errorf("valid no-origin request rejected: %v", err)
+	}
+	// Rejected: mismatched Host (DNS rebinding).
+	if err := setupGuardRequest(newReq("evil.example.com:54321", "", token), token, host); err == nil {
+		t.Error("expected rejection on mismatched Host")
+	}
+	// Rejected: cross-origin.
+	if err := setupGuardRequest(newReq(host, "http://evil.example.com", token), token, host); err == nil {
+		t.Error("expected rejection on cross-origin Origin")
+	}
+	// Rejected: missing token.
+	if err := setupGuardRequest(newReq(host, "http://"+host, ""), token, host); err == nil {
+		t.Error("expected rejection on missing CSRF token")
+	}
+	// Rejected: wrong token.
+	if err := setupGuardRequest(newReq(host, "http://"+host, "wrong"), token, host); err == nil {
+		t.Error("expected rejection on wrong CSRF token")
+	}
+}
+
+func TestSetupRandomToken(t *testing.T) {
+	a, err := setupRandomToken()
+	if err != nil || len(a) != 64 {
+		t.Fatalf("setupRandomToken() = %q, err=%v; want 64 hex chars", a, err)
+	}
+	if b, _ := setupRandomToken(); a == b {
+		t.Error("tokens should be unique per call")
+	}
+}
+
+func TestSetupPageInjectsToken(t *testing.T) {
+	if !strings.Contains(setupHTMLPage, "%%CSRF_TOKEN%%") {
+		t.Fatal("page template is missing the %%CSRF_TOKEN%% placeholder")
+	}
+	page := strings.ReplaceAll(setupHTMLPage, "%%CSRF_TOKEN%%", "TOK123")
+	if strings.Contains(page, "%%CSRF_TOKEN%%") {
+		t.Error("token placeholder was not replaced")
+	}
+	if !strings.Contains(page, "TOK123") {
+		t.Error("token not present in the served page")
+	}
+}
+
+func TestWarnIfInsecureBaseURL(t *testing.T) {
+	cases := []struct {
+		url  string
+		warn bool
+	}{
+		{"https://api.syllable.cloud", false},
+		{"http://localhost:8080", false},
+		{"http://127.0.0.1:8080", false},
+		{"http://api.internal.example.com", true},
+	}
+	for _, tc := range cases {
+		out := captureStderr(func() { warnIfInsecureBaseURL(tc.url) })
+		if got := strings.Contains(out, "plaintext"); got != tc.warn {
+			t.Errorf("warnIfInsecureBaseURL(%q): warned=%v, want %v", tc.url, got, tc.warn)
+		}
 	}
 }
 

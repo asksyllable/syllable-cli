@@ -1,3 +1,5 @@
+//go:build integration
+
 // Package integration_test runs black-box CRUD tests against a live Syllable
 // instance by invoking the CLI binary as a subprocess.
 //
