@@ -234,7 +234,8 @@ func voiceGroupsUpdateCmd() *cobra.Command {
 	var file string
 
 	cmd := &cobra.Command{
-		Use:   "update",
+		Use:   "update [id]",
+		Args:  cobra.MaximumNArgs(1),
 		Short: "Update a voice group",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var body interface{}
@@ -251,6 +252,13 @@ func voiceGroupsUpdateCmd() *cobra.Command {
 				return fmt.Errorf("use --file to provide update body")
 			}
 
+			// An optional positional id is reconciled with the body id, which the
+			// collection PUT routes by — matching the agents/prompts shape (#121, #68).
+			if len(args) == 1 {
+				if err := ensureBodyIdentifier(body, "id", args[0], true); err != nil {
+					return err
+				}
+			}
 			data, _, err := apiClient.Put("/api/v1/voice_groups/", body)
 			if err != nil {
 				return err

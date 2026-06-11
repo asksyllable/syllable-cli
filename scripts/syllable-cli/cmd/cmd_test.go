@@ -3182,3 +3182,23 @@ func TestConversationsList(t *testing.T) {
 }
 func TestEventsList(t *testing.T)      { assertListPath(t, eventsListCmd, "/api/v1/events/") }
 func TestPermissionsList(t *testing.T) { assertListPath(t, permissionsListCmd, "/api/v1/permissions/") }
+
+// --- Update-command contract consistency (#121) ---
+// These five previously took no positional (id had to live in --file); they now
+// accept an optional positional id reconciled via ensureBodyIdentifier.
+
+func TestDataSourcesUpdateInjectsPositionalID(t *testing.T) {
+	assertBodyIDUpdate(t, dataSourcesUpdateCmd, "/api/v1/data_sources/")
+}
+func TestServicesUpdateInjectsPositionalID(t *testing.T) {
+	assertBodyIDUpdate(t, servicesUpdateCmd, "/api/v1/services/")
+}
+func TestVoiceGroupsUpdateInjectsPositionalID(t *testing.T) {
+	assertBodyIDUpdate(t, voiceGroupsUpdateCmd, "/api/v1/voice_groups/")
+}
+func TestRolesUpdateInjectsPositionalID(t *testing.T) {
+	assertBodyIDUpdate(t, rolesUpdateCmd, "/api/v1/roles/")
+}
+func TestIncidentsUpdateInjectsPositionalID(t *testing.T) {
+	assertBodyIDUpdate(t, incidentsUpdateCmd, "/api/v1/incidents/")
+}
