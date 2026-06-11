@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -82,6 +83,11 @@ func setupCmd() *cobra.Command {
 			mux := http.NewServeMux()
 			srv := &http.Server{Handler: mux}
 			done := make(chan struct{})
+			// saveMu serializes /save so concurrent submits can't race on the
+			// real/masked config; exitOnce ensures the shutdown channel is closed
+			// at most once, even if "Save & Exit" is double-clicked (#129).
+			var saveMu sync.Mutex
+			var exitOnce sync.Once
 
 			mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 				cfgJSON, _ := json.Marshal(masked)
@@ -102,6 +108,10 @@ func setupCmd() *cobra.Command {
 					http.Error(w, err.Error(), http.StatusForbidden)
 					return
 				}
+
+				saveMu.Lock()
+				defer saveMu.Unlock()
+
 				var incoming setupConfig
 				if err := json.NewDecoder(r.Body).Decode(&incoming); err != nil {
 					http.Error(w, "bad request", 400)
@@ -124,10 +134,12 @@ func setupCmd() *cobra.Command {
 				w.Header().Set("Content-Type", "application/json")
 				json.NewEncoder(w).Encode(map[string]string{"path": cfgPath})
 				if exit {
-					go func() {
-						time.Sleep(500 * time.Millisecond)
-						close(done)
-					}()
+					exitOnce.Do(func() {
+						go func() {
+							time.Sleep(500 * time.Millisecond)
+							close(done)
+						}()
+					})
 				}
 			})
 
