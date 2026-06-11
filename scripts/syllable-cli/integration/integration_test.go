@@ -19,6 +19,8 @@ package integration_test
 import (
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 	"testing"
 )
 
@@ -34,6 +36,17 @@ func TestMain(m *testing.M) {
 		fmt.Fprintln(os.Stderr, "Set SYLLABLE_API_KEY or SYLLABLE_ORG to run integration tests")
 		os.Exit(0)
 	}
+
+	// Run cleanup even on Ctrl+C / kill, so an aborted run doesn't leak the
+	// resources it created into the test org (#139).
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sigCh
+		fmt.Fprintln(os.Stderr, "interrupted — cleaning up created test resources")
+		runCleanup()
+		os.Exit(1)
+	}()
 
 	code := m.Run()
 	runCleanup()
@@ -52,9 +65,7 @@ func TestLanguageGroupsCRUD(t *testing.T) {
 	id := mustExtractField(t, out, "id")
 	t.Logf("created language group id=%s", id)
 
-	registerCleanup(func() {
-		runCLI("language-groups", "delete", id)
-	})
+	registerDelete("language-groups", "delete", id)
 
 	// Get
 	out = mustRunCLI(t, "language-groups", "get", id)
@@ -95,9 +106,7 @@ func TestCustomMessagesCRUD(t *testing.T) {
 	id := mustExtractField(t, out, "id")
 	t.Logf("created custom message id=%s", id)
 
-	registerCleanup(func() {
-		runCLI("custom-messages", "delete", id)
-	})
+	registerDelete("custom-messages", "delete", id)
 
 	// Get
 	out = mustRunCLI(t, "custom-messages", "get", id)
@@ -154,9 +163,7 @@ func TestPromptsCRUD(t *testing.T) {
 	id := mustExtractField(t, out, "id")
 	t.Logf("created prompt id=%s", id)
 
-	registerCleanup(func() {
-		runCLI("prompts", "delete", id)
-	})
+	registerDelete("prompts", "delete", id)
 
 	// Get
 	out = mustRunCLI(t, "prompts", "get", id)
@@ -204,7 +211,7 @@ func TestAgentsCRUD(t *testing.T) {
 	gf := writeTempJSON(t, greetingBody)
 	gOut := mustRunCLI(t, "custom-messages", "create", "--file", gf)
 	greetingID := mustExtractField(t, gOut, "id")
-	registerCleanup(func() { runCLI("custom-messages", "delete", greetingID) })
+	registerDelete("custom-messages", "delete", greetingID)
 
 	promptBody := map[string]interface{}{
 		"name":    testName("Agent Prompt"),
@@ -221,7 +228,7 @@ func TestAgentsCRUD(t *testing.T) {
 	pf := writeTempJSON(t, promptBody)
 	pOut := mustRunCLI(t, "prompts", "create", "--file", pf)
 	promptID := mustExtractField(t, pOut, "id")
-	registerCleanup(func() { runCLI("prompts", "delete", promptID) })
+	registerDelete("prompts", "delete", promptID)
 
 	name := testName("Agent")
 	createBody := map[string]interface{}{
@@ -247,9 +254,7 @@ func TestAgentsCRUD(t *testing.T) {
 	id := mustExtractField(t, out, "id")
 	t.Logf("created agent id=%s", id)
 
-	registerCleanup(func() {
-		runCLI("agents", "delete", id)
-	})
+	registerDelete("agents", "delete", id)
 
 	// Get
 	out = mustRunCLI(t, "agents", "get", id)
@@ -301,9 +306,7 @@ func TestDirectoryCRUD(t *testing.T) {
 	id := mustExtractField(t, out, "id")
 	t.Logf("created directory member id=%s", id)
 
-	registerCleanup(func() {
-		runCLI("directory", "delete", id)
-	})
+	registerDelete("directory", "delete", id)
 
 	// Get
 	out = mustRunCLI(t, "directory", "get", id)
@@ -370,9 +373,7 @@ func TestToolsCRUD(t *testing.T) {
 	name := mustExtractField(t, out, "name")
 	t.Logf("created tool name=%s", name)
 
-	registerCleanup(func() {
-		runCLI("tools", "delete", name)
-	})
+	registerDelete("tools", "delete", name)
 
 	// Get (uses name, not ID)
 	out = mustRunCLI(t, "tools", "get", name)
@@ -432,9 +433,7 @@ func TestOutboundCampaignsCRUD(t *testing.T) {
 	id := mustExtractField(t, out, "id")
 	t.Logf("created outbound campaign id=%s", id)
 
-	registerCleanup(func() {
-		runCLI("outbound", "campaigns", "delete", id)
-	})
+	registerDelete("outbound", "campaigns", "delete", id)
 
 	// Get
 	out = mustRunCLI(t, "outbound", "campaigns", "get", id)
@@ -484,9 +483,7 @@ func TestOrganizationsSipIPRangesCRUD(t *testing.T) {
 	out := mustRunCLI(t, "organizations", "sip-ip-ranges", "create", "--type", "signaling", "--ip-range", cidr)
 	id := mustExtractField(t, out, "id")
 	t.Logf("created sip-ip-range id=%s", id)
-	registerCleanup(func() {
-		runCLI("organizations", "sip-ip-ranges", "delete", id)
-	})
+	registerDelete("organizations", "sip-ip-ranges", "delete", id)
 
 	// List — should include the range we created
 	out = mustRunCLI(t, "organizations", "sip-ip-ranges", "list")

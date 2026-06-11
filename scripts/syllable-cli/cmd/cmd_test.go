@@ -3038,6 +3038,57 @@ func TestWarnIfInsecureBaseURL(t *testing.T) {
 	}
 }
 
+func TestHint422NamesFields(t *testing.T) {
+	body := []byte(`{"detail":[{"loc":["body","prompt_id"],"msg":"field required"},{"loc":["body","name"],"msg":"x"}]}`)
+	h := hint422(body)
+	if !strings.Contains(h, "prompt_id") || !strings.Contains(h, "name") {
+		t.Errorf("hint422 should name the failing fields, got %q", h)
+	}
+}
+
+func TestHintForErrorStatusCodes(t *testing.T) {
+	cases := map[int]string{
+		401: "API key",
+		403: "permission",
+		500: "Server error",
+	}
+	for code, want := range cases {
+		err := &client.APIError{StatusCode: code, Body: []byte("{}")}
+		if h := hintForError(nil, err); !strings.Contains(h, want) {
+			t.Errorf("hintForError(%d) = %q, want substring %q", code, h, want)
+		}
+	}
+}
+
+func TestResolveBaseURL(t *testing.T) {
+	saveEnv, saveDef := viper.GetString("env"), viper.GetString("default_env")
+	defer func() {
+		viper.Set("env", saveEnv)
+		viper.Set("default_env", saveDef)
+		viper.Set("environments", nil)
+	}()
+	viper.Set("default_env", "")
+
+	viper.Set("env", "")
+	if u, err := resolveBaseURL(); err != nil || u != "https://api.syllable.cloud" {
+		t.Errorf("default base URL = %q, %v", u, err)
+	}
+	viper.Set("env", "prod")
+	if u, err := resolveBaseURL(); err != nil || u != "https://api.syllable.cloud" {
+		t.Errorf("prod builtin base URL = %q, %v", u, err)
+	}
+	viper.Set("environments", map[string]interface{}{"dev": map[string]interface{}{"base_url": "http://localhost:9999"}})
+	viper.Set("env", "dev")
+	if u, err := resolveBaseURL(); err != nil || u != "http://localhost:9999" {
+		t.Errorf("config-defined env base URL = %q, %v", u, err)
+	}
+	viper.Set("env", "ghost")
+	viper.Set("environments", nil)
+	if _, err := resolveBaseURL(); err == nil {
+		t.Error("expected error for an unknown env")
+	}
+}
+
 func TestValidateOutputFmt(t *testing.T) {
 	prev := viper.GetString("output")
 	defer viper.Set("output", prev)
@@ -3053,3 +3104,81 @@ func TestValidateOutputFmt(t *testing.T) {
 		t.Error(`validateOutputFmt("yaml") = nil, want error`)
 	}
 }
+
+// --- Behavioral tests for previously untested command families (#136) ---
+
+// assertBodyIDUpdate exercises a collection-style PUT that routes by the body's
+// id: the positional id must be injected, and a conflicting body id refused.
+func assertBodyIDUpdate(t *testing.T, newCmd func() *cobra.Command, wantPath string) {
+	t.Helper()
+	var got map[string]interface{}
+	var method, path string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method, path = r.Method, r.URL.Path
+		json.NewDecoder(r.Body).Decode(&got)
+		w.Write([]byte(`{}`))
+	})
+	defer server.Close()
+
+	cmd := newCmd()
+	cmd.SetArgs([]string{"7", "--file", writeTempJSON(t, `{"name":"x"}`)})
+	captureStdout(func() {
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+	if method != http.MethodPut || path != wantPath {
+		t.Errorf("expected PUT %s, got %s %s", wantPath, method, path)
+	}
+	if got["id"] != float64(7) {
+		t.Errorf("expected id=7 injected into body, got %#v", got["id"])
+	}
+
+	cmd = newCmd()
+	cmd.SetArgs([]string{"7", "--file", writeTempJSON(t, `{"id":9}`)})
+	cmd.SilenceErrors, cmd.SilenceUsage = true, true
+	var err error
+	captureStdout(func() { err = cmd.Execute() })
+	if err == nil || !strings.Contains(err.Error(), "conflict") {
+		t.Errorf("expected a conflict error on mismatched body id, got %v", err)
+	}
+}
+
+func TestPromptsUpdateInjectsPositionalID(t *testing.T) {
+	assertBodyIDUpdate(t, promptsUpdateCmd, "/api/v1/prompts/")
+}
+
+func TestCustomMessagesUpdateInjectsPositionalID(t *testing.T) {
+	assertBodyIDUpdate(t, customMessagesUpdateCmd, "/api/v1/custom_messages/")
+}
+
+func TestLanguageGroupsUpdateInjectsPositionalID(t *testing.T) {
+	assertBodyIDUpdate(t, languageGroupsUpdateCmd, "/api/v1/language_groups/")
+}
+
+// assertListPath checks a list command issues a GET to the expected path prefix.
+func assertListPath(t *testing.T, newCmd func() *cobra.Command, wantPrefix string) {
+	t.Helper()
+	var method, path string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method, path = r.Method, r.URL.Path
+		w.Write([]byte(`{"items":[],"total_count":0}`))
+	})
+	defer server.Close()
+	cmd := newCmd()
+	cmd.SetArgs(nil)
+	captureStdout(func() {
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+	if method != http.MethodGet || path != wantPrefix {
+		t.Errorf("expected GET %s, got %s %s", wantPrefix, method, path)
+	}
+}
+
+func TestConversationsList(t *testing.T) {
+	assertListPath(t, conversationsListCmd, "/api/v1/conversations/")
+}
+func TestEventsList(t *testing.T)      { assertListPath(t, eventsListCmd, "/api/v1/events/") }
+func TestPermissionsList(t *testing.T) { assertListPath(t, permissionsListCmd, "/api/v1/permissions/") }
