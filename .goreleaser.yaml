@@ -4,7 +4,10 @@ project_name: syllable
 
 before:
   hooks:
-    - sh -c "cd scripts/syllable-cli && go mod tidy"
+    # Verify (don't mutate) the module graph at release time — `go mod tidy`
+    # could rewrite go.mod/go.sum into a state that was never committed or CI-
+    # tested (#140). The integration suite is build-tag gated, so ./... is safe.
+    - sh -c "cd scripts/syllable-cli && go mod verify"
     - sh -c "cd scripts/syllable-cli && go test ./..."
 
 builds:
