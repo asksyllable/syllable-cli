@@ -343,7 +343,7 @@ func TestAgentsCreateWithFlags(t *testing.T) {
 	defer server.Close()
 
 	cmd := agentsCreateCmd()
-	cmd.SetArgs([]string{"--name", "flag-agent", "--type", "inbound", "--prompt-id", "p1", "--timezone", "UTC"})
+	cmd.SetArgs([]string{"--name", "flag-agent", "--type", "inbound", "--prompt-id", "7", "--timezone", "UTC"})
 	captureStdout(func() {
 		if err := cmd.Execute(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -352,6 +352,10 @@ func TestAgentsCreateWithFlags(t *testing.T) {
 
 	if receivedBody["name"] != "flag-agent" {
 		t.Errorf("expected name=flag-agent, got %v", receivedBody["name"])
+	}
+	// prompt_id must be sent as a JSON number, not a string (#116).
+	if receivedBody["prompt_id"] != float64(7) {
+		t.Errorf("expected prompt_id=7 (number), got %#v", receivedBody["prompt_id"])
 	}
 	// Verify default empty maps are included
 	if receivedBody["variables"] == nil {
@@ -696,13 +700,19 @@ func TestToolsCreateWithFlags(t *testing.T) {
 	defer server.Close()
 
 	cmd := toolsCreateCmd()
-	cmd.SetArgs([]string{"--name", "my_tool", "--service-id", "svc-1"})
+	cmd.SetArgs([]string{"--name", "my_tool", "--service-id", "1"})
 	captureStdout(func() {
-		cmd.Execute()
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 	})
 
 	if receivedBody["name"] != "my_tool" {
 		t.Errorf("expected name=my_tool, got %v", receivedBody["name"])
+	}
+	// service_id must be sent as a JSON number, not a string (#116).
+	if receivedBody["service_id"] != float64(1) {
+		t.Errorf("expected service_id=1 (number), got %#v", receivedBody["service_id"])
 	}
 	if receivedBody["definition"] == nil {
 		t.Error("expected empty definition map in body")
@@ -712,9 +722,12 @@ func TestToolsCreateWithFlags(t *testing.T) {
 // --- Sessions functional tests ---
 
 func TestSessionsList(t *testing.T) {
-	var requestPath string
+	var startVal, endVal string
 	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		requestPath = r.URL.String()
+		// Read the decoded query values so the assertion is independent of
+		// escaping style and proves the value round-trips intact (#116).
+		startVal = r.URL.Query().Get("start_datetime")
+		endVal = r.URL.Query().Get("end_datetime")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"items":       []interface{}{},
 			"total_count": 0,
@@ -722,17 +735,19 @@ func TestSessionsList(t *testing.T) {
 	})
 	defer server.Close()
 
+	// A non-UTC offset contains "+", which is corrupted to a space unless the
+	// value is URL-escaped — the exact bug this guards against.
 	cmd := sessionsListCmd()
-	cmd.SetArgs([]string{"--start-date", "2024-01-01T00:00:00Z", "--end-date", "2024-01-31T23:59:59Z"})
+	cmd.SetArgs([]string{"--start-date", "2024-01-01T00:00:00+05:00", "--end-date", "2024-01-31T23:59:59Z"})
 	captureStdout(func() {
 		cmd.Execute()
 	})
 
-	if !strings.Contains(requestPath, "start_datetime=2024-01-01T00:00:00Z") {
-		t.Errorf("expected start_datetime in path, got: %s", requestPath)
+	if startVal != "2024-01-01T00:00:00+05:00" {
+		t.Errorf("start_datetime not round-tripped, got: %q", startVal)
 	}
-	if !strings.Contains(requestPath, "end_datetime=2024-01-31T23:59:59Z") {
-		t.Errorf("expected end_datetime in path, got: %s", requestPath)
+	if endVal != "2024-01-31T23:59:59Z" {
+		t.Errorf("end_datetime not round-tripped, got: %q", endVal)
 	}
 }
 
@@ -2727,5 +2742,132 @@ func TestChannelsGetNotFound(t *testing.T) {
 
 	if err == nil || !strings.Contains(err.Error(), "syllable channels list") {
 		t.Errorf("expected not-found error pointing at channels list, got %v", err)
+	}
+}
+
+// --- API-contract regression tests (#114, #115) ---
+
+func TestUsersDeleteSendsJSONBody(t *testing.T) {
+	var method, path string
+	var body map[string]interface{}
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		path = r.URL.Path
+		json.NewDecoder(r.Body).Decode(&body)
+		w.Write([]byte(`{}`))
+	})
+	defer server.Close()
+
+	cmd := usersDeleteCmd()
+	cmd.SetArgs([]string{"alice@example.com"})
+	captureStdout(func() {
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	if method != http.MethodDelete || path != "/api/v1/users/" {
+		t.Errorf("expected DELETE /api/v1/users/, got %s %s", method, path)
+	}
+	if body["email"] != "alice@example.com" {
+		t.Errorf("expected email in body, got %#v", body["email"])
+	}
+	if body["reason"] == nil || body["reason"] == "" {
+		t.Errorf("expected a non-empty reason in body, got %#v", body["reason"])
+	}
+}
+
+func TestChannelsUpdateRoutesToCollection(t *testing.T) {
+	var method, path string
+	var body map[string]interface{}
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		path = r.URL.Path
+		json.NewDecoder(r.Body).Decode(&body)
+		w.Write([]byte(`{}`))
+	})
+	defer server.Close()
+
+	// PUT must hit the collection path, and the positional id must be injected
+	// into the body since the API routes by it.
+	cmd := channelsUpdateCmd()
+	cmd.SetArgs([]string{"5", "--file", writeTempJSON(t, `{"name":"main","channel_service":"twilio","config":{}}`)})
+	captureStdout(func() {
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	if method != http.MethodPut || path != "/api/v1/channels/" {
+		t.Errorf("expected PUT /api/v1/channels/, got %s %s", method, path)
+	}
+	if body["id"] != float64(5) {
+		t.Errorf("expected id=5 injected into body, got %#v", body["id"])
+	}
+}
+
+func TestChannelsTargetsDeleteUsesChannelQueryParam(t *testing.T) {
+	var method, path, target string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		path = r.URL.Path
+		target = r.URL.Query().Get("target_id")
+		w.Write([]byte(``))
+	})
+	defer server.Close()
+
+	cmd := channelsTargetsDeleteCmd()
+	cmd.SetArgs([]string{"5", "42"})
+	captureStdout(func() {
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	if method != http.MethodDelete || path != "/api/v1/channels/5" {
+		t.Errorf("expected DELETE /api/v1/channels/5, got %s %s", method, path)
+	}
+	if target != "42" {
+		t.Errorf("expected target_id=42 query param, got %q", target)
+	}
+}
+
+func TestChannelsDeleteIsRejected(t *testing.T) {
+	hit := false
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		hit = true
+	})
+	defer server.Close()
+
+	// The API has no delete-channel operation, so the command must fail fast
+	// without issuing any request.
+	cmd := channelsDeleteCmd()
+	cmd.SetArgs([]string{"5"})
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
+	var err error
+	captureStdout(func() { err = cmd.Execute() })
+
+	if err == nil || !strings.Contains(err.Error(), "not supported") {
+		t.Errorf("expected not-supported error, got %v", err)
+	}
+	if hit {
+		t.Error("channels delete must not issue an HTTP request")
+	}
+}
+
+func TestValidateOutputFmt(t *testing.T) {
+	prev := viper.GetString("output")
+	defer viper.Set("output", prev)
+
+	for _, ok := range []string{"table", "json", ""} {
+		viper.Set("output", ok)
+		if err := validateOutputFmt(); err != nil {
+			t.Errorf("validateOutputFmt(%q) = %v, want nil", ok, err)
+		}
+	}
+	viper.Set("output", "yaml")
+	if err := validateOutputFmt(); err == nil {
+		t.Error(`validateOutputFmt("yaml") = nil, want error`)
 	}
 }

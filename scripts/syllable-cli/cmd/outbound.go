@@ -214,9 +214,13 @@ func outboundBatchesCreateCmd() *cobra.Command {
 				if batchID == "" || campaignID == "" {
 					return fmt.Errorf("required flags: --batch-id, --campaign-id (or use --file)")
 				}
+				campaignIDInt, err := parseIDFlag("campaign-id", campaignID)
+				if err != nil {
+					return err
+				}
 				body = map[string]interface{}{
 					"batch_id":    batchID,
-					"campaign_id": campaignID,
+					"campaign_id": campaignIDInt,
 					"paused":      paused,
 				}
 			}

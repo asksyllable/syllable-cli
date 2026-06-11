@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 // captureStdout captures stdout output from a function call.
@@ -48,6 +49,62 @@ func TestTruncate(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("Truncate(%q, %d) = %q, want %q", tt.input, tt.max, got, tt.want)
 		}
+	}
+}
+
+func TestTruncateMultibyteUTF8(t *testing.T) {
+	// Each rune here is multiple bytes; byte-slicing would split one mid-rune
+	// and emit invalid UTF-8 (#131).
+	tests := []struct {
+		input string
+		max   int
+		want  string
+	}{
+		{"日本語テキスト", 4, "日..."},     // 7 runes -> r[:1] + "..."
+		{"日本語テキスト", 7, "日本語テキスト"},  // fits exactly by rune count
+		{"Привет мир", 5, "Пр..."}, // Cyrillic
+		{"한국어", 1, "한"},            // max<=3 path, no ellipsis
+	}
+	for _, tt := range tests {
+		got := Truncate(tt.input, tt.max)
+		if got != tt.want {
+			t.Errorf("Truncate(%q, %d) = %q, want %q", tt.input, tt.max, got, tt.want)
+		}
+		if !utf8.ValidString(got) {
+			t.Errorf("Truncate(%q, %d) = %q is not valid UTF-8", tt.input, tt.max, got)
+		}
+	}
+}
+
+func TestFilterColumns(t *testing.T) {
+	headers := []string{"ID", "NAME", "TYPE"}
+	rows := [][]string{{"1", "alpha", "x"}, {"2", "beta", "y"}}
+
+	// Case-insensitive match, reordered by request, unknown names reported.
+	h, r, unknown := FilterColumns(headers, rows, []string{"name", "id", "bogus"})
+	if strings.Join(h, ",") != "NAME,ID" {
+		t.Errorf("expected NAME,ID, got %v", h)
+	}
+	if r[0][0] != "alpha" || r[0][1] != "1" {
+		t.Errorf("expected reordered row [alpha 1], got %v", r[0])
+	}
+	if len(unknown) != 1 || unknown[0] != "bogus" {
+		t.Errorf("expected unknown=[bogus], got %v", unknown)
+	}
+
+	// All-unknown → original table returned unchanged, unknowns still reported.
+	h, r, unknown = FilterColumns(headers, rows, []string{"nope"})
+	if len(h) != 3 || len(r) != 2 {
+		t.Errorf("expected original table on zero matches, got headers=%v rows=%v", h, r)
+	}
+	if len(unknown) != 1 || unknown[0] != "nope" {
+		t.Errorf("expected unknown=[nope], got %v", unknown)
+	}
+
+	// A short row is padded, not panicking.
+	h, r, _ = FilterColumns(headers, [][]string{{"1"}}, []string{"id", "type"})
+	if len(r[0]) != 2 || r[0][0] != "1" || r[0][1] != "" {
+		t.Errorf("expected padded row [1 \"\"], got %v", r[0])
 	}
 }
 

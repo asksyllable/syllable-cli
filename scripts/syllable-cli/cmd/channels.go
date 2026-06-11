@@ -256,7 +256,13 @@ func channelsUpdateCmd() *cobra.Command {
 				return fmt.Errorf("use --file to provide update body")
 			}
 
-			data, _, err := apiClient.Put("/api/v1/channels/"+args[0], body)
+			// PUT exists only on the collection; the API routes by the id inside
+			// the body, so reconcile the positional with it (#68, #114).
+			if err := ensureBodyIdentifier(body, "id", args[0], true); err != nil {
+				return err
+			}
+
+			data, _, err := apiClient.Put("/api/v1/channels/", body)
 			if err != nil {
 				return err
 			}
@@ -273,19 +279,15 @@ func channelsUpdateCmd() *cobra.Command {
 func channelsDeleteCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "delete <channel-id>",
-		Short: "Delete a channel",
+		Short: "Delete a channel target (the API has no delete-channel operation)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Delete("/api/v1/channels/" + args[0])
-			if err != nil {
-				return err
-			}
-			if len(data) > 0 {
-				output.PrintJSON(data)
-			} else {
-				fmt.Printf("Channel %s deleted.\n", args[0])
-			}
-			return nil
+			// The only DELETE under /api/v1/channels/{channel_id} is "Delete
+			// Channel Target", which requires a target_id — there is no
+			// operation that deletes a whole channel (#114). Fail fast instead
+			// of sending a request that always 422s.
+			return fmt.Errorf("deleting a channel is not supported by the Syllable API; " +
+				"to remove a target from a channel use: syllable channels targets delete <channel-id> <target-id>")
 		},
 	}
 }
@@ -465,7 +467,12 @@ func channelsTargetsDeleteCmd() *cobra.Command {
 		Short: "Delete a channel target",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			path := fmt.Sprintf("/api/v1/channels/%s/targets/%s", args[0], args[1])
+			// Delete-target is DELETE /channels/{channel_id}?target_id=<id>; the
+			// /targets/{target_id} path only supports GET/PUT (#114). The query
+			// string also suppresses the client's auto-reason param, which this
+			// operation does not declare.
+			path := fmt.Sprintf("/api/v1/channels/%s?target_id=%s",
+				url.PathEscape(args[0]), url.QueryEscape(args[1]))
 			data, _, err := apiClient.Delete(path)
 			if err != nil {
 				return err

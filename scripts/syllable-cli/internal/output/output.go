@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"text/tabwriter"
+	"unicode/utf8"
 )
 
 // PrintTable prints data as a formatted table using tab-separated columns.
@@ -59,9 +60,10 @@ func PrintJSON(data []byte) {
 }
 
 // FilterColumns filters headers and rows to only the requested column names (case-insensitive).
-// Columns are returned in the order specified by fields. Unknown field names are ignored.
-// If no valid fields are matched, the original headers and rows are returned unchanged.
-func FilterColumns(headers []string, rows [][]string, fields []string) ([]string, [][]string) {
+// Columns are returned in the order specified by fields. The names of any requested fields that
+// don't match a header are returned in unknown so the caller can warn (#120). If no valid fields
+// are matched, the original headers and rows are returned unchanged (with unknown still populated).
+func FilterColumns(headers []string, rows [][]string, fields []string) (filteredHeaders []string, filteredRows [][]string, unknown []string) {
 	// Map lowercase header name -> column index
 	index := make(map[string]int, len(headers))
 	for i, h := range headers {
@@ -69,19 +71,24 @@ func FilterColumns(headers []string, rows [][]string, fields []string) ([]string
 	}
 
 	var keep []int
-	var filteredHeaders []string
 	for _, f := range fields {
-		if idx, ok := index[strings.ToLower(strings.TrimSpace(f))]; ok {
+		trimmed := strings.TrimSpace(f)
+		if trimmed == "" {
+			continue
+		}
+		if idx, ok := index[strings.ToLower(trimmed)]; ok {
 			keep = append(keep, idx)
 			filteredHeaders = append(filteredHeaders, headers[idx])
+		} else {
+			unknown = append(unknown, trimmed)
 		}
 	}
 
 	if len(keep) == 0 {
-		return headers, rows
+		return headers, rows, unknown
 	}
 
-	filteredRows := make([][]string, len(rows))
+	filteredRows = make([][]string, len(rows))
 	for i, row := range rows {
 		filtered := make([]string, len(keep))
 		for j, idx := range keep {
@@ -92,16 +99,19 @@ func FilterColumns(headers []string, rows [][]string, fields []string) ([]string
 		filteredRows[i] = filtered
 	}
 
-	return filteredHeaders, filteredRows
+	return filteredHeaders, filteredRows, unknown
 }
 
-// Truncate truncates a string to max length, appending "..." if needed.
+// Truncate truncates a string to max runes, appending "..." if needed.
+// It counts and slices by rune, not byte, so multibyte UTF-8 (e.g. Mandarin,
+// Korean, Cyrillic transcripts) is never split mid-character (#131).
 func Truncate(s string, max int) string {
-	if len(s) <= max {
+	if utf8.RuneCountInString(s) <= max {
 		return s
 	}
+	r := []rune(s)
 	if max <= 3 {
-		return s[:max]
+		return string(r[:max])
 	}
-	return s[:max-3] + "..."
+	return string(r[:max-3]) + "..."
 }

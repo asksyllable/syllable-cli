@@ -235,14 +235,13 @@ func (c *Client) DeleteWithBody(path string, body interface{}) ([]byte, int, err
 	return c.Do(http.MethodDelete, path, body)
 }
 
-// PostWithTimeout performs a POST request with a custom timeout.
-// It uses a temporary http.Client rather than mutating the shared one,
-// so it is safe to call concurrently.
+// PostWithTimeout performs a POST request with a custom timeout. It runs the
+// request through a shallow copy of the client that has its own http.Client, so
+// it never mutates the shared client's timeout and is safe to call concurrently (#132).
 func (c *Client) PostWithTimeout(path string, body interface{}, timeout time.Duration) ([]byte, int, error) {
-	orig := c.HTTPClient
-	c.HTTPClient = &http.Client{Timeout: timeout}
-	defer func() { c.HTTPClient = orig }()
-	return c.Do(http.MethodPost, path, body)
+	tmp := *c
+	tmp.HTTPClient = &http.Client{Timeout: timeout}
+	return tmp.Do(http.MethodPost, path, body)
 }
 
 // PostMultipart performs a multipart/form-data POST, uploading a local file as the named field.

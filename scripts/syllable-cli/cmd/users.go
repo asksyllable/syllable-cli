@@ -246,9 +246,13 @@ func usersCreateCmd() *cobra.Command {
 				if email == "" || roleID == "" {
 					return fmt.Errorf("required flags: --email, --role-id (or use --file)")
 				}
+				roleIDInt, err := parseIDFlag("role-id", roleID)
+				if err != nil {
+					return err
+				}
 				body = map[string]interface{}{
 					"email":      email,
-					"role_id":    roleID,
+					"role_id":    roleIDInt,
 					"first_name": firstName,
 					"last_name":  lastName,
 				}
@@ -320,9 +324,13 @@ func usersDeleteCmd() *cobra.Command {
 		Short: "Delete a user",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Delete uses query param per the spec
-			path := fmt.Sprintf("/api/v1/users/?email=%s", args[0])
-			data, _, err := apiClient.Delete(path)
+			// DELETE /api/v1/users/ takes a JSON body (email + reason both
+			// required), not a query param (#115).
+			body := map[string]interface{}{
+				"email":  args[0],
+				"reason": "deleted via cli",
+			}
+			data, _, err := apiClient.DeleteWithBody("/api/v1/users/", body)
 			if err != nil {
 				return err
 			}

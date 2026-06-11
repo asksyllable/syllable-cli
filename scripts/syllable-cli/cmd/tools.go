@@ -295,9 +295,13 @@ func toolsCreateCmd() *cobra.Command {
 				if name == "" || serviceID == "" {
 					return fmt.Errorf("required flags: --name, --service-id (or use --file)")
 				}
+				serviceIDInt, err := parseIDFlag("service-id", serviceID)
+				if err != nil {
+					return err
+				}
 				body = map[string]interface{}{
 					"name":       name,
-					"service_id": serviceID,
+					"service_id": serviceIDInt,
 					"definition": map[string]interface{}{},
 				}
 			}

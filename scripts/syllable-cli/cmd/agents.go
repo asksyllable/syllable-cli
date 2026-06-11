@@ -259,10 +259,14 @@ func agentsCreateCmd() *cobra.Command {
 				if name == "" || agentType == "" || promptID == "" || timezone == "" {
 					return fmt.Errorf("required flags: --name, --type, --prompt-id, --timezone (or use --file)")
 				}
+				promptIDInt, err := parseIDFlag("prompt-id", promptID)
+				if err != nil {
+					return err
+				}
 				body = map[string]interface{}{
 					"name":         name,
 					"type":         agentType,
-					"prompt_id":    promptID,
+					"prompt_id":    promptIDInt,
 					"timezone":     timezone,
 					"variables":    map[string]interface{}{},
 					"tool_headers": map[string]interface{}{},

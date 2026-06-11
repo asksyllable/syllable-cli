@@ -434,7 +434,7 @@ func insightsFoldersListCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			path := fmt.Sprintf("/api/v1/insights/folders/?page=%d&limit=%d", page, limit)
 			if search != "" {
-				path += fmt.Sprintf("&search_fields=name&search_field_values=%s", search)
+				path += fmt.Sprintf("&search_fields=name&search_field_values=%s", url.QueryEscape(search))
 			}
 
 			data, _, err := apiClient.Get(path)

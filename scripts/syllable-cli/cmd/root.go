@@ -61,6 +61,9 @@ Feedback: https://github.com/asksyllable/syllable-cli/issues`,
 		if cmd == nil {
 			return nil
 		}
+		if err := validateOutputFmt(); err != nil {
+			return err
+		}
 		// Skip for commands that don't need auth. Cobra invokes this for each command in
 		// the chain (root → completion → zsh); for the leaf we see cmd.Name()=="zsh", so
 		// check this command and all ancestors. Also skip when root runs with no args
@@ -425,6 +428,18 @@ func getOutputFmt() string {
 	return viper.GetString("output")
 }
 
+// validateOutputFmt rejects --output values other than table or json, so a typo
+// like `-o jsno` fails loudly instead of silently rendering a table into a
+// script that expected JSON (#119).
+func validateOutputFmt() error {
+	switch getOutputFmt() {
+	case "", "table", "json":
+		return nil
+	default:
+		return fmt.Errorf("invalid --output %q: must be \"table\" or \"json\"", getOutputFmt())
+	}
+}
+
 // readFile reads a file by path, or reads from stdin if path is "-".
 func readFile(path string) ([]byte, error) {
 	if path == "-" {
@@ -466,6 +481,18 @@ func ensureBodyIdentifier(body interface{}, key, positional string, numeric bool
 	return nil
 }
 
+// parseIDFlag converts a string flag whose value the API expects as a JSON
+// integer. Inline create bodies historically sent these as strings, which only
+// worked while the backend coerced them; sending the right type also yields a
+// clearer error than a server-side 422 (#116).
+func parseIDFlag(flagName, value string) (int64, error) {
+	n, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("--%s must be a whole number, got %q", flagName, value)
+	}
+	return n, nil
+}
+
 // identifierMatches compares a JSON body value against a positional CLI string.
 func identifierMatches(existing interface{}, positional string) bool {
 	switch v := existing.(type) {
@@ -484,7 +511,11 @@ func identifierMatches(existing interface{}, positional string) bool {
 func printTable(headers []string, rows [][]string) {
 	if fieldsFlag != "" {
 		fields := strings.Split(fieldsFlag, ",")
-		headers, rows = output.FilterColumns(headers, rows, fields)
+		var unknown []string
+		headers, rows, unknown = output.FilterColumns(headers, rows, fields)
+		if len(unknown) > 0 {
+			fmt.Fprintf(os.Stderr, "warning: unknown --fields column(s): %s\n", strings.Join(unknown, ", "))
+		}
 	}
 	output.PrintTable(headers, rows)
 }
