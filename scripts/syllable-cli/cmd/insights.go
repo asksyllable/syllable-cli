@@ -212,7 +212,7 @@ func insightsWorkflowsGetCmd() *cobra.Command {
 		Short: "Get an insight workflow by ID",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Get("/api/v1/insights/workflows/" + args[0])
+			data, _, err := apiClient.Get("/api/v1/insights/workflows/" + url.PathEscape(args[0]))
 			if err != nil {
 				return err
 			}
@@ -340,7 +340,7 @@ func insightsWorkflowsDeleteCmd() *cobra.Command {
 			if err := confirmDelete(cmd, args); err != nil {
 				return err
 			}
-			data, _, err := apiClient.Delete("/api/v1/insights/workflows/" + args[0])
+			data, _, err := apiClient.Delete("/api/v1/insights/workflows/" + url.PathEscape(args[0]))
 			if err != nil {
 				return err
 			}
@@ -361,7 +361,7 @@ func insightsWorkflowsActivateCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Fetch the current workflow to get the exact estimate the API requires.
-			wfData, _, err := apiClient.Get("/api/v1/insights/workflows/" + args[0])
+			wfData, _, err := apiClient.Get("/api/v1/insights/workflows/" + url.PathEscape(args[0]))
 			if err != nil {
 				return fmt.Errorf("fetching workflow: %w", err)
 			}
@@ -377,7 +377,7 @@ func insightsWorkflowsActivateCmd() *cobra.Command {
 				"estimate":        wf.Estimate,
 			}
 
-			path := fmt.Sprintf("/api/v1/insights/workflows/%s/activate", args[0])
+			path := fmt.Sprintf("/api/v1/insights/workflows/%s/activate", url.PathEscape(args[0]))
 			data, _, err := apiClient.Put(path, body)
 			if err != nil {
 				return err
@@ -395,7 +395,7 @@ func insightsWorkflowsInactivateCmd() *cobra.Command {
 		Short: "Inactivate an insight workflow",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			path := fmt.Sprintf("/api/v1/insights/workflows/%s/inactivate", args[0])
+			path := fmt.Sprintf("/api/v1/insights/workflows/%s/inactivate", url.PathEscape(args[0]))
 			data, _, err := apiClient.Put(path, map[string]interface{}{})
 			if err != nil {
 				return err
@@ -489,7 +489,7 @@ func insightsFoldersGetCmd() *cobra.Command {
 		Short: "Get an insight folder by ID",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Get("/api/v1/insights/folders/" + args[0])
+			data, _, err := apiClient.Get("/api/v1/insights/folders/" + url.PathEscape(args[0]))
 			if err != nil {
 				return err
 			}
@@ -608,7 +608,7 @@ func insightsFoldersDeleteCmd() *cobra.Command {
 			if err := confirmDelete(cmd, args); err != nil {
 				return err
 			}
-			data, _, err := apiClient.Delete("/api/v1/insights/folders/" + args[0])
+			data, _, err := apiClient.Delete("/api/v1/insights/folders/" + url.PathEscape(args[0]))
 			if err != nil {
 				return err
 			}
@@ -628,7 +628,7 @@ func insightsFoldersFilesCmd() *cobra.Command {
 		Short: "List files in an insight folder",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Get("/api/v1/insights/folders/" + args[0] + "/files")
+			data, _, err := apiClient.Get("/api/v1/insights/folders/" + url.PathEscape(args[0]) + "/files")
 			if err != nil {
 				return err
 			}
@@ -680,7 +680,7 @@ func insightsFoldersUploadFileCmd() *cobra.Command {
 				params.Set("metadata", metadata)
 			}
 
-			path := fmt.Sprintf("/api/v1/insights/folders/%s/upload-file?%s", args[0], params.Encode())
+			path := fmt.Sprintf("/api/v1/insights/folders/%s/upload-file?%s", url.PathEscape(args[0]), params.Encode())
 			data, _, err := apiClient.PostMultipart(path, "file", filePath)
 			if err != nil {
 				return err
@@ -755,7 +755,7 @@ func insightsToolConfigsGetCmd() *cobra.Command {
 		Short: "Get an insight tool configuration",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Get("/api/v1/insights/tool-configurations/" + args[0])
+			data, _, err := apiClient.Get("/api/v1/insights/tool-configurations/" + url.PathEscape(args[0]))
 			if err != nil {
 				return err
 			}
@@ -845,7 +845,7 @@ func insightsToolConfigsDeleteCmd() *cobra.Command {
 			if err := confirmDelete(cmd, args); err != nil {
 				return err
 			}
-			data, _, err := apiClient.Delete("/api/v1/insights/tool-configurations/" + args[0])
+			data, _, err := apiClient.Delete("/api/v1/insights/tool-configurations/" + url.PathEscape(args[0]))
 			if err != nil {
 				return err
 			}
@@ -935,7 +935,7 @@ func insightsFoldersMoveFilesCmd() *cobra.Command {
 				return fmt.Errorf("parsing JSON file: %w", err)
 			}
 
-			path := fmt.Sprintf("/api/v1/insights/folders/%s/move-files", args[0])
+			path := fmt.Sprintf("/api/v1/insights/folders/%s/move-files", url.PathEscape(args[0]))
 			data, _, err := apiClient.Post(path, body)
 			if err != nil {
 				return err

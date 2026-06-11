@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 
 	"github.com/spf13/cobra"
 	"github.com/asksyllable/syllable-cli/internal/output"
@@ -209,7 +210,7 @@ func organizationsSipIPRangesUpdateCmd() *cobra.Command {
 				body = m
 			}
 
-			path := fmt.Sprintf("/api/v1/organizations/sip_ip_ranges/%s", args[0])
+			path := fmt.Sprintf("/api/v1/organizations/sip_ip_ranges/%s", url.PathEscape(args[0]))
 			data, _, err := apiClient.Put(path, body)
 			if err != nil {
 				return err
@@ -236,7 +237,7 @@ func organizationsSipIPRangesDeleteCmd() *cobra.Command {
 			if err := confirmDelete(cmd, args); err != nil {
 				return err
 			}
-			path := fmt.Sprintf("/api/v1/organizations/sip_ip_ranges/%s", args[0])
+			path := fmt.Sprintf("/api/v1/organizations/sip_ip_ranges/%s", url.PathEscape(args[0]))
 			data, _, err := apiClient.Delete(path)
 			if err != nil {
 				return err

@@ -113,7 +113,7 @@ func dataSourcesGetCmd() *cobra.Command {
 		Short: "Get a data source by ID",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Get("/api/v1/data_sources/" + args[0])
+			data, _, err := apiClient.Get("/api/v1/data_sources/" + url.PathEscape(args[0]))
 			if err != nil {
 				return err
 			}
@@ -240,7 +240,7 @@ func dataSourcesDeleteCmd() *cobra.Command {
 			if err := confirmDelete(cmd, args); err != nil {
 				return err
 			}
-			data, _, err := apiClient.Delete("/api/v1/data_sources/" + args[0])
+			data, _, err := apiClient.Delete("/api/v1/data_sources/" + url.PathEscape(args[0]))
 			if err != nil {
 				return err
 			}

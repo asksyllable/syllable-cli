@@ -2901,6 +2901,60 @@ func TestDeleteRequiresConfirmation(t *testing.T) {
 	}
 }
 
+func TestPathAndQueryEscaping(t *testing.T) {
+	var escapedPath, dashName string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		escapedPath = r.URL.EscapedPath()
+		dashName = r.URL.Query().Get("dashboard_name")
+		w.Write([]byte(`{}`))
+	})
+	defer server.Close()
+
+	// A slash in a path segment must be percent-encoded, not split into segments
+	// (which would route to a different endpoint) (#126).
+	cmd := agentsGetCmd()
+	cmd.SetArgs([]string{"x/y"})
+	captureStdout(func() { _ = cmd.Execute() })
+	if escapedPath != "/api/v1/agents/x%2Fy" {
+		t.Errorf("path segment not escaped: %q", escapedPath)
+	}
+
+	// A query value with a space and & must round-trip intact, not inject params.
+	cmd = dashboardsFetchInfoCmd()
+	cmd.SetArgs([]string{"--name", "Quarterly Report & KPIs"})
+	captureStdout(func() { _ = cmd.Execute() })
+	if dashName != "Quarterly Report & KPIs" {
+		t.Errorf("dashboard_name not round-tripped: %q", dashName)
+	}
+}
+
+func TestSetupMergeKeysRefusesUnresolvedPlaceholder(t *testing.T) {
+	stored := &setupConfig{Orgs: map[string]setupOrg{
+		"acme": {APIKey: "real-key", Envs: map[string]setupOrgEnv{}},
+	}}
+
+	// Unchanged org: the placeholder resolves to the stored key.
+	in := &setupConfig{Orgs: map[string]setupOrg{
+		"acme": {APIKey: setupKeyPlaceholder, Envs: map[string]setupOrgEnv{}},
+	}}
+	merged, err := setupMergeKeys(in, stored)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if merged.Orgs["acme"].APIKey != "real-key" {
+		t.Errorf("placeholder not resolved: %q", merged.Orgs["acme"].APIKey)
+	}
+
+	// Renamed org: a placeholder under a name with no stored key must be refused,
+	// not written as an empty key (#130).
+	renamed := &setupConfig{Orgs: map[string]setupOrg{
+		"acme-renamed": {APIKey: setupKeyPlaceholder, Envs: map[string]setupOrgEnv{}},
+	}}
+	if _, err := setupMergeKeys(renamed, stored); err == nil {
+		t.Error("expected a refusal when a renamed org's key can't be resolved")
+	}
+}
+
 func TestSetupGuardRequest(t *testing.T) {
 	const host = "127.0.0.1:54321"
 	const token = "sekret-token"

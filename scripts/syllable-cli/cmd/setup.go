@@ -118,7 +118,13 @@ func setupCmd() *cobra.Command {
 					return
 				}
 
-				merged := setupMergeKeys(&incoming, real)
+				merged, err := setupMergeKeys(&incoming, real)
+				if err != nil {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(400)
+					json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+					return
+				}
 
 				if err := setupWriteConfig(cfgPath, merged); err != nil {
 					w.Header().Set("Content-Type", "application/json")
@@ -153,11 +159,26 @@ func setupCmd() *cobra.Command {
 				}
 			}()
 
+			// Don't let the loopback server linger unattended if the user closes
+			// the tab or walks away — bound its lifetime (#127).
+			idleTimedOut := false
+			idleTimer := time.AfterFunc(15*time.Minute, func() {
+				exitOnce.Do(func() {
+					idleTimedOut = true
+					close(done)
+				})
+			})
+			defer idleTimer.Stop()
+
 			<-done
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancel()
 			srv.Shutdown(ctx)
-			fmt.Printf("\nConfig saved to %s\n", cfgPath)
+			if idleTimedOut {
+				fmt.Fprintln(os.Stderr, "\nSetup closed after 15 minutes with no save.")
+			} else {
+				fmt.Printf("\nConfig saved to %s\n", cfgPath)
+			}
 			return nil
 		},
 	}
@@ -268,25 +289,27 @@ func setupMaskKey(k string) string {
 	return setupKeyPlaceholder
 }
 
-func setupMergeKeys(incoming *setupConfig, stored *setupConfig) *setupConfig {
+// setupMergeKeys substitutes the real stored key for each "__existing__"
+// placeholder the browser holds. If a placeholder can't be resolved — which is
+// exactly what happens when an org/env was renamed — it returns an error rather
+// than writing an empty key, so the real key is never silently wiped and the
+// on-disk config is left untouched (#130).
+func setupMergeKeys(incoming *setupConfig, stored *setupConfig) (*setupConfig, error) {
 	for name, org := range incoming.Orgs {
 		if org.APIKey == setupKeyPlaceholder {
-			if s, ok := stored.Orgs[name]; ok {
+			if s, ok := stored.Orgs[name]; ok && s.APIKey != "" {
 				org.APIKey = s.APIKey
 			} else {
-				org.APIKey = ""
+				return nil, fmt.Errorf("the API key for org %q couldn't be carried over (it looks renamed) — re-enter the key before saving", name)
 			}
 		}
 		for env, e := range org.Envs {
 			if e.APIKey == setupKeyPlaceholder {
-				if s, ok := stored.Orgs[name]; ok {
-					if se, ok := s.Envs[env]; ok {
-						e.APIKey = se.APIKey
-					} else {
-						e.APIKey = ""
-					}
+				s, ok := stored.Orgs[name]
+				if se, ok2 := s.Envs[env]; ok && ok2 && se.APIKey != "" {
+					e.APIKey = se.APIKey
 				} else {
-					e.APIKey = ""
+					return nil, fmt.Errorf("the API key for org %q environment %q couldn't be carried over (it looks renamed) — re-enter the key before saving", name, env)
 				}
 				org.Envs[env] = e
 			}
@@ -299,7 +322,7 @@ func setupMergeKeys(incoming *setupConfig, stored *setupConfig) *setupConfig {
 	if len(incoming.Environments) == 0 {
 		incoming.Environments = nil
 	}
-	return incoming
+	return incoming, nil
 }
 
 func setupOpenBrowser(url string) {

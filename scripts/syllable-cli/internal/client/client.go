@@ -208,7 +208,9 @@ func maskKey(key string) string {
 	if len(key) <= 8 {
 		return "****"
 	}
-	return key[:4] + strings.Repeat("*", len(key)-8) + key[len(key)-4:]
+	// Reveal only a short prefix for recognizability — not the suffix, and not
+	// the exact length (a fixed-width mask), so --debug output is safer to share (#127).
+	return key[:4] + "****"
 }
 
 // Get performs a GET request.

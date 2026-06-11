@@ -195,7 +195,7 @@ func agentsGetCmd() *cobra.Command {
 		Short: "Get an agent by ID",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Get("/api/v1/agents/" + args[0])
+			data, _, err := apiClient.Get("/api/v1/agents/" + url.PathEscape(args[0]))
 			if err != nil {
 				return err
 			}
@@ -342,7 +342,7 @@ func agentsDeleteCmd() *cobra.Command {
 			if err := confirmDelete(cmd, args); err != nil {
 				return err
 			}
-			data, _, err := apiClient.Delete("/api/v1/agents/" + args[0])
+			data, _, err := apiClient.Delete("/api/v1/agents/" + url.PathEscape(args[0]))
 			if err != nil {
 				return err
 			}

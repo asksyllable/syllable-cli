@@ -152,7 +152,7 @@ func voiceGroupsGetCmd() *cobra.Command {
 		Short: "Get a voice group by ID",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Get("/api/v1/voice_groups/" + args[0])
+			data, _, err := apiClient.Get("/api/v1/voice_groups/" + url.PathEscape(args[0]))
 			if err != nil {
 				return err
 			}
@@ -274,7 +274,7 @@ func voiceGroupsDeleteCmd() *cobra.Command {
 			if err := confirmDelete(cmd, args); err != nil {
 				return err
 			}
-			data, _, err := apiClient.Delete("/api/v1/voice_groups/" + args[0])
+			data, _, err := apiClient.Delete("/api/v1/voice_groups/" + url.PathEscape(args[0]))
 			if err != nil {
 				return err
 			}
