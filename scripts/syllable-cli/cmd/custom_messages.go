@@ -112,7 +112,7 @@ func customMessagesGetCmd() *cobra.Command {
 		Short: "Get a custom message by ID",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Get("/api/v1/custom_messages/" + args[0])
+			data, _, err := apiClient.Get("/api/v1/custom_messages/" + url.PathEscape(args[0]))
 			if err != nil {
 				return err
 			}
@@ -256,7 +256,7 @@ func customMessagesDeleteCmd() *cobra.Command {
 			if err := confirmDelete(cmd, args); err != nil {
 				return err
 			}
-			data, _, err := apiClient.Delete("/api/v1/custom_messages/" + args[0])
+			data, _, err := apiClient.Delete("/api/v1/custom_messages/" + url.PathEscape(args[0]))
 			if err != nil {
 				return err
 			}

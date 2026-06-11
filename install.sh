@@ -64,7 +64,9 @@ if command -v sha256sum >/dev/null 2>&1; then
 elif command -v shasum >/dev/null 2>&1; then
   grep "$FILENAME" "$CHECKSUM_FILE" | shasum -a 256 -c --quiet
 else
-  echo "Warning: could not verify checksum (sha256sum/shasum not found)"
+  echo "Error: cannot verify download — neither sha256sum nor shasum is available." >&2
+  echo "Install one of them (e.g. coreutils) and re-run, or download and verify manually." >&2
+  exit 1
 fi
 cd - >/dev/null
 

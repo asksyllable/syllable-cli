@@ -166,7 +166,7 @@ func usersGetCmd() *cobra.Command {
 		Short: "Get a user by email",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Get("/api/v1/users/" + args[0])
+			data, _, err := apiClient.Get("/api/v1/users/" + url.PathEscape(args[0]))
 			if err != nil {
 				return err
 			}
@@ -354,7 +354,7 @@ func usersMeCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			email := viper.GetString("email")
 			if email != "" {
-				data, _, err := apiClient.Get("/api/v1/users/" + email)
+				data, _, err := apiClient.Get("/api/v1/users/" + url.PathEscape(email))
 				if err != nil {
 					return err
 				}
@@ -419,7 +419,7 @@ func usersSendEmailCmd() *cobra.Command {
 		Short: "Send an email to a user",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Post("/api/v1/users/"+args[0]+"/send_email", map[string]interface{}{})
+			data, _, err := apiClient.Post("/api/v1/users/"+ url.PathEscape(args[0]) +"/send_email", map[string]interface{}{})
 			if err != nil {
 				return err
 			}

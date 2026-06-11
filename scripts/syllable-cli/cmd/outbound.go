@@ -143,7 +143,7 @@ func outboundBatchesGetCmd() *cobra.Command {
 		Short: "Get an outbound batch by ID",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Get("/api/v1/outbound/batches/" + args[0])
+			data, _, err := apiClient.Get("/api/v1/outbound/batches/" + url.PathEscape(args[0]))
 			if err != nil {
 				return err
 			}
@@ -311,7 +311,7 @@ func outboundBatchesResultsCmd() *cobra.Command {
 		Short: "Get results for an outbound batch",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Get("/api/v1/outbound/batches/" + args[0] + "/results")
+			data, _, err := apiClient.Get("/api/v1/outbound/batches/" + url.PathEscape(args[0]) + "/results")
 			if err != nil {
 				return err
 			}
@@ -343,7 +343,7 @@ func outboundBatchesRequestsCmd() *cobra.Command {
 				return fmt.Errorf("use --file to provide requests body")
 			}
 
-			data, _, err := apiClient.Post("/api/v1/outbound/batches/"+args[0]+"/requests", body)
+			data, _, err := apiClient.Post("/api/v1/outbound/batches/"+ url.PathEscape(args[0]) +"/requests", body)
 			if err != nil {
 				return err
 			}
@@ -379,7 +379,7 @@ func outboundBatchesRemoveRequestsCmd() *cobra.Command {
 				return fmt.Errorf("use --file to provide requests body")
 			}
 
-			data, _, err := apiClient.Post("/api/v1/outbound/batches/"+args[0]+"/remove-requests", body)
+			data, _, err := apiClient.Post("/api/v1/outbound/batches/"+ url.PathEscape(args[0]) +"/remove-requests", body)
 			if err != nil {
 				return err
 			}
@@ -404,7 +404,7 @@ func outboundBatchesUploadCmd() *cobra.Command {
 			if file == "" {
 				return fmt.Errorf("required flag: --file")
 			}
-			path := fmt.Sprintf("/api/v1/outbound/batches/%s/upload_batch", args[0])
+			path := fmt.Sprintf("/api/v1/outbound/batches/%s/upload_batch", url.PathEscape(args[0]))
 			data, _, err := apiClient.PostMultipart(path, "file", file)
 			if err != nil {
 				return err
@@ -506,7 +506,7 @@ func outboundCampaignsGetCmd() *cobra.Command {
 		Short: "Get an outbound campaign by ID",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Get("/api/v1/outbound/campaigns/" + args[0])
+			data, _, err := apiClient.Get("/api/v1/outbound/campaigns/" + url.PathEscape(args[0]))
 			if err != nil {
 				return err
 			}
@@ -662,7 +662,7 @@ func outboundCampaignsDeleteCmd() *cobra.Command {
 			if err := confirmDelete(cmd, args); err != nil {
 				return err
 			}
-			data, _, err := apiClient.Delete("/api/v1/outbound/campaigns/" + args[0])
+			data, _, err := apiClient.Delete("/api/v1/outbound/campaigns/" + url.PathEscape(args[0]))
 			if err != nil {
 				return err
 			}

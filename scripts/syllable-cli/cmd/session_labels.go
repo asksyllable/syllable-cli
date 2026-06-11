@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 
 	"github.com/spf13/cobra"
 	"github.com/asksyllable/syllable-cli/internal/output"
@@ -83,7 +84,7 @@ func sessionLabelsGetCmd() *cobra.Command {
 		Short: "Get a session label by ID",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Get("/api/v1/session_labels/" + args[0])
+			data, _, err := apiClient.Get("/api/v1/session_labels/" + url.PathEscape(args[0]))
 			if err != nil {
 				return err
 			}

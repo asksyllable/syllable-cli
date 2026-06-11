@@ -117,7 +117,7 @@ func promptsGetCmd() *cobra.Command {
 		Short: "Get a prompt by ID",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Get("/api/v1/prompts/" + args[0])
+			data, _, err := apiClient.Get("/api/v1/prompts/" + url.PathEscape(args[0]))
 			if err != nil {
 				return err
 			}
@@ -255,7 +255,7 @@ func promptsDeleteCmd() *cobra.Command {
 			if err := confirmDelete(cmd, args); err != nil {
 				return err
 			}
-			data, _, err := apiClient.Delete("/api/v1/prompts/" + args[0])
+			data, _, err := apiClient.Delete("/api/v1/prompts/" + url.PathEscape(args[0]))
 			if err != nil {
 				return err
 			}
@@ -275,7 +275,7 @@ func promptsHistoryCmd() *cobra.Command {
 		Short: "Get version history for a prompt",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Get("/api/v1/prompts/" + args[0] + "/history")
+			data, _, err := apiClient.Get("/api/v1/prompts/" + url.PathEscape(args[0]) + "/history")
 			if err != nil {
 				return err
 			}

@@ -54,7 +54,7 @@ func toolsHistoryCmd() *cobra.Command {
 		Short: "List version history for a tool",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			path := fmt.Sprintf("/api/v1/tools/%s/history?page=%d&limit=%d", args[0], page, limit)
+			path := fmt.Sprintf("/api/v1/tools/%s/history?page=%d&limit=%d", url.PathEscape(args[0]), page, limit)
 			if orderByDirection != "" {
 				path += "&order_by_direction=" + orderByDirection
 			}
@@ -229,7 +229,7 @@ func toolsGetCmd() *cobra.Command {
 		Short: "Get a tool by name (numeric IDs are resolved via the list endpoint)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Get("/api/v1/tools/" + args[0])
+			data, _, err := apiClient.Get("/api/v1/tools/" + url.PathEscape(args[0]))
 			if err != nil {
 				// The get endpoint is name-keyed, but `tools list` leads with
 				// the ID column — resolve an all-digits arg by ID and retry (#69).
@@ -237,7 +237,7 @@ func toolsGetCmd() *cobra.Command {
 				if !ok {
 					return err
 				}
-				if data, _, err = apiClient.Get("/api/v1/tools/" + name); err != nil {
+				if data, _, err = apiClient.Get("/api/v1/tools/" + url.PathEscape(name)); err != nil {
 					return err
 				}
 			}
@@ -374,7 +374,7 @@ func toolsDeleteCmd() *cobra.Command {
 			if err := confirmDelete(cmd, args); err != nil {
 				return err
 			}
-			data, _, err := apiClient.Delete("/api/v1/tools/" + args[0])
+			data, _, err := apiClient.Delete("/api/v1/tools/" + url.PathEscape(args[0]))
 			if err != nil {
 				return err
 			}

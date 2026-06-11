@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 
 	"github.com/spf13/cobra"
 	"github.com/asksyllable/syllable-cli/internal/output"
@@ -228,7 +229,7 @@ func dashboardsFetchInfoCmd() *cobra.Command {
 				return fmt.Errorf("--name is required (e.g. session_events, session_summary)")
 			}
 
-			path := fmt.Sprintf("/api/v1/dashboards/fetch_info?dashboard_name=%s", name)
+			path := fmt.Sprintf("/api/v1/dashboards/fetch_info?dashboard_name=%s", url.QueryEscape(name))
 			data, _, err := apiClient.Post(path, map[string]interface{}{})
 			if err != nil {
 				return err

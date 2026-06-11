@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -75,7 +76,7 @@ func takeoutsGetCmd() *cobra.Command {
 		Short: "Get a takeout job status",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Get("/api/v1/takeouts/get/" + args[0])
+			data, _, err := apiClient.Get("/api/v1/takeouts/get/" + url.PathEscape(args[0]))
 			if err != nil {
 				return err
 			}
@@ -91,7 +92,7 @@ func takeoutsDownloadCmd() *cobra.Command {
 		Short: "Download a takeout file",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			path := fmt.Sprintf("/api/v1/takeouts/get/%s/file/%s", args[0], args[1])
+			path := fmt.Sprintf("/api/v1/takeouts/get/%s/file/%s", url.PathEscape(args[0]), url.PathEscape(args[1]))
 			data, _, err := apiClient.Get(path)
 			if err != nil {
 				return err

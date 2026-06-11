@@ -181,7 +181,7 @@ func sessionsGetCmd() *cobra.Command {
 		Short: "Get a session by ID",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Get("/api/v1/sessions/" + args[0])
+			data, _, err := apiClient.Get("/api/v1/sessions/" + url.PathEscape(args[0]))
 			if err != nil {
 				return err
 			}
@@ -248,7 +248,7 @@ func sessionsTranscriptCmd() *cobra.Command {
 		Short: "Get transcript for a session",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Get("/api/v1/sessions/transcript/" + args[0])
+			data, _, err := apiClient.Get("/api/v1/sessions/transcript/" + url.PathEscape(args[0]))
 			if err != nil {
 				return err
 			}
@@ -289,7 +289,7 @@ func sessionsSummaryCmd() *cobra.Command {
 		Short: "Get summary for a session",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Get("/api/v1/sessions/full-summary/" + args[0])
+			data, _, err := apiClient.Get("/api/v1/sessions/full-summary/" + url.PathEscape(args[0]))
 			if err != nil {
 				return err
 			}
@@ -324,7 +324,7 @@ func sessionsLatencyCmd() *cobra.Command {
 		Short: "Get latency info for a session",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Get("/api/v1/sessions/latency/" + args[0])
+			data, _, err := apiClient.Get("/api/v1/sessions/latency/" + url.PathEscape(args[0]))
 			if err != nil {
 				return err
 			}

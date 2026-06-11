@@ -313,8 +313,16 @@ func initConfig() {
 	// Defaults
 	viper.SetDefault("output", "table")
 
-	// Read config file (ignore errors if not found)
-	viper.ReadInConfig()
+	// Read config file. A missing file is expected (env-var auth or first run),
+	// but any other error — most importantly malformed YAML — is surfaced so the
+	// user isn't misdirected to "not configured" when the real problem is a
+	// broken config file (#133).
+	if err := viper.ReadInConfig(); err != nil {
+		var notFound viper.ConfigFileNotFoundError
+		if !errors.As(err, &notFound) && !os.IsNotExist(err) {
+			fmt.Fprintf(os.Stderr, "warning: could not read config %s: %v\n", viper.ConfigFileUsed(), err)
+		}
+	}
 }
 
 func initClient() error {

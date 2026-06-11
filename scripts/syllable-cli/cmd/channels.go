@@ -359,7 +359,7 @@ func channelsTargetsGetCmd() *cobra.Command {
 		Short: "Get a channel target",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			path := fmt.Sprintf("/api/v1/channels/%s/targets/%s", args[0], args[1])
+			path := fmt.Sprintf("/api/v1/channels/%s/targets/%s", url.PathEscape(args[0]), url.PathEscape(args[1]))
 			data, _, err := apiClient.Get(path)
 			if err != nil {
 				return err
@@ -392,7 +392,7 @@ func channelsTargetsCreateCmd() *cobra.Command {
 				return fmt.Errorf("use --file to provide target body")
 			}
 
-			path := fmt.Sprintf("/api/v1/channels/%s/targets", args[0])
+			path := fmt.Sprintf("/api/v1/channels/%s/targets", url.PathEscape(args[0]))
 			data, _, err := apiClient.Post(path, body)
 			if err != nil {
 				return err
@@ -429,7 +429,7 @@ func channelsTargetsUpdateCmd() *cobra.Command {
 				return fmt.Errorf("use --file to provide update body")
 			}
 
-			path := fmt.Sprintf("/api/v1/channels/%s/targets/%s", args[0], args[1])
+			path := fmt.Sprintf("/api/v1/channels/%s/targets/%s", url.PathEscape(args[0]), url.PathEscape(args[1]))
 			data, _, err := apiClient.Put(path, body)
 			if err != nil {
 				return err
@@ -523,7 +523,7 @@ carrier per-number registration or legal/content compliance.`,
 			}
 
 			body := map[string]interface{}{"phone": phone}
-			path := fmt.Sprintf("/api/v1/channels/twilio/%s/numbers/verify-a2p-compliance", args[0])
+			path := fmt.Sprintf("/api/v1/channels/twilio/%s/numbers/verify-a2p-compliance", url.PathEscape(args[0]))
 			data, _, err := apiClient.Post(path, body)
 			if err != nil {
 				return err
@@ -545,7 +545,7 @@ func channelsTwilioGetCmd() *cobra.Command {
 		Short: "Get a Twilio channel",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Get("/api/v1/channels/twilio/" + args[0])
+			data, _, err := apiClient.Get("/api/v1/channels/twilio/" + url.PathEscape(args[0]))
 			if err != nil {
 				return err
 			}
@@ -631,7 +631,7 @@ func channelsTwilioNumbersListCmd() *cobra.Command {
 		Short: "List phone numbers for a Twilio channel",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Get("/api/v1/channels/twilio/" + args[0] + "/numbers")
+			data, _, err := apiClient.Get("/api/v1/channels/twilio/" + url.PathEscape(args[0]) + "/numbers")
 			if err != nil {
 				return err
 			}
@@ -663,7 +663,7 @@ func channelsTwilioNumbersAddCmd() *cobra.Command {
 				return fmt.Errorf("use --file to provide numbers body")
 			}
 
-			data, _, err := apiClient.Post("/api/v1/channels/twilio/"+args[0]+"/numbers", body)
+			data, _, err := apiClient.Post("/api/v1/channels/twilio/"+ url.PathEscape(args[0]) +"/numbers", body)
 			if err != nil {
 				return err
 			}
@@ -699,7 +699,7 @@ func channelsTwilioNumbersUpdateCmd() *cobra.Command {
 				return fmt.Errorf("use --file to provide update body")
 			}
 
-			data, _, err := apiClient.Put("/api/v1/channels/twilio/"+args[0]+"/numbers", body)
+			data, _, err := apiClient.Put("/api/v1/channels/twilio/"+ url.PathEscape(args[0]) +"/numbers", body)
 			if err != nil {
 				return err
 			}

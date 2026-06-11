@@ -113,7 +113,7 @@ func servicesGetCmd() *cobra.Command {
 		Short: "Get a service by ID",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Get("/api/v1/services/" + args[0])
+			data, _, err := apiClient.Get("/api/v1/services/" + url.PathEscape(args[0]))
 			if err != nil {
 				return err
 			}
@@ -236,7 +236,7 @@ func servicesDeleteCmd() *cobra.Command {
 			if err := confirmDelete(cmd, args); err != nil {
 				return err
 			}
-			data, _, err := apiClient.Delete("/api/v1/services/" + args[0])
+			data, _, err := apiClient.Delete("/api/v1/services/" + url.PathEscape(args[0]))
 			if err != nil {
 				return err
 			}

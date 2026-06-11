@@ -127,7 +127,7 @@ func directoryGetCmd() *cobra.Command {
 		Short: "Get a directory member by ID",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Get("/api/v1/directory_members/" + args[0])
+			data, _, err := apiClient.Get("/api/v1/directory_members/" + url.PathEscape(args[0]))
 			if err != nil {
 				return err
 			}
@@ -262,7 +262,7 @@ func directoryDeleteCmd() *cobra.Command {
 			if err := confirmDelete(cmd, args); err != nil {
 				return err
 			}
-			data, _, err := apiClient.Delete("/api/v1/directory_members/" + args[0] + "?comment=deleted+via+cli")
+			data, _, err := apiClient.Delete("/api/v1/directory_members/" + url.PathEscape(args[0]) + "?comment=deleted+via+cli")
 			if err != nil {
 				return err
 			}
@@ -332,7 +332,7 @@ func directoryHistoryCmd() *cobra.Command {
 		Short: "Show version history for a directory member",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			path := fmt.Sprintf("/api/v1/directory_members/%s/history?page=%d&limit=%d", args[0], page, limit)
+			path := fmt.Sprintf("/api/v1/directory_members/%s/history?page=%d&limit=%d", url.PathEscape(args[0]), page, limit)
 			if orderByDirection != "" {
 				path += "&order_by_direction=" + url.QueryEscape(orderByDirection)
 			}
@@ -367,7 +367,7 @@ func directoryRestoreCmd() *cobra.Command {
 			if comments != "" {
 				body["comments"] = comments
 			}
-			data, _, err := apiClient.Put("/api/v1/directory_members/"+args[0]+"/restore", body)
+			data, _, err := apiClient.Put("/api/v1/directory_members/"+ url.PathEscape(args[0]) +"/restore", body)
 			if err != nil {
 				return err
 			}
