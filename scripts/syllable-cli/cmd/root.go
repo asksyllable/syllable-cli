@@ -343,6 +343,7 @@ func initClient() error {
 	apiClient = client.New(baseURL, key)
 	apiClient.DryRun = dryRun
 	apiClient.Verbose = debugMode
+	apiClient.Preflight = specPreflight
 	return nil
 }
 

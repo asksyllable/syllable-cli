@@ -40,6 +40,11 @@ type Client struct {
 	HTTPClient *http.Client
 	DryRun     bool
 	Verbose    bool
+	// Preflight, when set, returns the names of required request-body fields
+	// missing from a JSON body. It's used only to annotate --dry-run output, so
+	// it never blocks a real request (spec and prod can legitimately differ). The
+	// validator is injected by the cmd layer so this package stays spec-free (#143).
+	Preflight func(method, path string, body []byte) []string
 }
 
 // New creates a new Client.
@@ -140,6 +145,11 @@ func (c *Client) Do(method, path string, body interface{}) ([]byte, int, error) 
 		if bodyBytes != nil {
 			var bodyJSON json.RawMessage = bodyBytes
 			out["body"] = bodyJSON
+			if c.Preflight != nil {
+				if missing := c.Preflight(method, path, bodyBytes); len(missing) > 0 {
+					out["missing_required_fields"] = missing
+				}
+			}
 		}
 		data, _ := json.Marshal(out)
 		return nil, 0, &DryRunResult{Output: data}
