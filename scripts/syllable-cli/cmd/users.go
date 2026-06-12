@@ -22,7 +22,7 @@ func usersCmd() *cobra.Command {
   syllable users list --search "alice@example.com"
 
   # Get a specific user
-  syllable users get 10
+  syllable users get alice@example.com
 
   # Get the currently authenticated user
   syllable users me
@@ -31,13 +31,13 @@ func usersCmd() *cobra.Command {
   syllable users create --file user.json
 
   # Update a user
-  syllable users update 10 --file user.json
+  syllable users update alice@example.com --file user.json
 
   # Delete a user
-  syllable users delete 10
+  syllable users delete alice@example.com
 
   # Send a welcome/activation email to a user
-  syllable users send-email 10`,
+  syllable users send-email alice@example.com`,
 	}
 
 	cmd.AddCommand(usersListCmd())

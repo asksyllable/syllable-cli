@@ -15,6 +15,7 @@ For deeper platform reference, see [docs.syllable.ai](https://docs.syllable.ai).
 - [Scripting and Automation](#scripting-and-automation)
 - [Commands](#commands)
 - [Troubleshooting](#troubleshooting)
+- [Claude Code Skill](#claude-code-skill)
 - [Feedback](#feedback)
 
 ---
@@ -52,7 +53,7 @@ curl -fsSL https://github.com/asksyllable/syllable-cli/releases/latest/download/
 
 Download the archive for your platform from the [releases page](https://github.com/asksyllable/syllable-cli/releases/latest), verify the checksum, extract, and move `syllable` onto your `$PATH`.
 
-### Build from source (requires Go 1.21+)
+### Build from source (requires Go 1.24+)
 
 ```bash
 git clone https://github.com/asksyllable/syllable-cli
@@ -106,7 +107,7 @@ environments:
     base_url: https://staging.syllable.cloud
 ```
 
-Built-in environment aliases (no config needed): `prod`, `staging`, `dev`.
+Built-in environment alias (no config needed): `prod`. Other environments come from `syllable setup`.
 
 ---
 
@@ -165,15 +166,16 @@ These flags work on every command:
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--org NAME` | `default_org` in config | Select org (looks up API key from config) |
-| `--env NAME` | `default_env` in config | Select environment: `prod`, `staging`, `dev` |
-| `--api-key KEY` | `SYLLABLE_API_KEY` env var | Provide API key directly |
-| `--base-url URL` | `https://api.syllable.cloud` | Override API endpoint |
+| `--env NAME` | `default_env` in config | Select environment (`prod` is built-in; others from config) |
+| `--yes` / `-y` | — | Skip the confirmation prompt on destructive commands |
 | `--output` / `-o` | `table` | Output format: `table` or `json` |
 | `--fields` | — | Columns to show in table output (e.g. `id,name`) |
 | `--dry-run` | `false` | Show the request that would be sent, without sending it |
 | `--debug` | `false` | Print full HTTP request/response to stderr |
 | `--config PATH` | `~/.syllable/config.yaml` | Config file location |
 | `--version` / `-v` | — | Print version and exit |
+
+Auth comes from the `SYLLABLE_API_KEY` env var (CI/scripts) or `syllable setup` config; there is no `--api-key`/`--base-url` flag.
 
 ### List Flags
 
@@ -302,7 +304,6 @@ Channels define how users reach agents — voice, SMS, or chat. A target is the 
 syllable channels list [--search TEXT]
 syllable channels create --file channel.json
 syllable channels update <id> --file channel.json
-syllable channels delete <id>
 
 # Targets
 syllable channels targets list <channel-id>
@@ -535,6 +536,12 @@ cd scripts/syllable-cli
 go build -o syllable .
 go test ./...
 ```
+
+---
+
+## Claude Code Skill
+
+This repo ships a [Claude Code](https://claude.com/claude-code) skill that teaches Claude how to drive the CLI — the full command surface plus API gotchas, multi-step recipes, and payload templates. It lives at [`.claude/skills/syllable-cli/`](.claude/skills/syllable-cli/) and is active automatically when you run Claude Code inside this repo. To use it in your own project, copy that directory into your repo's `.claude/skills/` — see its [README](.claude/skills/syllable-cli/README.md).
 
 ---
 

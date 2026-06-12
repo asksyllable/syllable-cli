@@ -25,8 +25,8 @@ func outboundCmd() *cobra.Command {
   # Get results for a batch
   syllable outbound batches results abc-123
 
-  # Get requests in a batch
-  syllable outbound batches requests abc-123
+  # Add requests to a batch
+  syllable outbound batches add-requests abc-123 --file requests.json
 
   # Remove requests from a batch
   syllable outbound batches remove-requests abc-123 --file request-ids.json

@@ -13,7 +13,7 @@ func channelsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "channels",
 		Short: "Manage channels",
-		Long:  "List, get, create, update, and delete channels.",
+		Long:  "List, get, create, and update channels, and manage their targets.",
 		Example: `  # List all channels
   syllable channels list
 
@@ -29,11 +29,8 @@ func channelsCmd() *cobra.Command {
   # Update a channel
   syllable channels update 5 --file channel.json
 
-  # Delete a channel
-  syllable channels delete 5
-
-  # Get targets for a channel
-  syllable channels targets get 5
+  # Get a channel target
+  syllable channels targets get 5 42
 
   # Create a target for a channel
   syllable channels targets create 5 --file target.json
