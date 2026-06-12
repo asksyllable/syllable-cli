@@ -9,6 +9,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// incident is the list view of an incident resource.
+type incident struct {
+	ID               json.Number `json:"id"`
+	Description      string      `json:"description"`
+	ImpactCategory   string      `json:"impact_category"`
+	SessionsImpacted int         `json:"sessions_impacted"`
+	StartDatetime    string      `json:"start_datetime"`
+	CreatedAt        string      `json:"created_at"`
+}
+
 func incidentsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "incidents",
@@ -54,52 +64,20 @@ func incidentsListCmd() *cobra.Command {
 		Use:   "list",
 		Short: "List incidents",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			path := fmt.Sprintf("/api/v1/incidents/?page=%d&limit=%d", page, limit)
-			if search != "" {
-				path += fmt.Sprintf("&search_fields=%s&search_field_values=%s", searchField, url.QueryEscape(search))
-			}
-
-			data, _, err := apiClient.Get(path)
-			if err != nil {
-				return err
-			}
-
-			if getOutputFmt() == "json" {
-				output.PrintJSON(data)
-				return nil
-			}
-
-			var result struct {
-				Items []struct {
-					ID               json.Number `json:"id"`
-					Description      string      `json:"description"`
-					ImpactCategory   string      `json:"impact_category"`
-					SessionsImpacted int         `json:"sessions_impacted"`
-					StartDatetime    string      `json:"start_datetime"`
-					CreatedAt        string      `json:"created_at"`
-				} `json:"items"`
-				TotalCount int `json:"total_count"`
-			}
-			if err := json.Unmarshal(data, &result); err != nil {
-				output.PrintJSON(data)
-				return nil
-			}
-
-			headers := []string{"ID", "DESCRIPTION", "IMPACT_CATEGORY", "SESSIONS", "START", "CREATED_AT"}
-			rows := make([][]string, len(result.Items))
-			for i, inc := range result.Items {
-				rows[i] = []string{
-					inc.ID.String(),
-					output.Truncate(inc.Description, 50),
-					inc.ImpactCategory,
-					fmt.Sprintf("%d", inc.SessionsImpacted),
-					inc.StartDatetime,
-					inc.CreatedAt,
-				}
-			}
-			printTable(headers, rows)
-			fmt.Printf("\nTotal: %d\n", result.TotalCount)
-			return nil
+			return runList(
+				listQuery("/api/v1/incidents/", page, limit, searchField, search),
+				[]string{"ID", "DESCRIPTION", "IMPACT_CATEGORY", "SESSIONS", "START", "CREATED_AT"},
+				func(inc incident) []string {
+					return []string{
+						inc.ID.String(),
+						output.Truncate(inc.Description, 50),
+						inc.ImpactCategory,
+						fmt.Sprintf("%d", inc.SessionsImpacted),
+						inc.StartDatetime,
+						inc.CreatedAt,
+					}
+				},
+			)
 		},
 	}
 
@@ -134,18 +112,12 @@ func incidentsCreateCmd() *cobra.Command {
 		Use:   "create",
 		Short: "Create an incident",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var body interface{}
-
-			if file != "" {
-				fileData, err := readFile(file)
-				if err != nil {
-					return fmt.Errorf("reading file: %w", err)
-				}
-				if err := json.Unmarshal(fileData, &body); err != nil {
-					return fmt.Errorf("parsing JSON file: %w", err)
-				}
-			} else {
+			if file == "" {
 				return fmt.Errorf("use --file to provide incident body")
+			}
+			body, err := readJSONBody(file)
+			if err != nil {
+				return err
 			}
 
 			data, _, err := apiClient.Post("/api/v1/incidents/", body)
@@ -170,18 +142,12 @@ func incidentsUpdateCmd() *cobra.Command {
 		Args:  cobra.MaximumNArgs(1),
 		Short: "Update an incident",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var body interface{}
-
-			if file != "" {
-				data, err := readFile(file)
-				if err != nil {
-					return fmt.Errorf("reading file: %w", err)
-				}
-				if err := json.Unmarshal(data, &body); err != nil {
-					return fmt.Errorf("parsing JSON file: %w", err)
-				}
-			} else {
+			if file == "" {
 				return fmt.Errorf("use --file to provide update body")
+			}
+			body, err := readJSONBody(file)
+			if err != nil {
+				return err
 			}
 
 			// An optional positional id is reconciled with the body id, which the
@@ -211,19 +177,7 @@ func incidentsDeleteCmd() *cobra.Command {
 		Short: "Delete an incident",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := confirmDelete(cmd, args); err != nil {
-				return err
-			}
-			data, _, err := apiClient.Delete("/api/v1/incidents/" + url.PathEscape(args[0]))
-			if err != nil {
-				return err
-			}
-			if len(data) > 0 {
-				output.PrintJSON(data)
-			} else {
-				fmt.Printf("Incident %s deleted.\n", args[0])
-			}
-			return nil
+			return runDelete(cmd, args, "/api/v1/incidents/"+url.PathEscape(args[0]), "Incident")
 		},
 	}
 }

@@ -9,6 +9,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// role is the list/get view of a role resource.
+type role struct {
+	ID          json.Number `json:"id"`
+	Name        string      `json:"name"`
+	Description string      `json:"description"`
+	LastUpdated string      `json:"last_updated"`
+	LastUpdBy   string      `json:"last_updated_by"`
+}
+
 func rolesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "roles",
@@ -53,49 +62,13 @@ func rolesListCmd() *cobra.Command {
 		Use:   "list",
 		Short: "List roles",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			path := fmt.Sprintf("/api/v1/roles/?page=%d&limit=%d", page, limit)
-			if search != "" {
-				path += fmt.Sprintf("&search_fields=%s&search_field_values=%s", searchField, url.QueryEscape(search))
-			}
-
-			data, _, err := apiClient.Get(path)
-			if err != nil {
-				return err
-			}
-
-			if getOutputFmt() == "json" {
-				output.PrintJSON(data)
-				return nil
-			}
-
-			var result struct {
-				Items []struct {
-					ID          json.Number `json:"id"`
-					Name        string      `json:"name"`
-					Description string      `json:"description"`
-					LastUpdated string      `json:"last_updated"`
-					LastUpdBy   string      `json:"last_updated_by"`
-				} `json:"items"`
-				TotalCount int `json:"total_count"`
-			}
-			if err := json.Unmarshal(data, &result); err != nil {
-				output.PrintJSON(data)
-				return nil
-			}
-
-			headers := []string{"ID", "NAME", "DESCRIPTION", "LAST_UPDATED"}
-			rows := make([][]string, len(result.Items))
-			for i, r := range result.Items {
-				rows[i] = []string{
-					r.ID.String(),
-					r.Name,
-					output.Truncate(r.Description, 50),
-					r.LastUpdated,
-				}
-			}
-			printTable(headers, rows)
-			fmt.Printf("\nTotal: %d\n", result.TotalCount)
-			return nil
+			return runList(
+				listQuery("/api/v1/roles/", page, limit, searchField, search),
+				[]string{"ID", "NAME", "DESCRIPTION", "LAST_UPDATED"},
+				func(r role) []string {
+					return []string{r.ID.String(), r.Name, output.Truncate(r.Description, 50), r.LastUpdated}
+				},
+			)
 		},
 	}
 
@@ -113,37 +86,15 @@ func rolesGetCmd() *cobra.Command {
 		Short: "Get a role by ID",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Get("/api/v1/roles/" + url.PathEscape(args[0]))
-			if err != nil {
-				return err
-			}
-
-			if getOutputFmt() == "json" {
-				output.PrintJSON(data)
-				return nil
-			}
-
-			var r struct {
-				ID          json.Number `json:"id"`
-				Name        string      `json:"name"`
-				Description string      `json:"description"`
-				LastUpdated string      `json:"last_updated"`
-				LastUpdBy   string      `json:"last_updated_by"`
-			}
-			if err := json.Unmarshal(data, &r); err != nil {
-				output.PrintJSON(data)
-				return nil
-			}
-
-			rows := [][]string{
-				{"ID", r.ID.String()},
-				{"Name", r.Name},
-				{"Description", r.Description},
-				{"Last Updated", r.LastUpdated},
-				{"Last Updated By", r.LastUpdBy},
-			}
-			printTable([]string{"FIELD", "VALUE"}, rows)
-			return nil
+			return runGet("/api/v1/roles/"+url.PathEscape(args[0]), func(r role) [][]string {
+				return [][]string{
+					{"ID", r.ID.String()},
+					{"Name", r.Name},
+					{"Description", r.Description},
+					{"Last Updated", r.LastUpdated},
+					{"Last Updated By", r.LastUpdBy},
+				}
+			})
 		},
 	}
 }
@@ -156,15 +107,12 @@ func rolesCreateCmd() *cobra.Command {
 		Short: "Create a role",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var body interface{}
-
 			if file != "" {
-				fileData, err := readFile(file)
+				b, err := readJSONBody(file)
 				if err != nil {
-					return fmt.Errorf("reading file: %w", err)
+					return err
 				}
-				if err := json.Unmarshal(fileData, &body); err != nil {
-					return fmt.Errorf("parsing JSON file: %w", err)
-				}
+				body = b
 			} else {
 				if name == "" {
 					return fmt.Errorf("required flags: --name (or use --file)")
@@ -199,18 +147,12 @@ func rolesUpdateCmd() *cobra.Command {
 		Args:  cobra.MaximumNArgs(1),
 		Short: "Update a role",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var body interface{}
-
-			if file != "" {
-				data, err := readFile(file)
-				if err != nil {
-					return fmt.Errorf("reading file: %w", err)
-				}
-				if err := json.Unmarshal(data, &body); err != nil {
-					return fmt.Errorf("parsing JSON file: %w", err)
-				}
-			} else {
+			if file == "" {
 				return fmt.Errorf("use --file to provide update body")
+			}
+			body, err := readJSONBody(file)
+			if err != nil {
+				return err
 			}
 
 			// An optional positional id is reconciled with the body id, which the
@@ -240,19 +182,7 @@ func rolesDeleteCmd() *cobra.Command {
 		Short: "Delete a role",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := confirmDelete(cmd, args); err != nil {
-				return err
-			}
-			data, _, err := apiClient.Delete("/api/v1/roles/" + url.PathEscape(args[0]))
-			if err != nil {
-				return err
-			}
-			if len(data) > 0 {
-				output.PrintJSON(data)
-			} else {
-				fmt.Printf("Role %s deleted.\n", args[0])
-			}
-			return nil
+			return runDelete(cmd, args, "/api/v1/roles/"+url.PathEscape(args[0]), "Role")
 		},
 	}
 }

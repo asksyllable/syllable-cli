@@ -139,7 +139,15 @@ cd scripts/syllable-cli && go test ./internal/spec/... -v
 
 Read an existing cmd file for a similar resource first (e.g., `cmd/agents.go` for
 a full CRUD resource, `cmd/events.go` for a read-only resource, `cmd/outbound.go`
-for a nested resource). Then follow this pattern exactly:
+for a nested resource). Then follow this pattern exactly.
+
+> **Note:** simple CRUD resources are being migrated to the shared generic
+> helpers in `cmd/runners.go` (`runList`, `runGet`, `runDelete`, `listQuery`,
+> `readJSONBody`). `cmd/roles.go` and `cmd/incidents.go` are the migrated
+> reference shape — prefer copying one of those for a new plain resource, which
+> is far shorter. The hand-written pattern below still works and is correct for
+> resources with special behavior (binary output, ID fallback, custom timeouts,
+> multipart, nested subcommands).
 
 ```go
 package cmd
