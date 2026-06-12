@@ -58,7 +58,7 @@ syllable agents send-test-message <id> --test-id t1 --session-start --override-t
 syllable agents send-test-message <id> --test-id t1 --override-timestamp "2030-12-25T09:30:00" --text "what's today's date?"
 ```
 
-- **Format must be timezone-naive** `YYYY-MM-DDTHH:MM:SS` (no `-06:00` offset, no `Z`, no space separator). Other forms are silently ignored and fall back to the real clock with no error.
+- **Format must be timezone-naive** `YYYY-MM-DDTHH:MM:SS` (no `-06:00` offset, no `Z`, no space separator). Other forms are ignored and fall back to the real clock.
 - **Per-turn, not sticky** — pass it on every turn you want pinned, including `--session-start`.
 - **Verify it took** via the session transcript `actions[].tool_result` for `get_current_datetime`, not a green run.
 
@@ -178,7 +178,7 @@ syllable sessions recording-stream --token <token>   # stream recording bytes to
 ```bash
 syllable sessions list --search-field channel_manager_sid --search "CA…" -o json
 ```
-**Boolean fields don't filter (v1.7.1):** `--search-field is_outbound` returns nothing for any value; `--search-field is_test --search true` *adds* test sessions instead of restricting to them — filter booleans client-side with `jq` instead (see `gotchas.md`). `--include-test` includes test sessions (channel targets marked `is_test=true`) in the list.
+**Filter boolean fields client-side:** server-side `--search-field` filtering is reliable for string fields; for booleans (`is_outbound`, `is_test`) fetch with `-o json` and filter with `jq` (see `gotchas.md`). `--include-test` includes test sessions (channel targets marked `is_test=true`) in the list.
 
 **Get fields:** Session ID, Conversation ID, Timestamp, Agent, Agent Type, Timezone, Prompt, Duration, Source, Target, Is Test
 
@@ -236,7 +236,7 @@ syllable users send-email <email>
 
 **Get fields:** ID, Email, First Name, Last Name, Role Name, Role ID, Activity Status, Last Updated, Last Updated By, Last Session At
 
-**Note:** Delete uses query parameter (`DELETE /api/v1/users/?email=...`) instead of URL path — unlike other resources.
+**Note:** Delete sends a JSON body (`{ "email": …, "reason": … }`) to `DELETE /api/v1/users/`, not a path or query identifier — unlike other resources.
 
 **`users me` requires a configured email (v1.7):** with your email set via `syllable setup` it does an exact lookup of your account; without one it fails loudly (`Error: no email configured — run \`syllable setup\` …`, exit 1). The API has no key→identity endpoint, so there is no fallback. Pre-1.7 it silently returned the org's first user.
 
@@ -326,8 +326,8 @@ syllable language-groups delete <group-id>
 ```bash
 syllable data-sources list [--page N] [--limit N] [--search name=foo]
 syllable data-sources get <data_source_id>
-syllable data-sources create --file source.json
-syllable data-sources create --name "FAQ" --description "FAQ data" --content "Q&A text..."
+syllable data-sources create --file source.json           # body requires: name, text (document body), chunk
+syllable data-sources create --name "FAQ" --text "Q&A…"   # inline; chunk defaults to false
 syllable data-sources update --file source.json
 syllable data-sources delete <data_source_id>
 ```
@@ -414,9 +414,9 @@ syllable conversation-config bridges                          # get bridge phras
 syllable conversation-config bridges-update --file bridges.json
 ```
 
-**Unified messages (v1.7.1 spec):** the bridges body now supports an ordered `messages` list plus `randomize_messages` (bool, no-repeat shuffling). When `messages` is non-empty it replaces the three legacy lists (`first_slow_messages`, `very_slow_messages`, `tool_responses`); when empty, the legacy fields still apply. Both `bridges` commands are pass-through `--file` bodies. **Caveat:** as of 2026-06-04 the production API accepts these fields with 200 but does **not persist them** — read back after updating (see `gotchas.md` § *Bridge Phrases*). Field semantics in `telephony-and-channels.md` § *Bridge Phrases*.
+**Unified messages (v1.7.1 spec):** the bridges body now supports an ordered `messages` list plus `randomize_messages` (bool, no-repeat shuffling). When `messages` is non-empty it replaces the three legacy lists (`first_slow_messages`, `very_slow_messages`, `tool_responses`); when empty, the legacy fields still apply. Both `bridges` commands are pass-through `--file` bodies. **Caveat:** production doesn't persist these fields yet — read back after updating to confirm (see `gotchas.md` § *Bridge Phrases*). Field semantics in `telephony-and-channels.md` § *Bridge Phrases*.
 
-**Smart-turn timeout (v1.7.2 spec):** the top-level bridges body also accepts `smart_turn_timeout_seconds` (number, `0.25`–`30`, or `null`) — seconds of caller silence before the first bridge phrase fires (later intervals scale 2x/3x/4x); unset uses the service default. Passes through the same `--file` body; documented from release notes, not live-verified — read back to confirm persistence.
+**Smart-turn timeout (v1.7.2 spec):** the top-level bridges body also accepts `smart_turn_timeout_seconds` (number, `0.25`–`30`, or `null`) — seconds of caller silence before the first bridge phrase fires (later intervals scale 2x/3x/4x); unset uses the service default. Passes through the same `--file` body, but production doesn't persist it yet — read back to confirm.
 
 ## Dashboards
 ```bash

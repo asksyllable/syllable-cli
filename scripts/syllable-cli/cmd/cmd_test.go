@@ -1098,7 +1098,7 @@ func TestDataSourcesList(t *testing.T) {
 	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"items": []map[string]interface{}{
-				{"id": "1", "name": "FAQ Data", "description": "FAQ content", "last_updated": "2024-01-01"},
+				{"id": "1", "name": "FAQ Data", "description": "FAQ content", "updated_at": "2024-01-01"},
 			},
 			"total_count": 1,
 		})
@@ -1114,6 +1114,10 @@ func TestDataSourcesList(t *testing.T) {
 	if !strings.Contains(out, "FAQ Data") {
 		t.Errorf("output should contain data source name, got: %s", out)
 	}
+	// The LAST_UPDATED column reads the API's "updated_at" field.
+	if !strings.Contains(out, "2024-01-01") {
+		t.Errorf("output should show the updated_at value, got: %s", out)
+	}
 }
 
 func TestDataSourcesGet(t *testing.T) {
@@ -1121,7 +1125,7 @@ func TestDataSourcesGet(t *testing.T) {
 	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 		requestPath = r.URL.Path
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"id": "5", "name": "FAQ Data", "content": "Some FAQ content",
+			"id": "5", "name": "FAQ Data", "text": "Some FAQ content", "updated_at": "2024-02-02",
 		})
 	})
 	defer server.Close()
@@ -1137,6 +1141,43 @@ func TestDataSourcesGet(t *testing.T) {
 	}
 	if !strings.Contains(out, "FAQ Data") {
 		t.Errorf("output should contain data source name, got: %s", out)
+	}
+	// The detail view reads the API's "text" field (not "content").
+	if !strings.Contains(out, "Some FAQ content") {
+		t.Errorf("output should contain the data source text, got: %s", out)
+	}
+}
+
+func TestDataSourcesCreateWithFlags(t *testing.T) {
+	var receivedBody map[string]interface{}
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		json.Unmarshal(body, &receivedBody)
+		w.WriteHeader(http.StatusCreated)
+		w.Write([]byte(`{"id":1}`))
+	})
+	defer server.Close()
+
+	cmd := dataSourcesCreateCmd()
+	cmd.SetArgs([]string{"--name", "FAQ", "--text", "Q&A text"})
+	captureStdout(func() {
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	// The document body field is "text" (not "content"), and "chunk" is required.
+	if receivedBody["text"] != "Q&A text" {
+		t.Errorf("expected text=Q&A text, got %#v", receivedBody["text"])
+	}
+	if _, ok := receivedBody["chunk"]; !ok {
+		t.Error("expected required chunk field in body")
+	}
+	if _, ok := receivedBody["content"]; ok {
+		t.Errorf("body must not contain a phantom 'content' field, got %#v", receivedBody["content"])
+	}
+	if receivedBody["name"] != "FAQ" {
+		t.Errorf("expected name=FAQ, got %#v", receivedBody["name"])
 	}
 }
 
