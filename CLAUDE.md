@@ -63,6 +63,7 @@ With `--output json`, errors include a `hint` field with the next action to take
 ## Full Reference
 
 - `AGENTS.md` — complete command reference.
+- `.claude/skills/syllable-cli/` — usage skill (gotchas, recipes, payload templates); loads automatically on CLI-usage tasks.
 - `CONTRIBUTING.md` — testing conventions, integration tests, and the release/Homebrew workflow (auto-imported below for AI sessions).
 
 @CONTRIBUTING.md

@@ -103,7 +103,7 @@ Exits 0 if at least one org is configured, exits 1 if not. Never cat the config 
 
 ## Quick Start
 
-The CLI binary (`syllable`) is pre-built and checked into the repo — no compilation needed:
+Run the CLI from source — no binary is checked in:
 
 ```bash
 cd scripts/syllable-cli && go run . --help
@@ -150,7 +150,7 @@ If `default_org` is set in `~/.syllable/config.yaml`, it's used when `--org` is 
 | `--config` | `~/.syllable/config.yaml` | Config file path |
 | `--version` / `-v` | — | Print the CLI version and exit |
 
-Auth and base URL are always sourced from `~/.syllable/config.yaml` — there are no env-var or direct key overrides. Use `--org` and `--env` to select the right credentials. Run `syllable status` to see what is configured.
+Auth and base URL are sourced from `~/.syllable/config.yaml`. Use `--org` and `--env` to select the right credentials. Run `syllable status` to see what is configured. For non-interactive use (CI, scripts), the `SYLLABLE_API_KEY` environment variable takes priority over the config file — no `syllable setup` needed.
 
 ## Common List Flags
 
@@ -269,7 +269,6 @@ syllable channels get <channel-id>   # resolved via the list endpoint (the API h
 syllable channels create --file channel.json
 syllable channels create --name NAME --service SERVICE
 syllable channels update <channel-id> --file channel.json
-syllable channels delete <channel-id>
 
 # Channel Targets
 syllable channels targets list <channel_id>
@@ -348,7 +347,7 @@ syllable outbound batches create --file batch.json
 syllable outbound batches update <batch-id> --file batch.json
 syllable outbound batches delete <batch-id>
 syllable outbound batches results <batch-id>
-syllable outbound batches requests <batch-id> --file requests.json
+syllable outbound batches add-requests <batch-id> --file requests.json
 syllable outbound batches remove-requests <batch-id> --file requests.json
 syllable outbound batches upload <batch-id> --file contacts.csv
 
@@ -421,7 +420,6 @@ syllable insights tool-configs update --file config.json
 syllable insights tool-configs delete <config-id>
 
 # Tool Definitions
-syllable insights tool-definitions list
 
 # Test a tool against sample input
 syllable insights tools-test --file sample.json
