@@ -453,7 +453,7 @@ Text knowledge bases for agents. Name must have no whitespace. Content should st
 syllable data-sources list [--page N] [--limit N] [--search TEXT]
 syllable data-sources get <data-source-id>
 syllable data-sources create --file source.json
-syllable data-sources create --name NAME --description DESC --content TEXT
+syllable data-sources create --name NAME --description DESC --text TEXT
 syllable data-sources update --file source.json
 syllable data-sources delete <data-source-id>
 ```

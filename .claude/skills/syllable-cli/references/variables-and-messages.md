@@ -79,7 +79,7 @@ Messages are configurable greetings or email templates delivered at the start of
 | `type` | enum | no | `greeting` (default) or `email_template` |
 | `label` | string | no | Label for filtering in the Console |
 | `preamble` | string | no | Uninterruptible prefix delivered before the main message (e.g., legal disclaimers). Cannot contain `{{ language.mode }}` |
-| `subject` | string | no | Email subject line. **Only valid for `email_template` type** — using it on a `greeting` causes an API rejection |
+| `subject` | string | no | Email subject line. **Only accepted on `email_template`** — including it on a `greeting` is rejected with a 422 (`subject is only allowed when type is email_template`) |
 | `rules` | array | no | Time-based rules for conditional message variants (default: `[]`) |
 
 ### Language Menu Tag

@@ -11,7 +11,7 @@ A Go CLI for managing the Syllable AI platform. Source and releases: **https://g
 
 > **Docs synced to CLI v1.8.0** (pending release) — bump this marker whenever these docs are updated for a new release.
 >
-> v1.8.0 highlights for CLI users: destructive `delete` commands now confirm interactively and need `--yes` when non-interactive; `channels delete` was removed (no such API op — use `channels targets delete`); `--output` is validated; unknown `--fields` columns warn; `--dry-run` lists any `missing_required_fields`; `--debug` redacts credentials.
+> v1.8.0 highlights for CLI users: destructive `delete` commands now confirm interactively and need `--yes` when non-interactive; `channels delete` was removed (no such API op — use `channels targets delete`); `--output` is validated; unknown `--fields` columns warn; `--dry-run` lists any `missing_required_fields`; `--debug` redacts credentials; `data-sources create` inline now takes `--text` (the document-body field) in place of the old, non-functional `--content`.
 
 ## Installation
 
@@ -105,7 +105,7 @@ All list commands support these flags:
 | `--search` | — | Search filter (field varies by resource — see table below) |
 | `--search-field` | per-resource default below | Override which field `--search` filters on (free-form, passed to the API as `search_fields`) |
 
-For sessions, the valid `--search-field` values are the `SessionProperties` enum — `syllable schema get SessionProperties` lists them (`agent_name`, `source`, `target`, `channel_manager_sid`, `prompt_name`, `is_outbound`, …). **String fields filter correctly; boolean fields (`is_test`, `is_outbound`) do not as of v1.7.1** — see `references/gotchas.md`.
+For sessions, the valid `--search-field` values are the `SessionProperties` enum — `syllable schema get SessionProperties` lists them (`agent_name`, `source`, `target`, `channel_manager_sid`, `prompt_name`, `is_outbound`, …). **String fields filter server-side; filter boolean fields (`is_test`, `is_outbound`) client-side with `jq`** — see `references/gotchas.md`.
 
 **Default search field by resource:**
 

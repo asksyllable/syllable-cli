@@ -73,7 +73,7 @@ func dataSourcesListCmd() *cobra.Command {
 					ID          json.Number `json:"id"`
 					Name        string      `json:"name"`
 					Description string      `json:"description"`
-					LastUpdated string      `json:"last_updated"`
+					LastUpdated string      `json:"updated_at"`
 					LastUpdBy   string      `json:"last_updated_by"`
 				} `json:"items"`
 				TotalCount int `json:"total_count"`
@@ -127,8 +127,9 @@ func dataSourcesGetCmd() *cobra.Command {
 				ID          json.Number `json:"id"`
 				Name        string      `json:"name"`
 				Description string      `json:"description"`
-				Content     string      `json:"content"`
-				LastUpdated string      `json:"last_updated"`
+				Text        string      `json:"text"`
+				Chunk       bool        `json:"chunk"`
+				UpdatedAt   string      `json:"updated_at"`
 				LastUpdBy   string      `json:"last_updated_by"`
 			}
 			if err := json.Unmarshal(data, &d); err != nil {
@@ -140,8 +141,9 @@ func dataSourcesGetCmd() *cobra.Command {
 				{"ID", d.ID.String()},
 				{"Name", d.Name},
 				{"Description", d.Description},
-				{"Content", output.Truncate(d.Content, 100)},
-				{"Last Updated", d.LastUpdated},
+				{"Text", output.Truncate(d.Text, 100)},
+				{"Chunk", fmt.Sprintf("%t", d.Chunk)},
+				{"Updated At", d.UpdatedAt},
 				{"Last Updated By", d.LastUpdBy},
 			}
 			printTable([]string{"FIELD", "VALUE"}, rows)
@@ -151,7 +153,7 @@ func dataSourcesGetCmd() *cobra.Command {
 }
 
 func dataSourcesCreateCmd() *cobra.Command {
-	var file, name, description, content string
+	var file, name, description, text string
 
 	cmd := &cobra.Command{
 		Use:   "create",
@@ -168,13 +170,17 @@ func dataSourcesCreateCmd() *cobra.Command {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
 			} else {
-				if name == "" {
-					return fmt.Errorf("required flags: --name (or use --file)")
+				if name == "" || text == "" {
+					return fmt.Errorf("required flags: --name, --text (or use --file)")
 				}
+				// The document body field is "text" (not "content"), and "chunk"
+				// is required by the API even though it is currently ignored
+				// server-side (treated as false).
 				body = map[string]interface{}{
 					"name":        name,
 					"description": description,
-					"content":     content,
+					"text":        text,
+					"chunk":       false,
 				}
 			}
 
@@ -191,7 +197,7 @@ func dataSourcesCreateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&file, "file", "", "Path to JSON body file")
 	cmd.Flags().StringVar(&name, "name", "", "Data source name")
 	cmd.Flags().StringVar(&description, "description", "", "Description")
-	cmd.Flags().StringVar(&content, "content", "", "Content text")
+	cmd.Flags().StringVar(&text, "text", "", "Document text the data source provides to the agent")
 
 	return cmd
 }
