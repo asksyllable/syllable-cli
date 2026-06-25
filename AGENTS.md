@@ -331,6 +331,7 @@ Individual voice or chat conversations. Captures transcript, AI summary, tool ca
 syllable sessions list [--page N] [--limit N] [--start-date DATE] [--end-date DATE]
 syllable sessions get <session-id>
 syllable sessions transcript <session-id>
+syllable sessions timeline <session-id>
 syllable sessions summary <session-id>
 syllable sessions latency <session-id>
 syllable sessions recording <session-id>
