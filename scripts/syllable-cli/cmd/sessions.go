@@ -44,6 +44,7 @@ func sessionsCmd() *cobra.Command {
 	cmd.AddCommand(sessionsListCmd())
 	cmd.AddCommand(sessionsGetCmd())
 	cmd.AddCommand(sessionsTranscriptCmd())
+	cmd.AddCommand(sessionsTimelineCmd())
 	cmd.AddCommand(sessionsSummaryCmd())
 	cmd.AddCommand(sessionsLatencyCmd())
 	cmd.AddCommand(sessionsRecordingCmd())
@@ -276,6 +277,64 @@ func sessionsTranscriptCmd() *cobra.Command {
 			rows := make([][]string, len(result.Transcription))
 			for i, t := range result.Transcription {
 				rows[i] = []string{t.Timestamp, t.Source, output.Truncate(t.Text, 80)}
+			}
+			printTable(headers, rows)
+			return nil
+		},
+	}
+}
+
+func sessionsTimelineCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "timeline <session-id>",
+		Short: "Get the consolidated, time-ordered timeline for a session",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			data, _, err := apiClient.Get("/api/v1/sessions/timeline/" + url.PathEscape(args[0]))
+			if err != nil {
+				return err
+			}
+
+			if getOutputFmt() == "json" {
+				output.PrintJSON(data)
+				return nil
+			}
+
+			var result struct {
+				SessionID string `json:"session_id"`
+				Events    []struct {
+					Kind       string   `json:"kind"`
+					Offset     string   `json:"offset"`
+					Source     *string  `json:"source"`
+					Text       *string  `json:"text"`
+					Label      *string  `json:"label"`
+					DurationMs *float64 `json:"duration_ms"`
+				} `json:"events"`
+			}
+			if err := json.Unmarshal(data, &result); err != nil {
+				output.PrintJSON(data)
+				return nil
+			}
+
+			fmt.Printf("Session: %s\n\n", result.SessionID)
+			headers := []string{"OFFSET", "KIND", "SOURCE", "LABEL", "DETAIL"}
+			rows := make([][]string, len(result.Events))
+			for i, e := range result.Events {
+				src := ""
+				if e.Source != nil {
+					src = *e.Source
+				}
+				lbl := ""
+				if e.Label != nil {
+					lbl = *e.Label
+				}
+				detail := ""
+				if e.Text != nil && *e.Text != "" {
+					detail = output.Truncate(*e.Text, 60)
+				} else if e.DurationMs != nil {
+					detail = fmt.Sprintf("%.0f ms", *e.DurationMs)
+				}
+				rows[i] = []string{e.Offset, e.Kind, src, lbl, detail}
 			}
 			printTable(headers, rows)
 			return nil
