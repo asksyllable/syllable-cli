@@ -549,6 +549,12 @@ Bridge phrases — the filler messages an agent speaks while it is delayed or a 
 syllable conversation-config bridges
 syllable conversation-config bridges-update --file bridges.json
 ```
+Both commands accept optional `--agent-id <id>` and `--tool-name <name>` query parameters to scope the config to a specific agent or tool; omit both for the org-level default config.
+```bash
+syllable conversation-config bridges --agent-id 42
+syllable conversation-config bridges --tool-name transfer_call
+syllable conversation-config bridges-update --agent-id 42 --file bridges.json
+```
 
 ### Dashboards
 **DEPRECATION WARNING:** The `sessions`, `session-events`, `session-transfers`, and `session-summary` subcommands are deprecated. Use `list` and `fetch-info` instead.

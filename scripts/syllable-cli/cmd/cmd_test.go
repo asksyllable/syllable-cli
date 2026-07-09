@@ -2153,6 +2153,105 @@ func TestConversationConfigBridges(t *testing.T) {
 	}
 }
 
+func TestConversationConfigBridgesQueryParams(t *testing.T) {
+	var query string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		query = r.URL.RawQuery
+		json.NewEncoder(w).Encode(map[string]interface{}{})
+	})
+	defer server.Close()
+
+	cmd := conversationConfigBridgesGetCmd()
+	cmd.SetArgs([]string{"--agent-id", "42", "--tool-name", "transfer_call"})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if !strings.Contains(query, "agent_id=42") {
+		t.Errorf("expected agent_id=42 in query, got: %s", query)
+	}
+	if !strings.Contains(query, "tool_name=transfer_call") {
+		t.Errorf("expected tool_name=transfer_call in query, got: %s", query)
+	}
+}
+
+func TestConversationConfigBridgesNoQueryParams(t *testing.T) {
+	var query string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		query = r.URL.RawQuery
+		json.NewEncoder(w).Encode(map[string]interface{}{})
+	})
+	defer server.Close()
+
+	// Unset --agent-id must not be sent as agent_id=0.
+	cmd := conversationConfigBridgesGetCmd()
+	cmd.SetArgs([]string{})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if query != "" {
+		t.Errorf("expected no query params, got: %s", query)
+	}
+}
+
+func TestConversationConfigBridgesExplicitAgentIDZero(t *testing.T) {
+	var query string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		query = r.URL.RawQuery
+		json.NewEncoder(w).Encode(map[string]interface{}{})
+	})
+	defer server.Close()
+
+	// An explicit --agent-id 0 is distinct from the flag being unset.
+	cmd := conversationConfigBridgesGetCmd()
+	cmd.SetArgs([]string{"--agent-id", "0"})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if !strings.Contains(query, "agent_id=0") {
+		t.Errorf("expected agent_id=0 in query, got: %s", query)
+	}
+}
+
+func TestConversationConfigBridgesUpdateQueryParams(t *testing.T) {
+	var method, requestPath, query string
+	var receivedBody map[string]interface{}
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		requestPath = r.URL.Path
+		query = r.URL.RawQuery
+		json.NewDecoder(r.Body).Decode(&receivedBody)
+		json.NewEncoder(w).Encode(map[string]interface{}{})
+	})
+	defer server.Close()
+
+	tmp := filepath.Join(t.TempDir(), "bridges.json")
+	if err := os.WriteFile(tmp, []byte(`{"messages":["one moment"]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := conversationConfigBridgesUpdateCmd()
+	cmd.SetArgs([]string{"--agent-id", "42", "--file", tmp})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "PUT" {
+		t.Errorf("expected PUT, got %s", method)
+	}
+	if requestPath != "/api/v1/conversation-config/bridges" {
+		t.Errorf("unexpected request path: %s", requestPath)
+	}
+	if !strings.Contains(query, "agent_id=42") {
+		t.Errorf("expected agent_id=42 in query, got: %s", query)
+	}
+	if receivedBody["messages"] == nil {
+		t.Errorf("expected messages in request body, got: %v", receivedBody)
+	}
+}
+
 // --- Spec-sync v0.0.3: new command coverage ---
 
 func TestAgentsLabels(t *testing.T) {
