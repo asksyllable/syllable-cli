@@ -126,7 +126,13 @@ A target links a channel to an agent, allowing users to reach the agent through 
 
 ## Responsive Dialogue (ReDi) — Bridge Phrases
 
-When `async_enabled` is true, the agent uses holding phrases to fill silence during LLM processing delays. Bridge phrases are configured at the **agent level** (not the channel level) via `conversation-config bridges`.
+When `async_enabled` is true, the agent uses holding phrases to fill silence during LLM processing delays. Bridge phrases are managed via `conversation-config bridges` and can be scoped at **three levels** (not the channel level):
+
+- **Org default** — plain `bridges` / `bridges-update` with no scope flags.
+- **Per-agent** — add `--agent-id <id>` to either command.
+- **Per-tool** — add `--tool-name <name>` (may be combined with `--agent-id`).
+
+Both `--agent-id` and `--tool-name` are optional query parameters (CLI v2.1+). A scoped GET falls back to the org default when no override exists for that agent/tool; a scoped PUT creates/updates the override without touching the org default. The API does not validate that the agent/tool exists — an unknown value simply returns the org default.
 
 Bridge phrase schema (`BridgePhraseMessages`) per language:
 
@@ -144,17 +150,22 @@ The top-level `BridgePhrasesConfig` carries the same fields plus `localized` (pe
 |-------|------|-------------|
 | `smart_turn_timeout_seconds` | number \| null | **CLI v1.7.2+ spec.** Seconds of caller silence before the agent injects the *first* bridge phrase. Range `0.25`–`30`. Subsequent sleep intervals scale to 2x / 3x / 4x this base. When unset (`null`), the service-wide default applies. |
 
-> **Not yet live on the production API** (verified 2026-06-04): `bridges-update` accepts `messages`/`randomize_messages` with 200 but the fields are silently dropped — read back to confirm. See `gotchas.md` § *Bridge Phrases*.
->
-> **`smart_turn_timeout_seconds`** (CLI v1.7.2+) is documented from the v1.7.2 release notes / spec — not live-verified. Like the other new fields it passes through the `--file` body untyped; whether the production backend persists it is unconfirmed, so read back after updating.
+> **Persistence — agent-scoped writes now stick** (verified 2026-07-09 on the `cli-test` org): an `--agent-id`-scoped `bridges-update` persisted both `messages` and `smart_turn_timeout_seconds`, confirmed by read-back. This supersedes the earlier 2026-06-04 note that these fields were silently dropped on 200. Org-default (unscoped) persistence was not separately re-verified in that run — still read back to confirm. See `gotchas.md` § *Bridge Phrases*.
 
 Manage via CLI:
 ```bash
-# View current bridge phrases
+# View the org-default bridge phrases
 syllable conversation-config bridges
 
-# Update bridge phrases
+# View an agent- or tool-scoped config (falls back to org default if no override)
+syllable conversation-config bridges --agent-id 768
+syllable conversation-config bridges --tool-name transfer_call
+
+# Update the org default
 syllable conversation-config bridges-update --file bridges.json
+
+# Create/update an agent-scoped override (leaves the org default untouched)
+syllable conversation-config bridges-update --agent-id 768 --file bridges.json
 ```
 
 ## Campaign Voicemail Detection
