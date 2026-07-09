@@ -167,7 +167,7 @@ syllable <resource> delete <id> --yes            # destructive — see note belo
 | `session-debug` | `by-session-id <id>`, `by-sid <id> <sid>`, `tool-result <id> <tool-result-id>` |
 | `takeouts` | `create --file …`, `get <id>`, `download <id> <file>` |
 | `incidents` | `organizations` |
-| `conversation-config` | `bridges`, `bridges-update --file …` |
+| `conversation-config` | `bridges`, `bridges-update --file …` — both take optional `--agent-id`/`--tool-name` to scope the config to an agent or tool (v2.1); omit for the org default |
 | `dashboards` | `list`, `sessions`, `session-events`, `session-transfers`, `session-summary`, `fetch-info --name <name>` |
 | `schema` | `list [--filter X]`, `get <SchemaName>` (local OpenAPI lookup, no API call; `-o json` is pure JSON since v1.7 — pipe straight to `jq`) |
 | `status` | no verb — prints all configured orgs/envs (read-only, local config) |

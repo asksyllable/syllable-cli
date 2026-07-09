@@ -410,9 +410,14 @@ syllable permissions list
 
 ## Conversation Config
 ```bash
-syllable conversation-config bridges                          # get bridge phrases (Console: Voices → Phrases)
+syllable conversation-config bridges                          # get org-default bridge phrases (Console: Voices → Phrases)
+syllable conversation-config bridges --agent-id 768           # agent-scoped (falls back to org default if no override)
+syllable conversation-config bridges --tool-name transfer_call # tool-scoped
 syllable conversation-config bridges-update --file bridges.json
+syllable conversation-config bridges-update --agent-id 768 --file bridges.json  # agent-scoped override
 ```
+
+**Scoping (CLI v2.1+):** both `bridges` and `bridges-update` accept optional `--agent-id <id>` and `--tool-name <name>` query parameters (combinable). Omitting both targets the org-level default. A scoped GET falls back to the org default when no override exists; a scoped PUT creates/updates that override without touching the org default. `--agent-id` is only sent when explicitly set, so an unset flag is not confused with `--agent-id 0`.
 
 **Unified messages (v1.7.1 spec):** the bridges body now supports an ordered `messages` list plus `randomize_messages` (bool, no-repeat shuffling). When `messages` is non-empty it replaces the three legacy lists (`first_slow_messages`, `very_slow_messages`, `tool_responses`); when empty, the legacy fields still apply. Both `bridges` commands are pass-through `--file` bodies. **Caveat:** production doesn't persist these fields yet — read back after updating to confirm (see `gotchas.md` § *Bridge Phrases*). Field semantics in `telephony-and-channels.md` § *Bridge Phrases*.
 
