@@ -3413,7 +3413,9 @@ func TestBridgePhrasesList(t *testing.T) {
 					"is_default":  true,
 					"config": map[string]interface{}{
 						"phrases": map[string]interface{}{
-							"messages": []string{"One moment, please.", "Let me check on that."},
+							// Three messages: no other cell in this fixture renders a "3",
+							// so the count assertion below can actually fail.
+							"messages": []string{"One moment, please.", "Let me check on that.", "Almost there."},
 						},
 					},
 					"updated_at":      "2026-07-02T00:00:00Z",
@@ -3438,8 +3440,11 @@ func TestBridgePhrasesList(t *testing.T) {
 		t.Errorf("output should contain the config name, got: %s", out)
 	}
 	// The PHRASES column is a count of the default phrase set, not the phrases.
-	if !strings.Contains(out, "2") {
+	if !strings.Contains(out, "3") {
 		t.Errorf("output should contain the phrase count, got: %s", out)
+	}
+	if strings.Contains(out, "One moment") {
+		t.Errorf("list should show a phrase count, not the phrases themselves, got: %s", out)
 	}
 }
 
