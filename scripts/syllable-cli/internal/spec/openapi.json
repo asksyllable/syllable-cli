@@ -505,6 +505,414 @@
         ]
       }
     },
+    "/api/v1/bridge_phrases/": {
+      "get": {
+        "tags": [
+          "bridge_phrases"
+        ],
+        "summary": "List Bridge Phrases",
+        "description": "Fetch bridge phrases configs.",
+        "operationId": "bridge_phrases_list",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The page number from which to start (0-based)",
+              "examples": [
+                0
+              ],
+              "default": 0,
+              "title": "Page"
+            },
+            "description": "The page number from which to start (0-based)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "The maximum number of items to return",
+              "examples": [
+                25
+              ],
+              "default": 25,
+              "title": "Limit"
+            },
+            "description": "The maximum number of items to return"
+          },
+          {
+            "name": "search_fields",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/BridgePhrasesProperties"
+              },
+              "description": "String names of fields to search. Correspond by index to search field values",
+              "examples": [
+                "name"
+              ],
+              "default": [],
+              "title": "Search Fields"
+            },
+            "description": "String names of fields to search. Correspond by index to search field values"
+          },
+          {
+            "name": "search_field_values",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Values of fields to search. Correspond by index to search fields. Unless field name contains \"list\", an individual search field value cannot be a list",
+              "examples": [
+                "Some Object Name"
+              ],
+              "default": [],
+              "title": "Search Field Values"
+            },
+            "description": "Values of fields to search. Correspond by index to search fields. Unless field name contains \"list\", an individual search field value cannot be a list"
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/BridgePhrasesProperties"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The field whose value should be used to order the results",
+              "examples": [
+                "name"
+              ],
+              "title": "Order By"
+            },
+            "description": "The field whose value should be used to order the results"
+          },
+          {
+            "name": "order_by_direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/OrderByDirection"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The direction in which to order the results",
+              "title": "Order By Direction"
+            },
+            "description": "The direction in which to order the results"
+          },
+          {
+            "name": "fields",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BridgePhrasesProperties"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The fields to include in the response",
+              "default": [],
+              "title": "Fields"
+            },
+            "description": "The fields to include in the response"
+          },
+          {
+            "name": "start_datetime",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The start datetime for filtering results",
+              "examples": [
+                "2023-01-01T00:00:00Z"
+              ],
+              "title": "Start Datetime"
+            },
+            "description": "The start datetime for filtering results"
+          },
+          {
+            "name": "end_datetime",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The end datetime for filtering results",
+              "examples": [
+                "2024-01-01T00:00:00Z"
+              ],
+              "title": "End Datetime"
+            },
+            "description": "The end datetime for filtering results"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_BridgePhrasesResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "bridge_phrases"
+        ],
+        "summary": "Create Bridge Phrases",
+        "description": "Create a new bridge phrases config.",
+        "operationId": "bridge_phrases_create",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BridgePhrasesCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BridgePhrasesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "bridge_phrases"
+        ],
+        "summary": "Update Bridge Phrases",
+        "description": "Update an existing bridge phrases config.",
+        "operationId": "bridge_phrases_update",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BridgePhrasesUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BridgePhrasesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bridge_phrases/{bridge_phrases_id}": {
+      "get": {
+        "tags": [
+          "bridge_phrases"
+        ],
+        "summary": "Get Bridge Phrases",
+        "description": "Fetch a given bridge phrases config.",
+        "operationId": "bridge_phrases_get_by_id",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "bridge_phrases_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Bridge Phrases Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BridgePhrasesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "bridge_phrases"
+        ],
+        "summary": "Delete Bridge Phrases",
+        "description": "Delete a bridge phrases config.",
+        "operationId": "bridge_phrases_delete",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "bridge_phrases_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Bridge Phrases Id"
+            }
+          },
+          {
+            "name": "reason",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Reason"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/channels/": {
       "get": {
         "tags": [
@@ -7589,6 +7997,54 @@
         }
       }
     },
+    "/api/v1/sessions/timeline/{session_id}": {
+      "get": {
+        "tags": [
+          "sessions.timeline"
+        ],
+        "summary": "Get Session Timeline By Id",
+        "description": "Consolidated, time-ordered timeline of a session's events.",
+        "operationId": "session_timeline_get_by_id",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionTimelineResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/session_debug/sid/{channel_manager_service}/{channel_manager_sid}": {
       "get": {
         "tags": [
@@ -13219,6 +13675,21 @@
               1
             ]
           },
+          "prompt_version_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Version Number",
+            "description": "Optional pin to a specific version of the prompt (prompt history version number). When omitted or null, the agent tracks the latest/current version of the prompt. When set, the agent runs that specific prompt version. Must reference an existing version of the agent's prompt.",
+            "examples": [
+              3
+            ]
+          },
           "custom_message_id": {
             "anyOf": [
               {
@@ -13245,6 +13716,21 @@
             ],
             "title": "Language Group Id",
             "description": "Internal ID of the language group associated with the agent",
+            "examples": [
+              1
+            ]
+          },
+          "bridge_phrases_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bridge Phrases Id",
+            "description": "Internal ID of the bridge phrases config associated with the agent",
             "examples": [
               1
             ]
@@ -13523,6 +14009,21 @@
               1
             ]
           },
+          "prompt_version_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Version Number",
+            "description": "Optional pin to a specific version of the prompt (prompt history version number). When omitted or null, the agent tracks the latest/current version of the prompt. When set, the agent runs that specific prompt version. Must reference an existing version of the agent's prompt.",
+            "examples": [
+              3
+            ]
+          },
           "custom_message_id": {
             "anyOf": [
               {
@@ -13549,6 +14050,21 @@
             ],
             "title": "Language Group Id",
             "description": "Internal ID of the language group associated with the agent",
+            "examples": [
+              1
+            ]
+          },
+          "bridge_phrases_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bridge Phrases Id",
+            "description": "Internal ID of the bridge phrases config associated with the agent",
             "examples": [
               1
             ]
@@ -13955,6 +14471,21 @@
               1
             ]
           },
+          "prompt_version_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Version Number",
+            "description": "Optional pin to a specific version of the prompt (prompt history version number). When omitted or null, the agent tracks the latest/current version of the prompt. When set, the agent runs that specific prompt version. Must reference an existing version of the agent's prompt.",
+            "examples": [
+              3
+            ]
+          },
           "custom_message_id": {
             "anyOf": [
               {
@@ -13981,6 +14512,21 @@
             ],
             "title": "Language Group Id",
             "description": "Internal ID of the language group associated with the agent",
+            "examples": [
+              1
+            ]
+          },
+          "bridge_phrases_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bridge Phrases Id",
+            "description": "Internal ID of the bridge phrases config associated with the agent",
             "examples": [
               1
             ]
@@ -14687,7 +15233,7 @@
             "title": "Batch Id",
             "description": "Unique ID for conversation batch",
             "examples": [
-              "20260610.9"
+              "20260729.9"
             ]
           },
           "campaign_id": {
@@ -14711,7 +15257,7 @@
             "title": "Expires On",
             "description": "Timestamp of batch expiration",
             "examples": [
-              "2026-06-11T00:00:00Z"
+              "2026-07-30T00:00:00Z"
             ]
           },
           "paused": {
@@ -14779,7 +15325,7 @@
             "title": "Created At",
             "description": "Timestamp of batch creation",
             "examples": [
-              "2026-06-10T00:00:00Z"
+              "2026-07-29T00:00:00Z"
             ]
           },
           "deleted_at": {
@@ -14795,7 +15341,7 @@
             "title": "Deleted At",
             "description": "Timestamp of batch deletion",
             "examples": [
-              "2026-06-10T00:00:00Z"
+              "2026-07-29T00:00:00Z"
             ]
           },
           "deleted_reason": {
@@ -14826,7 +15372,7 @@
             "title": "Last Updated At",
             "description": "Timestamp of last change to batch",
             "examples": [
-              "2026-06-10T00:00:00Z"
+              "2026-07-29T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -15053,7 +15599,10 @@
               }
             ],
             "title": "Delete Comments",
-            "description": "Comments explaining the deletion"
+            "description": "Comments explaining the deletion",
+            "examples": [
+              "Deleted the organization because it was no longer needed"
+            ]
           }
         },
         "type": "object",
@@ -15188,50 +15737,32 @@
         ],
         "title": "Body_pronunciations_upload_csv"
       },
-      "BridgePhraseMessages": {
+      "BridgePhrasesAgentInfo": {
         "properties": {
-          "messages": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Messages",
-            "description": "Unified ordered bridge phrases. If empty, legacy fields are used."
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "The ID of the agent.",
+            "examples": [
+              1
+            ]
           },
-          "randomize_messages": {
-            "type": "boolean",
-            "title": "Randomize Messages",
-            "description": "When true, unified messages are played in randomized no-repeat cycles. Ignored when unified messages are disabled.",
-            "default": false
-          },
-          "first_slow_messages": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "First Slow Messages",
-            "description": "Messages to say when the agent is first delayed."
-          },
-          "very_slow_messages": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Very Slow Messages",
-            "description": "Messages to say when the agent is significantly delayed."
-          },
-          "tool_responses": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Tool Responses",
-            "description": "Messages to say when a tool call is in progress."
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the agent.",
+            "examples": [
+              "Test Agent"
+            ]
           }
         },
         "type": "object",
-        "title": "BridgePhraseMessages",
-        "description": "Bridge phrase message lists for a single language."
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "BridgePhrasesAgentInfo",
+        "description": "Information about an agent linked to a bridge phrases config."
       },
       "BridgePhrasesConfig": {
         "properties": {
@@ -15275,7 +15806,7 @@
           },
           "localized": {
             "additionalProperties": {
-              "$ref": "#/components/schemas/BridgePhraseMessages"
+              "$ref": "#/components/schemas/schemas__cortex__v1__bridge_phrases__BridgePhraseMessages"
             },
             "type": "object",
             "title": "Localized",
@@ -15299,6 +15830,294 @@
         "type": "object",
         "title": "BridgePhrasesConfig",
         "description": "Configuration for conversational bridge phrases.\n\nTop-level fields are the default (English) phrases.\nThe `localized` dict provides per-language overrides keyed by BCP-47 language tag."
+      },
+      "BridgePhrasesConfigPayload": {
+        "properties": {
+          "phrases": {
+            "$ref": "#/components/schemas/lib__database__dao__organization__bridge_phrases_dao__BridgePhraseMessages",
+            "description": "Default bridge phrases (used when no tool-specific entry matches)."
+          },
+          "tools": {
+            "items": {
+              "$ref": "#/components/schemas/ToolBridgePhraseConfig"
+            },
+            "type": "array",
+            "title": "Tools",
+            "description": "Per-tool phrase overrides."
+          },
+          "smart_turn_timeout_seconds": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 30.0,
+                "minimum": 0.25
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smart Turn Timeout Seconds",
+            "description": "Seconds of caller silence before injecting the first bridge phrase. Defaults to 2.75s when omitted on write.",
+            "default": 2.75
+          },
+          "randomize_bridge_phrases": {
+            "type": "boolean",
+            "title": "Randomize Bridge Phrases",
+            "description": "Whether to randomize the order of bridge phrases. When true, the order of the bridge phrases is randomized for each call.",
+            "default": false,
+            "examples": [
+              true
+            ]
+          }
+        },
+        "type": "object",
+        "title": "BridgePhrasesConfigPayload",
+        "description": "The `config` JSONB payload stored on a bridge_phrases row.\n\nHolds the default phrases plus an inline list of per-tool overrides, each with\noptional per-language (`localized`) overrides. Mirrors the shape documented in\ndocs/bridge-phrases-table-migration.md §5.2."
+      },
+      "BridgePhrasesCreateRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the bridge phrases config.",
+            "examples": [
+              "Default Bridge Phrases"
+            ]
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Description of the bridge phrases config.",
+            "examples": [
+              "Standard hold phrases for inbound line."
+            ]
+          },
+          "config": {
+            "$ref": "#/components/schemas/BridgePhrasesConfigPayload",
+            "description": "Default phrases plus per-tool overrides."
+          },
+          "is_default": {
+            "type": "boolean",
+            "title": "Is Default",
+            "description": "Whether this config should be marked as the default for its suborg. At most one non-deleted config per suborg may be the default; the API returns a 400 if a second default is requested while another is already set.",
+            "default": false,
+            "examples": [
+              false
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "BridgePhrasesCreateRequest",
+        "description": "Request model to create a bridge phrases config."
+      },
+      "BridgePhrasesProperties": {
+        "type": "string",
+        "enum": [
+          "name",
+          "description",
+          "updated_at",
+          "last_updated_by"
+        ],
+        "title": "BridgePhrasesProperties",
+        "description": "Names of bridge phrases fields supported for filtering/sorting on list endpoint."
+      },
+      "BridgePhrasesResponse": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the bridge phrases config.",
+            "examples": [
+              "Default Bridge Phrases"
+            ]
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Description of the bridge phrases config.",
+            "examples": [
+              "Standard hold phrases for inbound line."
+            ]
+          },
+          "config": {
+            "$ref": "#/components/schemas/BridgePhrasesConfigPayload",
+            "description": "Default phrases plus per-tool overrides."
+          },
+          "is_default": {
+            "type": "boolean",
+            "title": "Is Default",
+            "description": "Whether this config is currently marked as the default for its suborg.",
+            "default": false,
+            "examples": [
+              false
+            ]
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "The ID of the bridge phrases config to update.",
+            "examples": [
+              1
+            ]
+          },
+          "edit_comments": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edit Comments",
+            "description": "Comments for the most recent edit.",
+            "examples": [
+              "Added Spanish overrides for the transfer tool."
+            ]
+          },
+          "agents_info": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/BridgePhrasesAgentInfo"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agents Info",
+            "description": "IDs and names of the agents linked to this bridge phrases config.",
+            "examples": [
+              [
+                {
+                  "id": 1,
+                  "name": "Test Agent"
+                }
+              ]
+            ]
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "Timestamp of the last update.",
+            "examples": [
+              "2026-07-02T00:00:00Z"
+            ]
+          },
+          "last_updated_by": {
+            "type": "string",
+            "title": "Last Updated By",
+            "description": "Email of the user who last updated this config.",
+            "examples": [
+              "user@mail.com"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "id",
+          "updated_at",
+          "last_updated_by"
+        ],
+        "title": "BridgePhrasesResponse",
+        "description": "Response model for bridge phrases operations.\n\nA bridge phrases config is a named, sub-org-scoped collection of default bridge\nphrases plus optional per-tool and per-language overrides that can be linked to an\nagent. For more information, see\n[Console docs](https://docs.syllable.ai/Resources/BridgePhrases)."
+      },
+      "BridgePhrasesUpdateRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the bridge phrases config.",
+            "examples": [
+              "Default Bridge Phrases"
+            ]
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Description of the bridge phrases config.",
+            "examples": [
+              "Standard hold phrases for inbound line."
+            ]
+          },
+          "config": {
+            "$ref": "#/components/schemas/BridgePhrasesConfigPayload",
+            "description": "Default phrases plus per-tool overrides."
+          },
+          "is_default": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Default",
+            "description": "Whether this config should be marked as the default for its suborg. Omit (null) to preserve the existing value; pass true/false to set or unset it. At most one non-deleted config per suborg may be the default; the API returns a 400 if a second default is requested while another is already set.",
+            "examples": [
+              true
+            ]
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "The ID of the bridge phrases config to update.",
+            "examples": [
+              1
+            ]
+          },
+          "edit_comments": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edit Comments",
+            "description": "Comments for the most recent edit.",
+            "examples": [
+              "Added Spanish overrides for the transfer tool."
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "id"
+        ],
+        "title": "BridgePhrasesUpdateRequest",
+        "description": "Request model to update an existing bridge phrases config."
       },
       "CallAction": {
         "properties": {
@@ -15585,7 +16404,7 @@
           "PENDING",
           "DUPLICATE",
           "INVALID",
-          "FAILED",
+          "UNEXPECTED_ERROR",
           "FILTERED_LINE_TYPE",
           "PROCESSED",
           "DROPPED",
@@ -15611,10 +16430,16 @@
           "BUSY",
           "CANCELED",
           "COMPLETED",
+          "DECLINED",
           "NO-ANSWER",
           "MACHINE",
           "HUMAN",
-          "UNKNOWN"
+          "UNKNOWN",
+          "FAILED",
+          "SIP_NOT_FOUND",
+          "SIP_TEMPORARILY_UNAVAILABLE",
+          "SIP_LOOP_DETECTED",
+          "SIP_DOES_NOT_EXIST_ANYWHERE"
         ],
         "title": "ChannelManagerStatus",
         "description": "Status of an outbound communication request (voice, SMS, or email)."
@@ -15961,7 +16786,7 @@
             "title": "Batch Id",
             "description": "Unique ID for conversation batch",
             "examples": [
-              "20260610.9"
+              "20260729.9"
             ]
           },
           "campaign_id": {
@@ -15985,7 +16810,7 @@
             "title": "Expires On",
             "description": "Timestamp of batch expiration",
             "examples": [
-              "2026-06-11T00:00:00Z"
+              "2026-07-30T00:00:00Z"
             ]
           },
           "paused": {
@@ -16053,7 +16878,7 @@
             "title": "Created At",
             "description": "Timestamp of batch creation",
             "examples": [
-              "2026-06-10T00:00:00Z"
+              "2026-07-29T00:00:00Z"
             ]
           },
           "deleted_at": {
@@ -16069,7 +16894,7 @@
             "title": "Deleted At",
             "description": "Timestamp of batch deletion",
             "examples": [
-              "2026-06-10T00:00:00Z"
+              "2026-07-29T00:00:00Z"
             ]
           },
           "deleted_reason": {
@@ -16100,7 +16925,7 @@
             "title": "Last Updated At",
             "description": "Timestamp of last change to batch",
             "examples": [
-              "2026-06-10T00:00:00Z"
+              "2026-07-29T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -16143,7 +16968,7 @@
             "title": "Batch Id",
             "description": "Unique ID for conversation batch",
             "examples": [
-              "20260610.9"
+              "20260729.9"
             ]
           },
           "campaign_id": {
@@ -16167,7 +16992,7 @@
             "title": "Expires On",
             "description": "Timestamp of batch expiration",
             "examples": [
-              "2026-06-11T00:00:00Z"
+              "2026-07-30T00:00:00Z"
             ]
           },
           "paused": {
@@ -16316,7 +17141,7 @@
             "title": "Created At",
             "description": "Timestamp of request creation",
             "examples": [
-              "2026-06-09T00:00:00Z"
+              "2026-07-28T00:00:00Z"
             ]
           },
           "sent_at": {
@@ -16332,7 +17157,7 @@
             "title": "Sent At",
             "description": "Timestamp at which request was sent",
             "examples": [
-              "2026-06-10T00:00:00Z"
+              "2026-07-29T00:00:00Z"
             ]
           },
           "attempt_count": {
@@ -16472,6 +17297,26 @@
               "mobile",
               "landline",
               "voip"
+            ]
+          },
+          "enrichment": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enrichment",
+            "description": "Full Twilio Lookup v2 line_type_intelligence payload resolved at ingestion (line_type / carrier_name / mcc / mnc / error_code). None when no lookup was performed.",
+            "examples": [
+              {
+                "carrier_name": "Onvoy, LLC - Sinch",
+                "line_type": "mobile",
+                "mcc": "313",
+                "mnc": "410"
+              }
             ]
           }
         },
@@ -18528,9 +19373,10 @@
           "number": {
             "type": "string",
             "title": "Number",
-            "description": "Phone number",
+            "description": "Phone number or SIP URI",
             "examples": [
-              "+1234567890"
+              "+1234567890",
+              "sip:1234567890@example.com"
             ]
           },
           "rules": {
@@ -19678,6 +20524,19 @@
         "title": "ExpressionTaskEvents",
         "description": "Actions to perform when events occur (start, submit)."
       },
+      "FilterOp": {
+        "type": "string",
+        "enum": [
+          "in",
+          "not_in",
+          "eq",
+          "neq",
+          "exists",
+          "not_exists"
+        ],
+        "title": "FilterOp",
+        "description": "Comparison operator for a single target-filter rule."
+      },
       "FolderDetails": {
         "properties": {
           "name": {
@@ -19732,7 +20591,7 @@
             "title": "Created At",
             "description": "Timestamp at which insight upload folder was created",
             "examples": [
-              "2026-06-09T00:00:00Z"
+              "2026-07-28T00:00:00Z"
             ]
           },
           "updated_at": {
@@ -19741,7 +20600,7 @@
             "title": "Updated At",
             "description": "Timestamp at which insight upload folder was last updated",
             "examples": [
-              "2026-06-10T00:00:00Z"
+              "2026-07-29T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -20744,7 +21603,7 @@
             "title": "Created At",
             "description": "Timestamp of at which insight tool configuration was created",
             "examples": [
-              "2026-06-09T00:00:00Z"
+              "2026-07-28T00:00:00Z"
             ]
           },
           "updated_at": {
@@ -20753,7 +21612,7 @@
             "title": "Updated At",
             "description": "Timestamp at which insight tool configuration was last updated",
             "examples": [
-              "2026-06-10T00:00:00Z"
+              "2026-07-29T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -21134,7 +21993,7 @@
             "title": "Start Datetime",
             "description": "Target session timestamp the workflow (backfill) should start. An empty value indicates start on activation - live sessions only",
             "examples": [
-              "2026-06-09T00:00:00Z"
+              "2026-07-28T00:00:00Z"
             ]
           },
           "end_datetime": {
@@ -21150,7 +22009,7 @@
             "title": "End Datetime",
             "description": "Target session timestamp the workflow (backfill) should end. An empty value indicates no end, i.e., include live sessions until deactivation",
             "examples": [
-              "2026-06-10T00:00:00Z"
+              "2026-07-29T00:00:00Z"
             ]
           }
         },
@@ -21225,7 +22084,7 @@
             "title": "Start Datetime",
             "description": "Target session timestamp the workflow (backfill) should start. An empty value indicates start on activation - live sessions only",
             "examples": [
-              "2026-06-09T00:00:00Z"
+              "2026-07-28T00:00:00Z"
             ]
           },
           "end_datetime": {
@@ -21241,7 +22100,7 @@
             "title": "End Datetime",
             "description": "Target session timestamp the workflow (backfill) should end. An empty value indicates no end, i.e., include live sessions until deactivation",
             "examples": [
-              "2026-06-10T00:00:00Z"
+              "2026-07-29T00:00:00Z"
             ]
           },
           "id": {
@@ -21309,7 +22168,7 @@
             "title": "Created At",
             "description": "Timestamp at which the insight workflow was created",
             "examples": [
-              "2026-06-09T00:00:00Z"
+              "2026-07-28T00:00:00Z"
             ]
           },
           "updated_at": {
@@ -21318,7 +22177,7 @@
             "title": "Updated At",
             "description": "Timestamp of most recent update to the insight workflow",
             "examples": [
-              "2026-06-10T00:00:00Z"
+              "2026-07-29T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -21414,7 +22273,7 @@
             "title": "Created At",
             "description": "Timestamp at which insight upload folder was created",
             "examples": [
-              "2026-06-09T00:00:00Z"
+              "2026-07-28T00:00:00Z"
             ]
           },
           "updated_at": {
@@ -21423,7 +22282,7 @@
             "title": "Updated At",
             "description": "Timestamp at which insight upload folder was last updated",
             "examples": [
-              "2026-06-10T00:00:00Z"
+              "2026-07-29T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -21673,7 +22532,7 @@
             "title": "Created At",
             "description": "Timestamp at which insight tool result was created",
             "examples": [
-              "2026-06-09T00:00:00Z"
+              "2026-07-28T00:00:00Z"
             ]
           },
           "updated_at": {
@@ -21682,7 +22541,7 @@
             "title": "Updated At",
             "description": "Timestamp at which insight tool result was last updated",
             "examples": [
-              "2026-06-10T00:00:00Z"
+              "2026-07-29T00:00:00Z"
             ]
           },
           "upload_file_metadata": {
@@ -21827,7 +22686,7 @@
             "title": "Start Time",
             "description": "Start time of the uploaded file",
             "examples": [
-              "2026-06-09T00:00:00Z"
+              "2026-07-28T00:00:00Z"
             ]
           },
           "end_time": {
@@ -21843,7 +22702,7 @@
             "title": "End Time",
             "description": "End time of the uploaded file",
             "examples": [
-              "2026-06-10T00:00:00Z"
+              "2026-07-29T00:00:00Z"
             ]
           },
           "error_message": {
@@ -21898,7 +22757,7 @@
             "title": "Created At",
             "description": "Timestamp at which insight upload file was created",
             "examples": [
-              "2026-06-09T00:00:00Z"
+              "2026-07-28T00:00:00Z"
             ]
           }
         },
@@ -22791,6 +23650,72 @@
           "page_size"
         ],
         "title": "ListResponse[AvailableTarget]"
+      },
+      "ListResponse_BridgePhrasesResponse_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BridgePhrasesResponse"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "List of items returned from the query",
+            "examples": []
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page",
+            "description": "The page number of the results (0-based)",
+            "examples": [
+              0
+            ]
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size",
+            "description": "The number of items returned per page",
+            "examples": [
+              25
+            ]
+          },
+          "total_pages": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Pages",
+            "description": "The total number of pages of results given the indicated page size",
+            "examples": [
+              4
+            ]
+          },
+          "total_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Count",
+            "description": "The total number of items returned from the query",
+            "examples": [
+              100
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "page",
+          "page_size"
+        ],
+        "title": "ListResponse[BridgePhrasesResponse]"
       },
       "ListResponse_ChannelTargetResponse_": {
         "properties": {
@@ -24671,6 +25596,26 @@
         "title": "LoadToolFromFileTask",
         "description": "Bootstraps a tool from a file (for internal developer use only if ENV.local=True)."
       },
+      "LocalizedBridgePhrases": {
+        "properties": {
+          "messages": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Messages",
+            "description": "Bridge phrases for this language.",
+            "examples": [
+              [
+                "Un momento, por favor."
+              ]
+            ]
+          }
+        },
+        "type": "object",
+        "title": "LocalizedBridgePhrases",
+        "description": "Per-language bridge phrase overrides (no further nesting)."
+      },
       "LoginType": {
         "type": "string",
         "enum": [
@@ -25590,22 +26535,13 @@
           "voicemail_detection": {
             "anyOf": [
               {
-                "additionalProperties": {
-                  "type": "number"
-                },
-                "type": "object"
+                "$ref": "#/components/schemas/VoicemailDetectionConfig"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Voicemail Detection",
             "description": "Config for voicemail detection for voice campaigns. Set to None to disable.",
-            "default": {
-              "voicemail_detection_overall_timeout": 30.0,
-              "voicemail_detection_pre_speech_timeout": 3.5,
-              "voicemail_detection_post_speech_timeout": 1.75
-            },
             "examples": [
               {
                 "voicemail_detection_overall_timeout": 30.0,
@@ -25644,6 +26580,41 @@
               true
             ]
           },
+          "target_filters": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TargetFilters"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Generic target filter (a flat rule list over request enrichment attributes such as line_type, carrier_name, mcc, mnc). When set, takes precedence over allowed_line_types / include_unknown_line_types. Omitted or null means those legacy fields are used instead.",
+            "examples": [
+              {
+                "match": "any",
+                "on_unknown": "include",
+                "rules": [
+                  {
+                    "field": "line_type",
+                    "op": "in",
+                    "values": [
+                      "landline",
+                      "fixedVoip",
+                      "nonFixedVoip"
+                    ]
+                  },
+                  {
+                    "field": "carrier_name",
+                    "op": "in",
+                    "values": [
+                      "Onvoy, LLC - Sinch"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
           "id": {
             "type": "integer",
             "title": "Id",
@@ -25673,7 +26644,7 @@
             "title": "Created At",
             "description": "Timestamp of campaign creation",
             "examples": [
-              "2026-06-10T00:00:00Z"
+              "2026-07-29T00:00:00Z"
             ]
           },
           "updated_at": {
@@ -25682,7 +26653,7 @@
             "title": "Updated At",
             "description": "Timestamp of campaign update",
             "examples": [
-              "2026-06-10T00:00:00Z"
+              "2026-07-29T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -25706,7 +26677,7 @@
               }
             ],
             "title": "Webhooks",
-            "description": "Webhooks for campaign (note: this is an in-development feature - webhooks will not yet trigger even if configured)",
+            "description": "Webhooks for campaign",
             "examples": [
               {
                 "id": 1,
@@ -25966,22 +26937,13 @@
           "voicemail_detection": {
             "anyOf": [
               {
-                "additionalProperties": {
-                  "type": "number"
-                },
-                "type": "object"
+                "$ref": "#/components/schemas/VoicemailDetectionConfig"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Voicemail Detection",
             "description": "Config for voicemail detection for voice campaigns. Set to None to disable.",
-            "default": {
-              "voicemail_detection_overall_timeout": 30.0,
-              "voicemail_detection_pre_speech_timeout": 3.5,
-              "voicemail_detection_post_speech_timeout": 1.75
-            },
             "examples": [
               {
                 "voicemail_detection_overall_timeout": 30.0,
@@ -26020,13 +26982,48 @@
               true
             ]
           },
+          "target_filters": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TargetFilters"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Generic target filter (a flat rule list over request enrichment attributes such as line_type, carrier_name, mcc, mnc). When set, takes precedence over allowed_line_types / include_unknown_line_types. Omitted or null means those legacy fields are used instead.",
+            "examples": [
+              {
+                "match": "any",
+                "on_unknown": "include",
+                "rules": [
+                  {
+                    "field": "line_type",
+                    "op": "in",
+                    "values": [
+                      "landline",
+                      "fixedVoip",
+                      "nonFixedVoip"
+                    ]
+                  },
+                  {
+                    "field": "carrier_name",
+                    "op": "in",
+                    "values": [
+                      "Onvoy, LLC - Sinch"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
           "webhooks": {
             "items": {
               "$ref": "#/components/schemas/OutboundCampaignWebhookInput"
             },
             "type": "array",
             "title": "Webhooks",
-            "description": "Webhooks for campaign (note: this is an in-development feature - webhooks will not yet trigger even if configured)",
+            "description": "Webhooks for campaign",
             "default": [],
             "examples": [
               {
@@ -26613,7 +27610,8 @@
               }
             ],
             "title": "Version",
-            "description": "Optional model version.",
+            "description": "Deprecated model version. This value is ignored and resolved automatically.",
+            "deprecated": true,
             "examples": [
               "2024-05-13"
             ]
@@ -28244,6 +29242,18 @@
             ],
             "title": "Tool Error",
             "description": "Error received from the tool API, if applicable"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms",
+            "description": "How long the tool invocation took, in milliseconds"
           }
         },
         "type": "object",
@@ -28712,6 +29722,43 @@
         "title": "SessionText",
         "description": "Information about a given message from a user to an agent or vice-versa."
       },
+      "SessionTimelineResponse": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "title": "Session Id",
+            "description": "Internal ID of the session"
+          },
+          "session_start": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Start",
+            "description": "The call's start (placement) time; the zero point for all offsets. Falls back to the first transcript turn for legacy sessions with no session_start event."
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/TimelineEvent"
+            },
+            "type": "array",
+            "title": "Events",
+            "description": "All events, ordered by timestamp ascending"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "events"
+        ],
+        "title": "SessionTimelineResponse",
+        "description": "Consolidated, time-ordered timeline of a session's events."
+      },
       "SessionTranscriptionResponse": {
         "properties": {
           "session_id": {
@@ -28863,6 +29910,126 @@
           "name"
         ],
         "title": "SetValueAction"
+      },
+      "SipConfiguration": {
+        "properties": {
+          "sip_transfer_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SipTransferMode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How to perform the SIP transfer, INVITE or REFER.",
+            "examples": [
+              "refer"
+            ]
+          },
+          "sip_endpoints": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SipEndpoint"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sip Endpoints",
+            "description": "List of SIP endpoints to attempt for the transfer.",
+            "examples": [
+              [
+                {
+                  "host": "10.0.0.1",
+                  "port": "5060",
+                  "transport": "tcp"
+                },
+                {
+                  "host": "pbx.example.com",
+                  "port": "5071",
+                  "transport": "tls"
+                }
+              ]
+            ]
+          }
+        },
+        "type": "object",
+        "title": "SipConfiguration",
+        "description": "SIP routing configuration for transferring a call to a destination.\n\nThis is internal telephony/routing configuration used to direct a transfer to specific\nSIP endpoints."
+      },
+      "SipEndpoint": {
+        "properties": {
+          "host": {
+            "type": "string",
+            "title": "Host",
+            "description": "SIP endpoint host (IP address or hostname).",
+            "examples": [
+              "10.0.0.1",
+              "pbx.example.com"
+            ]
+          },
+          "port": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Port",
+            "description": "SIP endpoint port.",
+            "examples": [
+              "5060",
+              "5071"
+            ]
+          },
+          "transport": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SipTransport"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SIP transport protocol, e.g. `tcp`, `tls` or `udp`.",
+            "examples": [
+              "tcp",
+              "tls",
+              "udp"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "host"
+        ],
+        "title": "SipEndpoint",
+        "description": "A single SIP endpoint to attempt for a transfer."
+      },
+      "SipTransferMode": {
+        "type": "string",
+        "enum": [
+          "refer",
+          "invite"
+        ],
+        "title": "SipTransferMode",
+        "description": "How a call should be transferred to a SIP endpoint."
+      },
+      "SipTransport": {
+        "type": "string",
+        "enum": [
+          "tls",
+          "tcp",
+          "udp"
+        ],
+        "title": "SipTransport",
+        "description": "The transport protocol to use for the SIP endpoint."
       },
       "StaticToolParameter": {
         "properties": {
@@ -29396,7 +30563,8 @@
               }
             ],
             "title": "Version",
-            "description": "Model version.",
+            "description": "Deprecated model version retained for backward compatibility.",
+            "deprecated": true,
             "examples": [
               "2024-05-13"
             ]
@@ -29481,6 +30649,113 @@
           "updated_at"
         ],
         "title": "TakeoutStatusResponse"
+      },
+      "TargetFilterRule": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field",
+            "description": "Enrichment attribute to match on (a key in the request enrichment payload).",
+            "examples": [
+              "line_type",
+              "carrier_name",
+              "mnc"
+            ]
+          },
+          "op": {
+            "$ref": "#/components/schemas/FilterOp",
+            "description": "Comparison operator.",
+            "examples": [
+              "in",
+              "not_in"
+            ]
+          },
+          "values": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Values",
+            "description": "Values to compare against. Ignored for exists / not_exists.",
+            "examples": [
+              [
+                "landline",
+                "fixedVoip",
+                "nonFixedVoip"
+              ]
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "field",
+          "op"
+        ],
+        "title": "TargetFilterRule",
+        "description": "A single predicate over one enrichment attribute of an outbound request.\n\n``field`` names a key in the request's enrichment payload (e.g. ``line_type``, ``carrier_name``,\n``mcc``, ``mnc``). Any attribute captured at lookup time can be filtered on with no code change."
+      },
+      "TargetFilters": {
+        "properties": {
+          "match": {
+            "type": "string",
+            "enum": [
+              "all",
+              "any"
+            ],
+            "title": "Match",
+            "description": "How to combine rules: 'all' (AND) or 'any' (OR).",
+            "default": "all",
+            "examples": [
+              "all",
+              "any"
+            ]
+          },
+          "on_unknown": {
+            "type": "string",
+            "enum": [
+              "include",
+              "exclude"
+            ],
+            "title": "On Unknown",
+            "description": "Whether to dial requests whose enrichment is unresolved (no lookup data).",
+            "default": "include",
+            "examples": [
+              "include",
+              "exclude"
+            ]
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/TargetFilterRule"
+            },
+            "type": "array",
+            "title": "Rules",
+            "description": "Predicates over request enrichment attributes. Empty means no filter.",
+            "examples": [
+              [
+                {
+                  "field": "line_type",
+                  "op": "in",
+                  "values": [
+                    "landline",
+                    "fixedVoip",
+                    "nonFixedVoip"
+                  ]
+                },
+                {
+                  "field": "carrier_name",
+                  "op": "in",
+                  "values": [
+                    "Onvoy, LLC - Sinch"
+                  ]
+                }
+              ]
+            ]
+          }
+        },
+        "type": "object",
+        "title": "TargetFilters",
+        "description": "Generic target filter for an outbound campaign: a flat list of rules over request enrichment.\n\nA request is *dialable* when it matches the ruleset (``match='all'`` -> every rule; ``'any'`` ->\nat least one rule); non-matching requests are skipped. ``on_unknown`` decides the fate of\nrequests whose enrichment never resolved (no lookup / lookup failed). An empty ``rules`` list\nmeans no filter (all numbers dialed), matching the pre-filter behavior."
       },
       "TargetModes": {
         "type": "string",
@@ -29627,6 +30902,17 @@
             ],
             "title": "Transfer Leg Voicemail Detection Enabled",
             "description": "Whether transfer leg voicemail detection is enabled"
+          },
+          "sip_configuration": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SipConfiguration"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SIP routing configuration applied when transferring calls on this channel"
           }
         },
         "type": "object",
@@ -29756,6 +31042,194 @@
         "title": "TestMessageResponse",
         "description": "Response from an agent in a test chat."
       },
+      "TimelineEvent": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/TimelineEventKind",
+            "description": "Which stream this event came from"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp",
+            "description": "Absolute time of the event (for ordering)"
+          },
+          "offset": {
+            "type": "string",
+            "title": "Offset",
+            "description": "Time since session start, formatted MM:SS (or HH:MM:SS)",
+            "examples": [
+              "00:04"
+            ]
+          },
+          "turn_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turn Index",
+            "description": "0-based index of the transcript turn. Transcript events carry their own turn index; tool/latency events carry the index of the nearest preceding turn they bind to. None only for non-transcript events that precede the first transcript turn."
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "\"user\" or \"agent\" (transcript events)"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "Message content (transcript events)"
+          },
+          "lang": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lang",
+            "description": "Language code (transcript events)"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category",
+            "description": "tool | llm | tts | stt | http. A tool call surfaces once, as a `kind=tool` event; its redundant tool-latency measurement is dropped from the timeline.",
+            "examples": [
+              "tool",
+              "llm"
+            ]
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "Tool name (tool events) or the latency measurement name (e.g. stt_processing)",
+            "examples": [
+              "holiday_check",
+              "stt_processing"
+            ]
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "Provider/model parts of a latency label",
+            "examples": [
+              [
+                "Gpt-4.1",
+                "OpenAI"
+              ]
+            ]
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms",
+            "description": "Duration of the event in milliseconds"
+          },
+          "tool_request": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Request",
+            "description": "Tool request payload, JSON-encoded"
+          },
+          "tool_result": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Result",
+            "description": "Tool response payload, JSON-encoded"
+          },
+          "tool_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Error",
+            "description": "Tool error payload, JSON-encoded"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "timestamp",
+          "offset"
+        ],
+        "title": "TimelineEvent",
+        "description": "A single normalized event on the consolidated session timeline."
+      },
+      "TimelineEventKind": {
+        "type": "string",
+        "enum": [
+          "transcript",
+          "tool",
+          "latency"
+        ],
+        "title": "TimelineEventKind"
+      },
       "ToolAgentInfo": {
         "properties": {
           "id": {
@@ -29803,6 +31277,26 @@
           "oauth2"
         ],
         "title": "ToolAuthType"
+      },
+      "ToolBridgePhraseConfig": {
+        "properties": {
+          "tool_name": {
+            "type": "string",
+            "title": "Tool Name",
+            "description": "Name of the tool these phrases override."
+          },
+          "phrases": {
+            "$ref": "#/components/schemas/lib__database__dao__organization__bridge_phrases_dao__BridgePhraseMessages",
+            "description": "Phrase messages for this tool."
+          }
+        },
+        "type": "object",
+        "required": [
+          "tool_name",
+          "phrases"
+        ],
+        "title": "ToolBridgePhraseConfig",
+        "description": "Per-tool bridge phrase override entry."
       },
       "ToolCreateRequest": {
         "properties": {
@@ -32295,6 +33789,164 @@
         ],
         "title": "VoiceSampleCreateRequest",
         "description": "Request model to generate a sample audio file for a given voice and language."
+      },
+      "VoicemailDetectionConfig": {
+        "properties": {
+          "mode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "v1",
+                  "v2"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mode",
+            "description": "Voicemail-detection strategy: 'v1' (original check_voicemail/leave_voicemail) or 'v2' (Voicemail Detection 2, which suppresses the turn-0 greeting and uses the greeting tool). The two modes are mutually exclusive. Omitted/null on legacy v1 campaigns is treated as v1.",
+            "examples": [
+              "v1",
+              "v2"
+            ]
+          },
+          "voicemail_detection_overall_timeout": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voicemail Detection Overall Timeout"
+          },
+          "voicemail_detection_pre_speech_timeout": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voicemail Detection Pre Speech Timeout"
+          },
+          "voicemail_detection_post_speech_timeout": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voicemail Detection Post Speech Timeout"
+          },
+          "voicemail_detection_speech_threshold": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voicemail Detection Speech Threshold"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "VoicemailDetectionConfig",
+        "description": "Voicemail detection config stored on outbound_campaign.voicemail_detection.\n\n`mode` selects the (mutually-exclusive) strategy; the remaining fields are detection timeouts.\nUnknown keys are preserved (`extra='allow'`) so the schema stays backwards compatible with blobs\nwritten before fields were added. See ZOO-7818."
+      },
+      "lib__database__dao__organization__bridge_phrases_dao__BridgePhraseMessages": {
+        "properties": {
+          "messages": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Messages",
+            "description": "Ordered bridge phrases for this scope.",
+            "examples": [
+              [
+                "One moment, please.",
+                "Let me check on that for you."
+              ]
+            ]
+          },
+          "localized": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/LocalizedBridgePhrases"
+            },
+            "type": "object",
+            "title": "Localized",
+            "description": "Per-language overrides keyed by BCP-47 tag (e.g. \"es-US\").",
+            "example": {
+              "es-US": {
+                "messages": [
+                  "Un momento, por favor."
+                ]
+              },
+              "fr-FR": {
+                "messages": [
+                  "Un instant, je vous en prie."
+                ]
+              }
+            }
+          }
+        },
+        "type": "object",
+        "title": "BridgePhraseMessages",
+        "description": "Bridge phrase messages for a single scope (default or one tool)."
+      },
+      "schemas__cortex__v1__bridge_phrases__BridgePhraseMessages": {
+        "properties": {
+          "messages": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Messages",
+            "description": "Unified ordered bridge phrases. If empty, legacy fields are used."
+          },
+          "randomize_messages": {
+            "type": "boolean",
+            "title": "Randomize Messages",
+            "description": "When true, unified messages are played in randomized no-repeat cycles. Ignored when unified messages are disabled.",
+            "default": false
+          },
+          "first_slow_messages": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "First Slow Messages",
+            "description": "Messages to say when the agent is first delayed."
+          },
+          "very_slow_messages": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Very Slow Messages",
+            "description": "Messages to say when the agent is significantly delayed."
+          },
+          "tool_responses": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tool Responses",
+            "description": "Messages to say when a tool call is in progress."
+          }
+        },
+        "type": "object",
+        "title": "BridgePhraseMessages",
+        "description": "Bridge phrase message lists for a single language."
       }
     },
     "securitySchemes": {
