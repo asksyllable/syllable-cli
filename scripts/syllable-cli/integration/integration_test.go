@@ -552,8 +552,13 @@ func TestBridgePhrasesCRUD(t *testing.T) {
 	// Update — exercises the nested config payload the inline create can't send:
 	// a default phrase set, a per-language override, and a per-tool override.
 	updName := name + " Updated"
+	// `id` is deliberately omitted so the positional argument is injected by
+	// ensureBodyIdentifier as a JSON *integer*. mustExtractField returns a
+	// string, and a body id that's already present is passed through untouched —
+	// so spelling it here would send "id":"7" and pass only while the backend
+	// coerces it (#116). Omitting it exercises both the correct wire type and the
+	// path real users hit.
 	updateBody := map[string]interface{}{
-		"id":          id,
 		"name":        updName,
 		"description": "integration test config",
 		"config": map[string]interface{}{
