@@ -36,7 +36,7 @@ Quick reference for every resource: what it is, key fields, and hard constraints
 | **Incidents** | Platform incident tracking | name, status | — |
 | **Organizations** | Current organization | display_name, slug, description | API exposes the **current** org only — `get` returns it; `update` modifies it. Create and delete are intentionally not exposed via CLI — use the web console for both. `sip-ip-ranges` (list/create/update/delete) manages signaling & media SIP IP ranges in CIDR notation. |
 | **Permissions** | System-wide permissions | name | Read-only. |
-| **Bridge Phrases** | Named, reusable hold-phrase configs spoken while a tool call is in flight | name, description, is_default, config (phrases.messages, phrases.localized, tools[].tool_name, smart_turn_timeout_seconds, randomize_bridge_phrases) | At most one non-deleted config per suborg may be the default. Attach to an agent via the agent's `bridge_phrases_id`. `update` is a PUT on the collection keyed by the body `id`, and replaces the fields you send. Distinct from **Conversation Config (Bridges)**. |
+| **Bridge Phrases** | Named, reusable hold-phrase configs spoken while a tool call is in flight | name, description, is_default, config (phrases.messages, phrases.localized, tools[].tool_name, smart_turn_timeout_seconds, randomize_bridge_phrases) | At most one non-deleted config per suborg may be the default. Name is unique per suborg. Attach to an agent via the agent's `bridge_phrases_id`; delete is blocked (400) while agents are attached. `update` is a PUT on the collection keyed by the body `id`, and replaces the fields you send. Distinct from **Conversation Config (Bridges)**. |
 | **Conversation Config (Bridges)** | Bridge phrases — filler messages spoken during delays and tool calls (Console: Voices → Phrases) | first_slow_messages, very_slow_messages, tool_responses, messages, randomize_messages | Supports per-language overrides via `localized`. Scoped by optional `--agent-id` / `--tool-name`; a single config, not a named resource — see **Bridge Phrases** for those. |
 | **Schema** | Explore API request/response shapes from embedded OpenAPI spec | type name | No API call made. Use before create/update to find required fields. |
 
@@ -560,6 +560,8 @@ Constraints and gotchas:
 - **`update` is a full replacement of the fields you send** — fetch the current config first rather than sending a partial body. Omitting `is_default` (or sending `null`) preserves the current flag.
 - **`update` is a PUT on the collection**, keyed by the `id` in the body. The positional id is optional and is reconciled with the body — a mismatch is an error.
 - **At most one non-deleted config per suborg may be the default.**
+- **Names are unique per suborg** among non-deleted configs — a duplicate name is a 400 on create or update.
+- **Delete is blocked while agents are attached** (400: `Cannot delete bridge phrases config with associated agents`) — clear or repoint each agent's `bridge_phrases_id` first.
 - The inline `create` flags produce an **empty phrase set**; use `--file` to set the phrases themselves. See `syllable schema get BridgePhrasesCreateRequest`.
 - `get` **summarizes** the nested config as a table (phrase preview, language tags, tool names). Use `--output json` for the full phrase lists.
 

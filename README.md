@@ -487,7 +487,9 @@ Notes:
 
 - **`update` replaces the fields you send**, so fetch first rather than sending a partial body: `syllable bridge-phrases get 1 --output json | jq '.name = "Renamed"' | syllable bridge-phrases update 1 --file -`. Omitting `is_default` preserves the current flag.
 - **At most one non-deleted config per suborg may be the default.** Marking a second one is rejected with a 400 (`Another bridge phrases config is already marked as the default for this suborg`) — unset the current default first. New agents pick up the suborg default automatically when created without an explicit `bridge_phrases_id`.
+- **Names are unique per suborg** among non-deleted configs — creating or renaming to a name that already exists is rejected with a 400.
 - **Attach a config to an agent** by setting the agent's `bridge_phrases_id` field.
+- **A config with agents attached cannot be deleted** — the API returns a 400 (`Cannot delete bridge phrases config with associated agents`). Clear or repoint each agent's `bridge_phrases_id` first; `get` shows the attached agents.
 - `get` summarizes the nested config (phrase counts, languages, tool names); use `--output json` for the full phrase lists.
 - **Not the same as `conversation-config bridges`**, which reads and writes a *single* config scoped to the org, an agent, or a tool. The two share vocabulary, overlap in effect, and have **separate storage**.
 

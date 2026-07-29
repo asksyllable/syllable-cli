@@ -428,7 +428,7 @@ syllable bridge-phrases delete <bridge-phrases-id> --yes
 
 | Field | Type | Notes |
 |---|---|---|
-| `name` | string | Required. |
+| `name` | string | Required; unique per suborg among non-deleted configs — a duplicate is a 400 on create or update. |
 | `description` | string \| null | — |
 | `is_default` | bool | At most one non-deleted config per suborg. On `update`, omit or send `null` to preserve the current flag. |
 | `id` | int | Required on `update` — the collection PUT routes by it. The positional id is reconciled with it; a mismatch errors. |
@@ -444,6 +444,8 @@ syllable bridge-phrases delete <bridge-phrases-id> --yes
 syllable agents get 768 -o json | jq '.bridge_phrases_id = 3' | syllable agents update 768 --file -
 ```
 Read-only response fields: `agents_info` (ids + names of agents using the config), `updated_at`, `last_updated_by`.
+
+`delete` is refused with a 400 while any agent is attached (`Cannot delete bridge phrases config with associated agents`) — `agents_info` on `get` shows which; clear or repoint each agent's `bridge_phrases_id` first.
 
 > **Live-verified** (2026-07-29, `cli-test` + CI org). The whole nested config round-trips: `phrases.messages`, `phrases.localized`, `tools[]` (incl. per-tool phrases), `smart_turn_timeout_seconds`, and `randomize_bridge_phrases` all come back as written. Each is asserted in `TestBridgePhrasesCRUD`, so a regression fails the live gate. This covers `bridge-phrases` only — `conversation-config`'s persistence was not tested, and its notes in `gotchas.md` are contradictory; don't assume either surface behaves like the other.
 
