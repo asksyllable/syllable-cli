@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -152,6 +153,7 @@ func bridgePhrasesGetCmd() *cobra.Command {
 				for tag := range b.Config.Phrases.Localized {
 					langs = append(langs, tag)
 				}
+				sort.Strings(langs)
 
 				return [][]string{
 					{"ID", b.ID.String()},
