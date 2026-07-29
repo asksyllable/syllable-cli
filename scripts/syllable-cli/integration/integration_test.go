@@ -587,8 +587,7 @@ func TestBridgePhrasesCRUD(t *testing.T) {
 	// Read back and assert on *typed* values. Every field written above is
 	// checked, because the failure mode here is a silent drop: the API answers
 	// 200 whether or not it stored a nested field, so anything not asserted is
-	// not actually covered (the conversation-config equivalents of the two
-	// scalars below are silently dropped today — see cli#100).
+	// not actually covered.
 	//
 	// Parsed rather than substring-matched: PrintJSON runs the server's bytes
 	// through json.Indent, which preserves its colon spacing, so `"k": v` vs
