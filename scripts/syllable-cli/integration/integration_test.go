@@ -525,3 +525,60 @@ func TestChannelsTwilioVerifyA2p(t *testing.T) {
 	out := mustRunCLI(t, "channels", "twilio", "numbers-verify-a2p-compliance", channelID, "--phone", phone)
 	assertContains(t, string(out), "a2p_approved")
 }
+
+// ---------------------------------------------------------------------------
+// Bridge Phrases — spec-sync v0.0.3
+// ---------------------------------------------------------------------------
+
+func TestBridgePhrasesCRUD(t *testing.T) {
+	name := testName("BridgePhrases")
+
+	// Create. is_default is left false — at most one non-deleted config per
+	// suborg may be the default, so claiming it would fight the org's real one.
+	out := mustRunCLI(t, "bridge-phrases", "create", "--name", name, "--description", "integration test config")
+	id := mustExtractField(t, out, "id")
+	t.Logf("created bridge phrases config id=%s", id)
+
+	registerDelete("bridge-phrases", "delete", id)
+
+	// Get
+	out = mustRunCLI(t, "bridge-phrases", "get", id)
+	assertContains(t, string(out), name)
+
+	// List
+	out = mustRunCLI(t, "bridge-phrases", "list", "--search", "[TEST-INTEG]")
+	assertContains(t, string(out), name)
+
+	// Update — exercises the nested config payload the inline create can't send:
+	// a default phrase set, a per-language override, and a per-tool override.
+	updName := name + " Updated"
+	updateBody := map[string]interface{}{
+		"id":          id,
+		"name":        updName,
+		"description": "integration test config",
+		"config": map[string]interface{}{
+			"phrases": map[string]interface{}{
+				"messages": []string{"One moment, please.", "Let me check on that."},
+				"localized": map[string]interface{}{
+					"es-US": map[string]interface{}{"messages": []string{"Un momento, por favor."}},
+				},
+			},
+			"tools":                      []interface{}{},
+			"smart_turn_timeout_seconds": 1.5,
+			"randomize_bridge_phrases":   true,
+		},
+		"edit_comments": "updated by integration test",
+	}
+	f := writeTempJSON(t, updateBody)
+	out = mustRunCLI(t, "bridge-phrases", "update", id, "--file", f)
+	assertContains(t, string(out), updName)
+
+	// Read back — proves the nested config round-trips rather than being dropped.
+	out = mustRunCLI(t, "bridge-phrases", "get", id, "--output", "json")
+	for _, want := range []string{"One moment, please.", "es-US", "Un momento, por favor."} {
+		assertContains(t, string(out), want)
+	}
+
+	// Delete
+	mustRunCLI(t, "bridge-phrases", "delete", id)
+}

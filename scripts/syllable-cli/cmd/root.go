@@ -295,6 +295,7 @@ func init() {
 	rootCmd.AddCommand(permissionsCmd())
 	rootCmd.AddCommand(conversationConfigCmd())
 	rootCmd.AddCommand(dashboardsCmd())
+	rootCmd.AddCommand(bridgePhrasesCmd())
 }
 
 func initConfig() {
