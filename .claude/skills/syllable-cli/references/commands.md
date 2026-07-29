@@ -445,7 +445,7 @@ syllable agents get 768 -o json | jq '.bridge_phrases_id = 3' | syllable agents 
 ```
 Read-only response fields: `agents_info` (ids + names of agents using the config), `updated_at`, `last_updated_by`.
 
-> **Not live-verified yet.** These endpoints are new in the v0.0.3 spec sync — read back after every write to confirm the nested config fields persisted.
+> **Partly live-verified** (2026-07-29, CI org). `config.phrases.messages` and `config.phrases.localized` round-trip correctly — confirmed by a create → update → read-back cycle. `smart_turn_timeout_seconds`, `randomize_bridge_phrases`, and `config.tools[]` are **not** yet confirmed to persist; read back after writing any of them. See `gotchas.md` § *Bridge Phrases — two separate surfaces*.
 
 ## Conversation Config
 Reads/writes a **single** config in place — not named resources. See `bridge-phrases` above for those. **Slated for deprecation** in favor of `bridge-phrases`; confirm which surface the org uses before writing (see the note under *Bridge Phrases* above).
