@@ -408,7 +408,45 @@ syllable events list [--page N] [--limit N]
 syllable permissions list
 ```
 
+## Bridge Phrases
+Named, reusable hold-phrase configs (CLI v2.1+). **Distinct from `conversation-config bridges`** below — see `gotchas.md` § *Bridge Phrases — two separate surfaces*.
+```bash
+syllable bridge-phrases list [--page N] [--limit N] [--search TEXT] [--search-field name|description|updated_at|last_updated_by]
+syllable bridge-phrases get <bridge-phrases-id>
+syllable bridge-phrases create --name NAME [--description TEXT] [--default]   # empty phrase set
+syllable bridge-phrases create --file bridge-phrases.json                     # full body
+syllable bridge-phrases update <bridge-phrases-id> --file bridge-phrases.json # PUT on collection, keyed by body id
+syllable bridge-phrases delete <bridge-phrases-id> --yes
+```
+
+**List columns:** ID, NAME, DESCRIPTION, DEFAULT, PHRASES (count of the default phrase set), UPDATED_AT.
+**Get fields:** ID, Name, Description, Is Default, Phrases, Localized (language tags), Tool Overrides (tool names), Smart Turn Timeout, Randomize, Agents, Edit Comments, Updated At, Last Updated By. The nested config is **summarized** — use `-o json` for the full phrase lists.
+
+**Body shape** (`schema get BridgePhrasesCreateRequest` / `BridgePhrasesUpdateRequest`):
+
+| Field | Type | Notes |
+|---|---|---|
+| `name` | string | Required. |
+| `description` | string \| null | — |
+| `is_default` | bool | At most one non-deleted config per suborg. On `update`, omit or send `null` to preserve the current flag. |
+| `id` | int | Required on `update` — the collection PUT routes by it. The positional id is reconciled with it; a mismatch errors. |
+| `edit_comments` | string \| null | Comment on the most recent edit. |
+| `config.phrases.messages` | string[] | Ordered default phrases. |
+| `config.phrases.localized` | `{"<bcp-47>": {messages: []}}` | Per-language overrides, e.g. `"es-US"`. |
+| `config.tools[]` | `{tool_name, phrases}` | Per-tool overrides; `phrases` has the same shape as `config.phrases`. |
+| `config.smart_turn_timeout_seconds` | number \| null | `0.25`–`30`. Caller silence before a phrase is injected. |
+| `config.randomize_bridge_phrases` | bool | Randomize phrase order. |
+
+**Attach to an agent** via the agent's `bridge_phrases_id` (no dedicated flag — send it in the `--file` body):
+```bash
+syllable agents get 768 -o json | jq '.bridge_phrases_id = 3' | syllable agents update 768 --file -
+```
+Read-only response fields: `agents_info` (ids + names of agents using the config), `updated_at`, `last_updated_by`.
+
+> **Not live-verified yet.** These endpoints are new in the v0.0.3 spec sync — read back after every write to confirm the nested config fields persisted.
+
 ## Conversation Config
+Reads/writes a **single** config in place — not named resources. See `bridge-phrases` above for those.
 ```bash
 syllable conversation-config bridges                          # get org-default bridge phrases (Console: Voices → Phrases)
 syllable conversation-config bridges --agent-id 768           # agent-scoped (falls back to org default if no override)

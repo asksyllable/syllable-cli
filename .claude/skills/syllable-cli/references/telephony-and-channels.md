@@ -134,7 +134,9 @@ When `async_enabled` is true, the agent uses holding phrases to fill silence dur
 
 Both `--agent-id` and `--tool-name` are optional query parameters (CLI v2.1+). A scoped GET falls back to the org default when no override exists for that agent/tool; a scoped PUT creates/updates the override without touching the org default. The API does not validate that the agent/tool exists — an unknown value simply returns the org default.
 
-Bridge phrase schema (`BridgePhraseMessages`) per language:
+> **A second surface exists.** The `bridge-phrases` command (CLI v2.1+) manages **named, reusable** configs attached to an agent via the agent's `bridge_phrases_id` — separate endpoints, separate storage, and a different field shape (`config.phrases.messages` + `config.tools[]` rather than the three legacy `*_messages` lists). Everything in this section describes `conversation-config bridges` only. See `commands.md` § *Bridge Phrases* and `gotchas.md` § *Bridge Phrases — two separate surfaces*.
+
+Bridge phrase schema (`schemas__cortex__v1__bridge_phrases__BridgePhraseMessages`) per language:
 
 | Field | Type | Description |
 |-------|------|-------------|

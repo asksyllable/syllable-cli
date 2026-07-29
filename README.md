@@ -451,6 +451,46 @@ syllable custom-messages update <id> --file message.json
 syllable custom-messages delete <id>
 ```
 
+### Bridge Phrases
+
+Bridge phrases are the hold phrases an agent speaks while a tool call is in flight ("One moment, please."). A config carries a default phrase set, optional per-tool overrides, and optional per-language variants.
+
+```bash
+syllable bridge-phrases list [--search TEXT]
+syllable bridge-phrases get <id>
+syllable bridge-phrases create --name NAME [--description TEXT] [--default]
+syllable bridge-phrases create --file bridge-phrases.json
+syllable bridge-phrases update <id> --file bridge-phrases.json
+syllable bridge-phrases delete <id>
+```
+
+The inline `create` flags make a config with an empty phrase set. To set the phrases themselves, use `--file` — `syllable schema get BridgePhrasesCreateRequest` shows the full body:
+
+```json
+{
+  "name": "Inbound Hold",
+  "config": {
+    "phrases": {
+      "messages": ["One moment, please.", "Let me check on that."],
+      "localized": { "es-US": { "messages": ["Un momento, por favor."] } }
+    },
+    "tools": [
+      { "tool_name": "lookup_order", "phrases": { "messages": ["Checking your order."] } }
+    ],
+    "smart_turn_timeout_seconds": 1.5,
+    "randomize_bridge_phrases": true
+  }
+}
+```
+
+Notes:
+
+- **`update` replaces the fields you send**, so fetch first rather than sending a partial body: `syllable bridge-phrases get 1 --output json | jq '.name = "Renamed"' | syllable bridge-phrases update 1 --file -`. Omitting `is_default` preserves the current flag.
+- **At most one non-deleted config per suborg may be the default.** Marking a second one shifts the default rather than erroring.
+- **Attach a config to an agent** by setting the agent's `bridge_phrases_id` field.
+- `get` summarizes the nested config (phrase counts, languages, tool names); use `--output json` for the full phrase lists.
+- **Not the same as `conversation-config bridges`**, which reads and writes a *single* config scoped to the org, an agent, or a tool. The two surfaces share vocabulary and overlap in effect — check which one an org actually uses before editing either.
+
 ### Schema Explorer
 
 Browse and inspect API data schemas — uses embedded OpenAPI spec, no API call needed:
@@ -485,7 +525,7 @@ Use this when you need to know what fields a create or update body requires.
 | `takeouts` | create, get, download | Data export jobs — create, poll with get, then download. |
 | `events` | list | Platform event log. |
 | `permissions` | list | System-wide permissions (read-only). |
-| `conversation-config` | bridges, bridges-update | Configuration for transfer/handoff phrases. |
+| `conversation-config` | bridges, bridges-update | A single bridge-phrase config scoped to the org, an agent (`--agent-id`), or a tool (`--tool-name`). Distinct from the [`bridge-phrases`](#bridge-phrases) resource, which manages named configs you attach to agents. |
 | `dashboards` | list, fetch-info, ~~sessions~~, ~~session-events~~, ~~session-transfers~~, ~~session-summary~~ | The `sessions`, `session-events`, `session-transfers`, and `session-summary` endpoints are **deprecated** — use `list` and `fetch-info` instead. |
 | `organizations` | get, update, sip-ip-ranges | The current org — no create or delete (high blast radius; use the console). `sip-ip-ranges` (list, create, update, delete) manages signaling/media SIP IP ranges in CIDR notation. |
 
@@ -509,6 +549,7 @@ The `--search` flag filters on different fields per resource:
 | directory | name |
 | custom messages | name |
 | language groups | name |
+| bridge phrases | name |
 | organizations | display_name |
 
 ---

@@ -12,7 +12,7 @@ Quick reference for every resource: what it is, key fields, and hard constraints
 
 | Resource | Purpose | Key Fields | Constraints |
 |----------|---------|------------|-------------|
-| **Agents** | AI system that talks to users via a channel | prompt_id, timezone, opening_message, session_variables, tool_headers, voice_group_id | 1:1 with channel target — one agent per target. Test channel is auto-generated. |
+| **Agents** | AI system that talks to users via a channel | prompt_id, timezone, opening_message, session_variables, tool_headers, voice_group_id, bridge_phrases_id | 1:1 with channel target — one agent per target. Test channel is auto-generated. `bridge_phrases_id` attaches a **Bridge Phrases** config; set it via `--file` (no dedicated flag). |
 | **Prompts** | Natural language instructions defining agent behavior, backed by an LLM | name, provider, model, temperature, seed, tools, version | Every edit auto-creates a new version. Previous versions can be previewed and restored via `prompts history`. |
 | **Tools** | APIs agents call during sessions (look up data, transfer calls, schedule, etc.) | endpoint_url, method, function definition (name, description, JSON Schema params), service_id, static_params, dynamic vars (`{{ vars.field }}`) | Requires a Service for auth. Three types: agent, step, system. `tools history <id>` lists past versions (version_number, operation, updated_by). |
 | **Services** | Centralized credential store for tool authentication | name, auth_type (basic/bearer/custom), credentials | Credentials are masked and not stored by Syllable after configuration. Multiple tools may share one service. |
@@ -36,7 +36,8 @@ Quick reference for every resource: what it is, key fields, and hard constraints
 | **Incidents** | Platform incident tracking | name, status | — |
 | **Organizations** | Current organization | display_name, slug, description | API exposes the **current** org only — `get` returns it; `update` modifies it. Create and delete are intentionally not exposed via CLI — use the web console for both. `sip-ip-ranges` (list/create/update/delete) manages signaling & media SIP IP ranges in CIDR notation. |
 | **Permissions** | System-wide permissions | name | Read-only. |
-| **Conversation Config (Bridges)** | Bridge phrases — filler messages spoken during delays and tool calls (Console: Voices → Phrases) | first_slow_messages, very_slow_messages, tool_responses | Supports per-language overrides via `localized`. |
+| **Bridge Phrases** | Named, reusable hold-phrase configs spoken while a tool call is in flight | name, description, is_default, config (phrases.messages, phrases.localized, tools[].tool_name, smart_turn_timeout_seconds, randomize_bridge_phrases) | At most one non-deleted config per suborg may be the default. Attach to an agent via the agent's `bridge_phrases_id`. `update` is a PUT on the collection keyed by the body `id`, and replaces the fields you send. Distinct from **Conversation Config (Bridges)**. |
+| **Conversation Config (Bridges)** | Bridge phrases — filler messages spoken during delays and tool calls (Console: Voices → Phrases) | first_slow_messages, very_slow_messages, tool_responses, messages, randomize_messages | Supports per-language overrides via `localized`. Scoped by optional `--agent-id` / `--tool-name`; a single config, not a named resource — see **Bridge Phrases** for those. |
 | **Schema** | Explore API request/response shapes from embedded OpenAPI spec | type name | No API call made. Use before create/update to find required fields. |
 
 ---
@@ -543,8 +544,31 @@ syllable events list [--page N] [--limit N]
 syllable permissions list
 ```
 
+### Bridge Phrases
+Named, reusable bridge-phrase configs — the hold phrases an agent speaks while a tool call is in flight. Each config carries a default phrase set, optional per-tool overrides, and optional per-language variants. Attach one to an agent by setting the agent's `bridge_phrases_id`.
+```bash
+syllable bridge-phrases list [--page N] [--limit N] [--search TEXT]
+syllable bridge-phrases get <bridge-phrases-id>
+syllable bridge-phrases create --file bridge-phrases.json
+syllable bridge-phrases create --name NAME [--description TEXT] [--default]
+syllable bridge-phrases update <bridge-phrases-id> --file bridge-phrases.json
+syllable bridge-phrases delete <bridge-phrases-id>
+```
+`config` fields: `phrases` (`{messages: [...], localized: {"<bcp-47>": {messages: [...]}}}`), `tools` (a list of `{tool_name, phrases}` overrides), `smart_turn_timeout_seconds` (0.25–30), `randomize_bridge_phrases`.
+
+Constraints and gotchas:
+- **`update` is a full replacement of the fields you send** — fetch the current config first rather than sending a partial body. Omitting `is_default` (or sending `null`) preserves the current flag.
+- **`update` is a PUT on the collection**, keyed by the `id` in the body. The positional id is optional and is reconciled with the body — a mismatch is an error.
+- **At most one non-deleted config per suborg may be the default.**
+- The inline `create` flags produce an **empty phrase set**; use `--file` to set the phrases themselves. See `syllable schema get BridgePhrasesCreateRequest`.
+- `get` **summarizes** the nested config as a table (phrase preview, language tags, tool names). Use `--output json` for the full phrase lists.
+
+**Not the same thing as `conversation-config bridges`** (below). `bridge-phrases` manages *named configs you attach to agents*; `conversation-config bridges` reads and writes a *single* config scoped to the org, an agent, or a tool. They share vocabulary and overlap in effect — check which surface an org actually uses before editing either.
+
 ### Conversation Config
-Bridge phrases — the filler messages an agent speaks while it is delayed or a tool call is in progress. This is the feature the Console shows under **Voices → Phrases**. Config fields: `first_slow_messages`, `very_slow_messages`, `tool_responses`, `smart_turn_timeout_seconds` (seconds of caller silence before the first bridge phrase; subsequent intervals are 2x/3x/4x this base), plus per-language overrides under `localized`.
+Bridge phrases — the filler messages an agent speaks while it is delayed or a tool call is in progress. This is the feature the Console shows under **Voices → Phrases**. Config fields: `first_slow_messages`, `very_slow_messages`, `tool_responses`, `smart_turn_timeout_seconds` (seconds of caller silence before the first bridge phrase; subsequent intervals are 2x/3x/4x this base), plus per-language overrides under `localized`. A unified `messages` list with `randomize_messages` supersedes the three legacy `*_messages` fields when non-empty.
+
+See also `bridge-phrases` (above) for the named, agent-attachable config resource — a separate surface with its own storage.
 ```bash
 syllable conversation-config bridges
 syllable conversation-config bridges-update --file bridges.json

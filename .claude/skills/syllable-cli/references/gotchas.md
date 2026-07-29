@@ -70,10 +70,23 @@ Practical notes on non-obvious CLI and platform behavior — exact payload shape
 |-------|-----------|
 | `--override-timestamp` expects a timezone-naive value | Pass `YYYY-MM-DDTHH:MM:SS` with no offset, no `Z`/UTC suffix, and no space separator (e.g. `2030-12-25T09:30:00`, read in the agent's timezone) — only this form is applied; other forms fall back to the real wall clock. CLI **v1.6.1** corrected the `--help` example to the naive form; **v1.7** adds a stderr warning on the known-ignored forms (trailing `Z`, `±HH:MM` offset, space separator), which also fires under `--dry-run`. Confirm it applied by checking the session transcript `actions[].tool_result` for `get_current_datetime` (or whether a time-based greeting changed), rather than trusting a green run. When applied, the override drives both `get_current_datetime` and time-based message/greeting selection. ([cli#76](https://github.com/asksyllable/syllable-cli/issues/76), [cli#78](https://github.com/asksyllable/syllable-cli/issues/78); a server-side strictness fix is pending.) |
 
-## Bridge Phrases (`conversation-config`)
+## Bridge Phrases — two separate surfaces
+
+There are **two** commands for bridge phrases. They share vocabulary, overlap in
+effect, and have separate storage. Check which one an org actually uses before
+editing either, and read back after any write.
+
+| Surface | What it is |
+|---------|-----------|
+| `bridge-phrases` (v2.1) | **Named, reusable** configs with full CRUD. Each has a default phrase set (`config.phrases.messages`), optional per-language variants (`config.phrases.localized`), and optional per-tool overrides (`config.tools[]`). Attached to an agent by the agent's `bridge_phrases_id`. At most one non-deleted config per suborg may be `is_default`. |
+| `conversation-config bridges` | A **single** config read/written in place, scoped to the org (no flags), an agent (`--agent-id`), or a tool (`--tool-name`). Uses the legacy field shape (`first_slow_messages`, `very_slow_messages`, `tool_responses`) plus unified `messages`. |
 
 | Topic | What to do |
 |-------|-----------|
+| `bridge-phrases update` is a full replacement | It is a PUT on the collection keyed by the body `id`, and replaces the fields you send — fetch first (`get <id> -o json`), modify, then push, rather than sending a partial body. Omitting `is_default` (or sending `null`) preserves the current flag. A positional id that conflicts with the body `id` is an error, not a silent override. |
+| `bridge-phrases create` inline flags leave phrases empty | `--name`/`--description`/`--default` create a config with an **empty** phrase set. Use `--file` to set the phrases themselves (`syllable schema get BridgePhrasesCreateRequest`). |
+| `bridge-phrases get` summarizes the nested config | The table view shows a phrase preview, language tags, and tool names — not the full lists. Use `--output json` when you need the actual phrases. |
+| Persistence of the new `bridge-phrases` fields is not yet live-verified | The endpoints are new in the v0.0.3 spec sync. `smart_turn_timeout_seconds`, `randomize_bridge_phrases`, `config.tools[]`, and `config.phrases.localized` have **not** been confirmed to persist in prod — read back after every write and file a `prod-drift` issue if a field is silently dropped on a 200. |
 | Unified `messages` / `randomize_messages` not yet active in prod | The v1.7.1 spec adds `messages` + `randomize_messages` to the bridges body and `bridges-update` sends them, but production doesn't persist them yet — until it does, only the legacy lists (`first_slow_messages`, `very_slow_messages`, `tool_responses`) take effect. Read back after a `bridges-update` to confirm what applied. |
 | `smart_turn_timeout_seconds` not yet active in prod | Same for the top-level `smart_turn_timeout_seconds` (number `0.25`–`30`, or `null`): `bridges-update` passes it through via `--file`, but production doesn't persist it yet. Read back to confirm. (Tracked alongside [cli#100](https://github.com/asksyllable/syllable-cli/issues/100).) |
 
