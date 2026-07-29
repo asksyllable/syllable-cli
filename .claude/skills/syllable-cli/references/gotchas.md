@@ -73,16 +73,28 @@ Practical notes on non-obvious CLI and platform behavior — exact payload shape
 ## Bridge Phrases — two separate surfaces
 
 There are **two** commands for bridge phrases. They share vocabulary, overlap in
-effect, and have separate storage. Check which one an org actually uses before
-editing either, and read back after any write.
+effect, and have **separate storage**.
 
 | Surface | What it is |
 |---------|-----------|
 | `bridge-phrases` (v2.1) | **Named, reusable** configs with full CRUD. Each has a default phrase set (`config.phrases.messages`), optional per-language variants (`config.phrases.localized`), and optional per-tool overrides (`config.tools[]`). Attached to an agent by the agent's `bridge_phrases_id`. At most one non-deleted config per suborg may be `is_default`. |
-| `conversation-config bridges` | A **single** config read/written in place, scoped to the org (no flags), an agent (`--agent-id`), or a tool (`--tool-name`). Uses the legacy field shape (`first_slow_messages`, `very_slow_messages`, `tool_responses`) plus unified `messages`. |
+| `conversation-config bridges` | A **single** config read/written in place, scoped to the org (no flags), an agent (`--agent-id`), or a tool (`--tool-name`). Uses the legacy field shape (`first_slow_messages`, `very_slow_messages`, `tool_responses`) plus unified `messages`. **Slated for deprecation.** |
+
+**Before any bridge-phrase write, ask the user which surface they mean — do not
+guess, and do not default to one.** A write to the wrong one returns 200 and
+changes nothing the agent actually uses, so there is no error to catch it.
+
+**If the user doesn't know**, ask them to check the Console: *does the agent's
+config page let them set a bridge phrase config per agent?* **Yes** → use
+`bridge-phrases`. **No** → use `conversation-config bridges-update`.
+
+Reads need no confirmation — reading both is usually the fastest way to find
+where an org's phrases actually live. See SKILL.md § *Bridge Phrases — Confirm
+Which Config Surface First*.
 
 | Topic | What to do |
 |-------|-----------|
+| Writing the wrong surface fails silently | Covered above: confirm first. Symptom is a clean 200 with no behavior change in the agent — check whether the org's phrases live in `bridge-phrases list` or `conversation-config bridges` before concluding a field didn't persist. |
 | `bridge-phrases update` is a full replacement | It is a PUT on the collection keyed by the body `id`, and replaces the fields you send — fetch first (`get <id> -o json`), modify, then push, rather than sending a partial body. Omitting `is_default` (or sending `null`) preserves the current flag. A positional id that conflicts with the body `id` is an error, not a silent override. |
 | `bridge-phrases create` inline flags leave phrases empty | `--name`/`--description`/`--default` create a config with an **empty** phrase set. Use `--file` to set the phrases themselves (`syllable schema get BridgePhrasesCreateRequest`). |
 | `bridge-phrases get` summarizes the nested config | The table view shows a phrase preview, language tags, and tool names — not the full lists. Use `--output json` when you need the actual phrases. |

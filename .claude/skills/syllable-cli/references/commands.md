@@ -410,6 +410,8 @@ syllable permissions list
 
 ## Bridge Phrases
 Named, reusable hold-phrase configs (CLI v2.1+). **Distinct from `conversation-config bridges`** below — see `gotchas.md` § *Bridge Phrases — two separate surfaces*.
+
+> **Confirm the surface before writing.** Two commands write bridge phrases to separate storage. Ask the user which they mean; if they don't know, ask whether the Console's agent config page lets them set a bridge phrase config per agent — yes → `bridge-phrases`, no → `conversation-config bridges-update`. A write to the wrong one returns 200 and changes nothing. See SKILL.md § *Bridge Phrases — Confirm Which Config Surface First*.
 ```bash
 syllable bridge-phrases list [--page N] [--limit N] [--search TEXT] [--search-field name|description|updated_at|last_updated_by]
 syllable bridge-phrases get <bridge-phrases-id>
@@ -446,7 +448,7 @@ Read-only response fields: `agents_info` (ids + names of agents using the config
 > **Not live-verified yet.** These endpoints are new in the v0.0.3 spec sync — read back after every write to confirm the nested config fields persisted.
 
 ## Conversation Config
-Reads/writes a **single** config in place — not named resources. See `bridge-phrases` above for those.
+Reads/writes a **single** config in place — not named resources. See `bridge-phrases` above for those. **Slated for deprecation** in favor of `bridge-phrases`; confirm which surface the org uses before writing (see the note under *Bridge Phrases* above).
 ```bash
 syllable conversation-config bridges                          # get org-default bridge phrases (Console: Voices → Phrases)
 syllable conversation-config bridges --agent-id 768           # agent-scoped (falls back to org default if no override)

@@ -563,12 +563,14 @@ Constraints and gotchas:
 - The inline `create` flags produce an **empty phrase set**; use `--file` to set the phrases themselves. See `syllable schema get BridgePhrasesCreateRequest`.
 - `get` **summarizes** the nested config as a table (phrase preview, language tags, tool names). Use `--output json` for the full phrase lists.
 
-**Not the same thing as `conversation-config bridges`** (below). `bridge-phrases` manages *named configs you attach to agents*; `conversation-config bridges` reads and writes a *single* config scoped to the org, an agent, or a tool. They share vocabulary and overlap in effect — check which surface an org actually uses before editing either.
+**Not the same thing as `conversation-config bridges`** (below). `bridge-phrases` manages *named configs you attach to agents*; `conversation-config bridges` reads and writes a *single* config scoped to the org, an agent, or a tool. They share vocabulary, overlap in effect, and have **separate storage**.
+
+**Confirm which surface you want before writing either — a write to the wrong one returns 200 and changes nothing the agent uses.** If you're not sure, check the Console: does the agent's config page let you set a bridge phrase config per agent? **Yes** → `bridge-phrases`. **No** → `conversation-config bridges-update`. `conversation-config` is slated for deprecation, so `bridge-phrases` is the forward-looking choice.
 
 ### Conversation Config
 Bridge phrases — the filler messages an agent speaks while it is delayed or a tool call is in progress. This is the feature the Console shows under **Voices → Phrases**. Config fields: `first_slow_messages`, `very_slow_messages`, `tool_responses`, `smart_turn_timeout_seconds` (seconds of caller silence before the first bridge phrase; subsequent intervals are 2x/3x/4x this base), plus per-language overrides under `localized`. A unified `messages` list with `randomize_messages` supersedes the three legacy `*_messages` fields when non-empty.
 
-See also `bridge-phrases` (above) for the named, agent-attachable config resource — a separate surface with its own storage.
+**Slated for deprecation** in favor of `bridge-phrases` (above) — the named, agent-attachable config resource, a separate surface with its own storage. Confirm which surface an org uses before writing either; see the note under *Bridge Phrases*.
 ```bash
 syllable conversation-config bridges
 syllable conversation-config bridges-update --file bridges.json

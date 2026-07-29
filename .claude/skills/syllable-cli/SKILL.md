@@ -67,6 +67,34 @@ This shows each configured org, its environment(s), and whether an API key is pr
 
 **Always tell the user which org and environment you're about to run against and get confirmation before proceeding**, particularly for write operations.
 
+## Bridge Phrases — Confirm Which Config Surface First
+
+Two commands write bridge phrases, with **separate storage**. Writing the wrong one appears to succeed and changes nothing the agent actually uses.
+
+| Command | What it writes |
+|---|---|
+| `bridge-phrases` | Named, reusable configs, attached per agent via the agent's `bridge_phrases_id` |
+| `conversation-config bridges-update` | A single config in place, scoped to the org / an agent (`--agent-id`) / a tool (`--tool-name`) |
+
+**Before any bridge-phrase write, ask the user which of the two they mean. Do not guess, and do not default to one.**
+
+**If the user doesn't know**, ask them to check the Console: **does the agent's config page let them set a bridge phrase config per agent?**
+
+- **Yes** → use `bridge-phrases`.
+- **No** → use `conversation-config bridges-update`.
+
+`conversation-config` is **slated for deprecation**; `bridge-phrases` is the forward-looking surface. Until that lands, both are live and the question above is the only reliable way to tell which one an org is on — the API answers a write to either with a 200 regardless.
+
+Reads are safe to run without asking. When diagnosing, reading **both** is often the fastest way to find where an org's phrases actually live:
+
+```bash
+syllable bridge-phrases list
+syllable conversation-config bridges
+syllable conversation-config bridges --agent-id <id>
+```
+
+Full field shapes and gotchas: [`references/commands.md`](references/commands.md) § *Bridge Phrases*, [`references/gotchas.md`](references/gotchas.md) § *Bridge Phrases — two separate surfaces*.
+
 ## Quick Start
 
 ```bash
@@ -131,7 +159,7 @@ For sessions, the valid `--search-field` values are the `SessionProperties` enum
 
 Every command takes the form `syllable [--org X] [--env Y] <resource> <verb> [args]`.
 
-**Resources:** `agents`, `prompts`, `tools`, `services`, `channels` (+ `channels targets`, `channels twilio`, `channels available-targets`), `sessions`, `conversations`, `outbound batches`, `outbound campaigns`, `users`, `directory`, `insights workflows`, `insights folders`, `insights tool-configs`, `insights tool-definitions`, `custom-messages`, `language-groups` (deprecated → use `voice-groups`), `voice-groups`, `data-sources`, `roles`, `incidents`, `pronunciations`, `session-labels`, `session-debug`, `takeouts`, `events`, `permissions`, `bridge-phrases`, `conversation-config`, `dashboards`, `organizations` (current-org get/update + sip-ip-ranges; no create/delete), `schema`, `status`.
+**Resources:** `agents`, `prompts`, `tools`, `services`, `channels` (+ `channels targets`, `channels twilio`, `channels available-targets`), `sessions`, `conversations`, `outbound batches`, `outbound campaigns`, `users`, `directory`, `insights workflows`, `insights folders`, `insights tool-configs`, `insights tool-definitions`, `custom-messages`, `language-groups` (deprecated → use `voice-groups`), `voice-groups`, `data-sources`, `roles`, `incidents`, `pronunciations`, `session-labels`, `session-debug`, `takeouts`, `events`, `permissions`, `bridge-phrases`, `conversation-config` (slated for deprecation → prefer `bridge-phrases`), `dashboards`, `organizations` (current-org get/update + sip-ip-ranges; no create/delete), `schema`, `status`.
 
 **Standard verbs** (most resources):
 ```bash
@@ -167,8 +195,8 @@ syllable <resource> delete <id> --yes            # destructive — see note belo
 | `session-debug` | `by-session-id <id>`, `by-sid <id> <sid>`, `tool-result <id> <tool-result-id>` |
 | `takeouts` | `create --file …`, `get <id>`, `download <id> <file>` |
 | `incidents` | `organizations` |
-| `bridge-phrases` | standard CRUD (v2.1) — **named, reusable** hold-phrase configs attached to an agent via the agent's `bridge_phrases_id`. `update` is a PUT on the collection keyed by the body `id`. At most one non-deleted config per suborg may be `is_default`. **Not the same surface as `conversation-config bridges`** — see below |
-| `conversation-config` | `bridges`, `bridges-update --file …` — both take optional `--agent-id`/`--tool-name` to scope the config to an agent or tool (v2.1); omit for the org default. Reads/writes a **single** config, not named resources — see `bridge-phrases` |
+| `bridge-phrases` | standard CRUD (v2.1) — **named, reusable** hold-phrase configs attached to an agent via the agent's `bridge_phrases_id`. `update` is a PUT on the collection keyed by the body `id`. At most one non-deleted config per suborg may be `is_default`. **Confirm the surface before writing** — see § *Bridge Phrases — Confirm Which Config Surface First* |
+| `conversation-config` | `bridges`, `bridges-update --file …` — both take optional `--agent-id`/`--tool-name` to scope the config to an agent or tool (v2.1); omit for the org default. Reads/writes a **single** config, not named resources. **Slated for deprecation** in favor of `bridge-phrases`; **confirm the surface before writing** — see § *Bridge Phrases — Confirm Which Config Surface First* |
 | `dashboards` | `list`, `sessions`, `session-events`, `session-transfers`, `session-summary`, `fetch-info --name <name>` |
 | `schema` | `list [--filter X]`, `get <SchemaName>` (local OpenAPI lookup, no API call; `-o json` is pure JSON since v1.7 — pipe straight to `jq`) |
 | `status` | no verb — prints all configured orgs/envs (read-only, local config) |

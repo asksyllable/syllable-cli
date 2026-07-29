@@ -22,7 +22,7 @@ Claude Code picks it up automatically the next time you start a session in that 
 | `references/gotchas.md` | Known CLI/API pitfalls with fixes (payload formats, validation, enums) |
 | `references/common-patterns.md` | Multi-step recipes: cross-org cloning, bulk updates, data source wiring |
 | `references/payload-examples.md` | Copy-paste JSON templates for create/update bodies |
-| `references/telephony-and-channels.md` | Telephony config fields, channel/target enums, bridge phrases |
+| `references/telephony-and-channels.md` | Telephony config fields, channel/target enums, `conversation-config` bridge phrases |
 | `references/variables-and-messages.md` | Variable substitution syntax, system variables, greeting rules |
 | `references/sessions-and-debugging.md` | Session fields, transcripts, latency analysis, debug commands |
 | `references/insights.md` | Insights workflows, tool configs, folders, outputs |
