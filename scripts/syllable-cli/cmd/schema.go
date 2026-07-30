@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
@@ -74,6 +75,15 @@ func schemaListCmd() *cobra.Command {
 	return cmd
 }
 
+// schemaAliases maps component names that upstream renamed to their current
+// keys, so long-standing lookups keep resolving. BridgePhraseMessages was
+// split into two qualified schemas when the bridge_phrases endpoints landed;
+// the unqualified name had always described the conversation-config shape,
+// and the cortex variant it points at is field-for-field identical to it.
+var schemaAliases = map[string]string{
+	"BridgePhraseMessages": "schemas__cortex__v1__bridge_phrases__BridgePhraseMessages",
+}
+
 func schemaGetCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "get <SchemaName>",
@@ -96,6 +106,18 @@ func schemaGetCmd() *cobra.Command {
 						ok = true
 						break
 					}
+				}
+			}
+			if !ok {
+				for alias, target := range schemaAliases {
+					if !strings.EqualFold(alias, name) {
+						continue
+					}
+					if s, found := schemas[target]; found {
+						fmt.Fprintf(os.Stderr, "note: schema %q was renamed upstream — showing %q\n", alias, target)
+						schema, name, ok = s, target, true
+					}
+					break
 				}
 			}
 			if !ok {

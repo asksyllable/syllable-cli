@@ -408,7 +408,49 @@ syllable events list [--page N] [--limit N]
 syllable permissions list
 ```
 
+## Bridge Phrases
+Named, reusable hold-phrase configs (CLI v2.1+). **Distinct from `conversation-config bridges`** below — see `gotchas.md` § *Bridge Phrases — two separate surfaces*.
+
+> **Confirm the surface before writing.** Two commands write bridge phrases to separate storage. Ask the user which they mean; if they don't know, ask whether the Console's agent config page lets them set a bridge phrase config per agent — yes → `bridge-phrases`, no → `conversation-config bridges-update`. A write to the wrong one returns 200 and changes nothing. See SKILL.md § *Bridge Phrases — Confirm Which Config Surface First*.
+```bash
+syllable bridge-phrases list [--page N] [--limit N] [--search TEXT] [--search-field name|description|updated_at|last_updated_by]
+syllable bridge-phrases get <bridge-phrases-id>
+syllable bridge-phrases create --name NAME [--description TEXT] [--default]   # empty phrase set
+syllable bridge-phrases create --file bridge-phrases.json                     # full body
+syllable bridge-phrases update <bridge-phrases-id> --file bridge-phrases.json # PUT on collection, keyed by body id
+syllable bridge-phrases delete <bridge-phrases-id> --yes
+```
+
+**List columns:** ID, NAME, DESCRIPTION, DEFAULT, PHRASES (count of the default phrase set), UPDATED_AT.
+**Get fields:** ID, Name, Description, Is Default, Phrases, Localized (language tags), Tool Overrides (tool names), Smart Turn Timeout, Randomize, Agents, Edit Comments, Updated At, Last Updated By. The nested config is **summarized** — use `-o json` for the full phrase lists.
+
+**Body shape** (`schema get BridgePhrasesCreateRequest` / `BridgePhrasesUpdateRequest`):
+
+| Field | Type | Notes |
+|---|---|---|
+| `name` | string | Required; unique per suborg among non-deleted configs — a duplicate is a 400 on create or update. |
+| `description` | string \| null | — |
+| `is_default` | bool | At most one non-deleted config per suborg. On `update`, omit or send `null` to preserve the current flag. |
+| `id` | int | Required on `update` — the collection PUT routes by it. The positional id is reconciled with it; a mismatch errors. |
+| `edit_comments` | string \| null | Comment on the most recent edit. |
+| `config.phrases.messages` | string[] | Ordered default phrases. |
+| `config.phrases.localized` | `{"<bcp-47>": {messages: []}}` | Per-language overrides, e.g. `"es-US"`. |
+| `config.tools[]` | `{tool_name, phrases}` | Per-tool overrides; `phrases` has the same shape as `config.phrases`. |
+| `config.smart_turn_timeout_seconds` | number \| null | `0.25`–`30`. Caller silence before a phrase is injected. |
+| `config.randomize_bridge_phrases` | bool | Randomize phrase order. |
+
+**Attach to an agent** via the agent's `bridge_phrases_id` (no dedicated flag — send it in the `--file` body):
+```bash
+syllable agents get 768 -o json | jq '.bridge_phrases_id = 3' | syllable agents update 768 --file -
+```
+Read-only response fields: `agents_info` (ids + names of agents using the config), `updated_at`, `last_updated_by`.
+
+`delete` is refused with a 400 while any agent is attached (`Cannot delete bridge phrases config with associated agents`) — `agents_info` on `get` shows which; clear or repoint each agent's `bridge_phrases_id` first.
+
+> **Live-verified** (2026-07-29, `cli-test` + CI org). The whole nested config round-trips: `phrases.messages`, `phrases.localized`, `tools[]` (incl. per-tool phrases), `smart_turn_timeout_seconds`, and `randomize_bridge_phrases` all come back as written. Each is asserted in `TestBridgePhrasesCRUD`, so a regression fails the live gate. This covers `bridge-phrases` only — `conversation-config`'s persistence was not tested, and its notes in `gotchas.md` are contradictory; don't assume either surface behaves like the other.
+
 ## Conversation Config
+Reads/writes a **single** config in place — not named resources. See `bridge-phrases` above for those. **Slated for deprecation** in favor of `bridge-phrases`; confirm which surface the org uses before writing (see the note under *Bridge Phrases* above).
 ```bash
 syllable conversation-config bridges                          # get org-default bridge phrases (Console: Voices → Phrases)
 syllable conversation-config bridges --agent-id 768           # agent-scoped (falls back to org default if no override)
@@ -419,9 +461,9 @@ syllable conversation-config bridges-update --agent-id 768 --file bridges.json  
 
 **Scoping (CLI v2.1+):** both `bridges` and `bridges-update` accept optional `--agent-id <id>` and `--tool-name <name>` query parameters (combinable). Omitting both targets the org-level default. A scoped GET falls back to the org default when no override exists; a scoped PUT creates/updates that override without touching the org default. `--agent-id` is only sent when explicitly set, so an unset flag is not confused with `--agent-id 0`.
 
-**Unified messages (v1.7.1 spec):** the bridges body now supports an ordered `messages` list plus `randomize_messages` (bool, no-repeat shuffling). When `messages` is non-empty it replaces the three legacy lists (`first_slow_messages`, `very_slow_messages`, `tool_responses`); when empty, the legacy fields still apply. Both `bridges` commands are pass-through `--file` bodies. **Caveat:** production doesn't persist these fields yet — read back after updating to confirm (see `gotchas.md` § *Bridge Phrases*). Field semantics in `telephony-and-channels.md` § *Bridge Phrases*.
+**Unified messages (v1.7.1 spec):** the bridges body now supports an ordered `messages` list plus `randomize_messages` (bool, no-repeat shuffling). When `messages` is non-empty it replaces the three legacy lists (`first_slow_messages`, `very_slow_messages`, `tool_responses`); when empty, the legacy fields still apply. Both `bridges` commands are pass-through `--file` bodies. **Caveat:** persistence varies by scope — agent-scoped writes verified persisting (2026-07-09), org-default unverified; read back after updating to confirm (see `gotchas.md` § *Bridge Phrases — two separate surfaces*). Field semantics in `telephony-and-channels.md` § *Bridge Phrases*.
 
-**Smart-turn timeout (v1.7.2 spec):** the top-level bridges body also accepts `smart_turn_timeout_seconds` (number, `0.25`–`30`, or `null`) — seconds of caller silence before the first bridge phrase fires (later intervals scale 2x/3x/4x); unset uses the service default. Passes through the same `--file` body, but production doesn't persist it yet — read back to confirm.
+**Smart-turn timeout (v1.7.2 spec):** the top-level bridges body also accepts `smart_turn_timeout_seconds` (number, `0.25`–`30`, or `null`) — seconds of caller silence before the first bridge phrase fires (later intervals scale 2x/3x/4x); unset uses the service default. Passes through the same `--file` body; same persistence caveat as above — read back to confirm.
 
 ## Dashboards
 ```bash

@@ -17,6 +17,7 @@
 package integration_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -524,4 +525,115 @@ func TestChannelsTwilioVerifyA2p(t *testing.T) {
 	}
 	out := mustRunCLI(t, "channels", "twilio", "numbers-verify-a2p-compliance", channelID, "--phone", phone)
 	assertContains(t, string(out), "a2p_approved")
+}
+
+// ---------------------------------------------------------------------------
+// Bridge Phrases — spec-sync v0.0.3
+// ---------------------------------------------------------------------------
+
+func TestBridgePhrasesCRUD(t *testing.T) {
+	name := testName("BridgePhrases")
+
+	// Create. is_default is left false — at most one non-deleted config per
+	// suborg may be the default, so claiming it would fight the org's real one.
+	out := mustRunCLI(t, "bridge-phrases", "create", "--name", name, "--description", "integration test config")
+	id := mustExtractField(t, out, "id")
+	t.Logf("created bridge phrases config id=%s", id)
+
+	registerDelete("bridge-phrases", "delete", id)
+
+	// Get
+	out = mustRunCLI(t, "bridge-phrases", "get", id)
+	assertContains(t, string(out), name)
+
+	// List
+	out = mustRunCLI(t, "bridge-phrases", "list", "--search", "[TEST-INTEG]")
+	assertContains(t, string(out), name)
+
+	// Update — exercises the nested config payload the inline create can't send:
+	// a default phrase set, a per-language override, and a per-tool override.
+	updName := name + " Updated"
+	// `id` is deliberately omitted so the positional argument is injected by
+	// ensureBodyIdentifier as a JSON *integer*. mustExtractField returns a
+	// string, and a body id that's already present is passed through untouched —
+	// so spelling it here would send "id":"7" and pass only while the backend
+	// coerces it (#116). Omitting it exercises both the correct wire type and the
+	// path real users hit.
+	updateBody := map[string]interface{}{
+		"name":        updName,
+		"description": "integration test config",
+		"config": map[string]interface{}{
+			"phrases": map[string]interface{}{
+				"messages": []string{"One moment, please.", "Let me check on that."},
+				"localized": map[string]interface{}{
+					"es-US": map[string]interface{}{"messages": []string{"Un momento, por favor."}},
+				},
+			},
+			"tools": []interface{}{
+				map[string]interface{}{
+					"tool_name": "integration_probe_tool",
+					"phrases":   map[string]interface{}{"messages": []string{"Checking now."}},
+				},
+			},
+			"smart_turn_timeout_seconds": 1.5,
+			"randomize_bridge_phrases":   true,
+		},
+		"edit_comments": "updated by integration test",
+	}
+	f := writeTempJSON(t, updateBody)
+	out = mustRunCLI(t, "bridge-phrases", "update", id, "--file", f)
+	assertContains(t, string(out), updName)
+
+	// Read back and assert on *typed* values. Every field written above is
+	// checked, because the failure mode here is a silent drop: the API answers
+	// 200 whether or not it stored a nested field, so anything not asserted is
+	// not actually covered.
+	//
+	// Parsed rather than substring-matched: PrintJSON runs the server's bytes
+	// through json.Indent, which preserves its colon spacing, so `"k": v` vs
+	// `"k":v` is not ours to depend on.
+	out = mustRunCLI(t, "bridge-phrases", "get", id, "--output", "json")
+	var got struct {
+		Config struct {
+			Phrases struct {
+				Messages  []string `json:"messages"`
+				Localized map[string]struct {
+					Messages []string `json:"messages"`
+				} `json:"localized"`
+			} `json:"phrases"`
+			Tools []struct {
+				ToolName string `json:"tool_name"`
+				Phrases  struct {
+					Messages []string `json:"messages"`
+				} `json:"phrases"`
+			} `json:"tools"`
+			SmartTurnTimeoutSeconds *float64 `json:"smart_turn_timeout_seconds"`
+			RandomizeBridgePhrases  bool     `json:"randomize_bridge_phrases"`
+		} `json:"config"`
+	}
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatalf("read-back is not valid JSON: %v (raw: %s)", err, out)
+	}
+
+	if len(got.Config.Phrases.Messages) != 2 || got.Config.Phrases.Messages[0] != "One moment, please." {
+		t.Errorf("default phrases did not round-trip: %#v", got.Config.Phrases.Messages)
+	}
+	es, ok := got.Config.Phrases.Localized["es-US"]
+	if !ok || len(es.Messages) != 1 || es.Messages[0] != "Un momento, por favor." {
+		t.Errorf("es-US localization did not round-trip: %#v", got.Config.Phrases.Localized)
+	}
+	if len(got.Config.Tools) != 1 || got.Config.Tools[0].ToolName != "integration_probe_tool" {
+		t.Errorf("per-tool override did not round-trip: %#v", got.Config.Tools)
+	} else if msgs := got.Config.Tools[0].Phrases.Messages; len(msgs) != 1 || msgs[0] != "Checking now." {
+		t.Errorf("per-tool phrases did not round-trip: %#v", msgs)
+	}
+	if got.Config.SmartTurnTimeoutSeconds == nil || *got.Config.SmartTurnTimeoutSeconds != 1.5 {
+		t.Errorf("smart_turn_timeout_seconds did not persist: %v", got.Config.SmartTurnTimeoutSeconds)
+	}
+	if !got.Config.RandomizeBridgePhrases {
+		t.Error("randomize_bridge_phrases did not persist (sent true, read back false)")
+	}
+
+	// Delete
+	mustRunCLI(t, "bridge-phrases", "delete", id)
 }

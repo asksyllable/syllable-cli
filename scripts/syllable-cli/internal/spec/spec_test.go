@@ -72,6 +72,11 @@ func TestBulkOperationPathsMatch(t *testing.T) {
 		// item endpoint does not — a mismatch drops the API-key header on a 307.
 		"/api/v1/organizations/sip_ip_ranges/",
 		"/api/v1/organizations/sip_ip_ranges/{sip_ip_range_id}",
+		// Bridge phrases: same split — list/create/update on the trailing-slash
+		// collection (update is a PUT keyed by the body id), get/delete on the
+		// slashless item path.
+		"/api/v1/bridge_phrases/",
+		"/api/v1/bridge_phrases/{bridge_phrases_id}",
 	}
 	for _, p := range want {
 		if _, ok := paths[p]; !ok {

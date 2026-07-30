@@ -2413,6 +2413,30 @@ func min(a, b int) int {
 
 // --- Output purity and hint tests ---
 
+// The bridge_phrases spec bump split BridgePhraseMessages into two qualified
+// schemas. The unqualified name keeps resolving as an alias to the cortex
+// (conversation-config) variant, which is field-for-field identical to what
+// the old key held — so lookups that predate the split don't break.
+func TestSchemaGetRenamedBridgePhraseMessages(t *testing.T) {
+	viper.Set("output", "table")
+	defer viper.Set("output", "json")
+
+	cmd := schemaGetCmd()
+	cmd.SetArgs([]string{"BridgePhraseMessages"})
+	out := captureStdout(func() {
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("aliased schema lookup should succeed, got: %v", err)
+		}
+	})
+
+	if !strings.Contains(out, "schemas__cortex__v1__bridge_phrases__BridgePhraseMessages") {
+		t.Errorf("alias should resolve to the cortex schema, got: %s", out[:min(len(out), 200)])
+	}
+	if !strings.Contains(out, "first_slow_messages") {
+		t.Errorf("resolved schema should be the legacy conversation-config shape, got: %s", out[:min(len(out), 300)])
+	}
+}
+
 func TestSchemaGetJSONOutputPure(t *testing.T) {
 	prev := viper.GetString("output")
 	defer viper.Set("output", prev)
@@ -3383,5 +3407,183 @@ func TestSpecPreflight(t *testing.T) {
 	}
 	if got := specPreflight("POST", "/api/v1/agents/", []byte(`["not","an","object"]`)); got != nil {
 		t.Errorf("non-object body should yield nil, got %v", got)
+	}
+}
+
+// --- Bridge phrases (#167) ---
+
+func TestBridgePhrasesCommandHasSubcommands(t *testing.T) {
+	cmd := bridgePhrasesCmd()
+	expected := []string{"list", "get", "create", "update", "delete"}
+	subs := make(map[string]bool)
+	for _, c := range cmd.Commands() {
+		subs[c.Name()] = true
+	}
+	for _, exp := range expected {
+		if !subs[exp] {
+			t.Errorf("bridge-phrases command missing subcommand %q", exp)
+		}
+	}
+}
+
+func TestBridgePhrasesList(t *testing.T) {
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"items": []map[string]interface{}{
+				{
+					"id":          1,
+					"name":        "Inbound Hold",
+					"description": "Standard hold phrases",
+					"is_default":  true,
+					"config": map[string]interface{}{
+						"phrases": map[string]interface{}{
+							// Three messages: no other cell in this fixture renders a "3",
+							// so the count assertion below can actually fail.
+							"messages": []string{"One moment, please.", "Let me check on that.", "Almost there."},
+						},
+					},
+					"updated_at":      "2026-07-02T00:00:00Z",
+					"last_updated_by": "user@mail.com",
+				},
+			},
+			"total_count": 1,
+		})
+	})
+	defer server.Close()
+
+	viper.Set("output", "table")
+	defer viper.Set("output", "json")
+
+	cmd := bridgePhrasesListCmd()
+	cmd.SetArgs([]string{})
+	out := captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if !strings.Contains(out, "Inbound Hold") {
+		t.Errorf("output should contain the config name, got: %s", out)
+	}
+	// The PHRASES column is a count of the default phrase set, not the phrases.
+	if !strings.Contains(out, "3") {
+		t.Errorf("output should contain the phrase count, got: %s", out)
+	}
+	if strings.Contains(out, "One moment") {
+		t.Errorf("list should show a phrase count, not the phrases themselves, got: %s", out)
+	}
+}
+
+func TestBridgePhrasesGetSummarizesNestedConfig(t *testing.T) {
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"id":         7,
+			"name":       "Inbound Hold",
+			"is_default": false,
+			"config": map[string]interface{}{
+				"phrases": map[string]interface{}{
+					"messages":  []string{"One moment, please."},
+					"localized": map[string]interface{}{"es-US": map[string]interface{}{"messages": []string{"Un momento."}}},
+				},
+				"tools": []map[string]interface{}{
+					{"tool_name": "lookup_order", "phrases": map[string]interface{}{"messages": []string{"Checking your order."}}},
+				},
+				"smart_turn_timeout_seconds": 1.5,
+				"randomize_bridge_phrases":   true,
+			},
+			"agents_info":     []map[string]interface{}{{"id": 42, "name": "Support Agent"}},
+			"updated_at":      "2026-07-02T00:00:00Z",
+			"last_updated_by": "user@mail.com",
+		})
+	})
+	defer server.Close()
+
+	viper.Set("output", "table")
+	defer viper.Set("output", "json")
+
+	cmd := bridgePhrasesGetCmd()
+	cmd.SetArgs([]string{"7"})
+	out := captureStdout(func() {
+		cmd.Execute()
+	})
+
+	for _, want := range []string{"Inbound Hold", "es-US", "lookup_order", "1.5", "Support Agent (42)"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("get output should summarize %q, got: %s", want, out)
+		}
+	}
+}
+
+func TestBridgePhrasesUpdateInjectsPositionalID(t *testing.T) {
+	assertBodyIDUpdate(t, bridgePhrasesUpdateCmd, "/api/v1/bridge_phrases/")
+}
+
+// The DELETE operation declares `reason` as a *required* query param, which the
+// client appends automatically for paths that carry no query string of their own.
+func TestBridgePhrasesDeleteSendsRequiredReason(t *testing.T) {
+	var method, path, query string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method, path, query = r.Method, r.URL.Path, r.URL.RawQuery
+	})
+	defer server.Close()
+
+	cmd := bridgePhrasesDeleteCmd()
+	cmd.SetArgs([]string{"7"})
+	captureStdout(func() {
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	if method != http.MethodDelete || path != "/api/v1/bridge_phrases/7" {
+		t.Errorf("expected DELETE /api/v1/bridge_phrases/7, got %s %s", method, path)
+	}
+	if !strings.Contains(query, "reason=") {
+		t.Errorf("expected a reason query param, got %q", query)
+	}
+}
+
+func TestBridgePhrasesCreateRequiresNameOrFile(t *testing.T) {
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Error("no request should be sent when --name and --file are both absent")
+	})
+	defer server.Close()
+
+	cmd := bridgePhrasesCreateCmd()
+	cmd.SetArgs([]string{})
+	var err error
+	captureStdout(func() { err = cmd.Execute() })
+	if err == nil || !strings.Contains(err.Error(), "required flags") {
+		t.Errorf("expected a required-flags error, got %v", err)
+	}
+}
+
+func TestBridgePhrasesCreateInlineBody(t *testing.T) {
+	var body map[string]interface{}
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		json.NewDecoder(r.Body).Decode(&body)
+		w.Write([]byte(`{"id":1}`))
+	})
+	defer server.Close()
+
+	cmd := bridgePhrasesCreateCmd()
+	cmd.SetArgs([]string{"--name", "Inbound Hold", "--description", "Standard", "--default"})
+	captureStdout(func() {
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	if body["name"] != "Inbound Hold" || body["description"] != "Standard" {
+		t.Errorf("unexpected body: %#v", body)
+	}
+	if body["is_default"] != true {
+		t.Errorf("--default should set is_default=true, got %#v", body["is_default"])
+	}
+	// config must be present with an empty phrase set the user can fill in.
+	cfg, ok := body["config"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected a config object, got %#v", body["config"])
+	}
+	if _, ok := cfg["phrases"]; !ok {
+		t.Errorf("expected config.phrases in inline body, got %#v", cfg)
 	}
 }

@@ -70,12 +70,40 @@ Practical notes on non-obvious CLI and platform behavior — exact payload shape
 |-------|-----------|
 | `--override-timestamp` expects a timezone-naive value | Pass `YYYY-MM-DDTHH:MM:SS` with no offset, no `Z`/UTC suffix, and no space separator (e.g. `2030-12-25T09:30:00`, read in the agent's timezone) — only this form is applied; other forms fall back to the real wall clock. CLI **v1.6.1** corrected the `--help` example to the naive form; **v1.7** adds a stderr warning on the known-ignored forms (trailing `Z`, `±HH:MM` offset, space separator), which also fires under `--dry-run`. Confirm it applied by checking the session transcript `actions[].tool_result` for `get_current_datetime` (or whether a time-based greeting changed), rather than trusting a green run. When applied, the override drives both `get_current_datetime` and time-based message/greeting selection. ([cli#76](https://github.com/asksyllable/syllable-cli/issues/76), [cli#78](https://github.com/asksyllable/syllable-cli/issues/78); a server-side strictness fix is pending.) |
 
-## Bridge Phrases (`conversation-config`)
+## Bridge Phrases — two separate surfaces
+
+There are **two** commands for bridge phrases. They share vocabulary, overlap in
+effect, and have **separate storage**.
+
+| Surface | What it is |
+|---------|-----------|
+| `bridge-phrases` (v2.1) | **Named, reusable** configs with full CRUD. Each has a default phrase set (`config.phrases.messages`), optional per-language variants (`config.phrases.localized`), and optional per-tool overrides (`config.tools[]`). Attached to an agent by the agent's `bridge_phrases_id`. At most one non-deleted config per suborg may be `is_default`. |
+| `conversation-config bridges` | A **single** config read/written in place, scoped to the org (no flags), an agent (`--agent-id`), or a tool (`--tool-name`). Uses the legacy field shape (`first_slow_messages`, `very_slow_messages`, `tool_responses`) plus unified `messages`. **Slated for deprecation.** |
+
+**Before any bridge-phrase write, ask the user which surface they mean — do not
+guess, and do not default to one.** A write to the wrong one returns 200 and
+changes nothing the agent actually uses, so there is no error to catch it.
+
+**If the user doesn't know**, ask them to check the Console: *does the agent's
+config page let them set a bridge phrase config per agent?* **Yes** → use
+`bridge-phrases`. **No** → use `conversation-config bridges-update`.
+
+Reads skip only the which-surface question (org & environment confirmation
+still applies) — reading both is usually the fastest way to find where an
+org's phrases actually live. See SKILL.md § *Bridge Phrases — Confirm Which
+Config Surface First*.
 
 | Topic | What to do |
 |-------|-----------|
-| Unified `messages` / `randomize_messages` not yet active in prod | The v1.7.1 spec adds `messages` + `randomize_messages` to the bridges body and `bridges-update` sends them, but production doesn't persist them yet — until it does, only the legacy lists (`first_slow_messages`, `very_slow_messages`, `tool_responses`) take effect. Read back after a `bridges-update` to confirm what applied. |
-| `smart_turn_timeout_seconds` not yet active in prod | Same for the top-level `smart_turn_timeout_seconds` (number `0.25`–`30`, or `null`): `bridges-update` passes it through via `--file`, but production doesn't persist it yet. Read back to confirm. (Tracked alongside [cli#100](https://github.com/asksyllable/syllable-cli/issues/100).) |
+| Writing the wrong surface fails silently | Covered above: confirm first. Symptom is a clean 200 with no behavior change in the agent — check whether the org's phrases live in `bridge-phrases list` or `conversation-config bridges` before concluding a field didn't persist. |
+| `bridge-phrases update` is a full replacement | It is a PUT on the collection keyed by the body `id`, and replaces the fields you send — fetch first (`get <id> -o json`), modify, then push, rather than sending a partial body. Omitting `is_default` (or sending `null`) preserves the current flag. A positional id that conflicts with the body `id` is an error, not a silent override. |
+| `bridge-phrases create` inline flags leave phrases empty | `--name`/`--description`/`--default` create a config with an **empty** phrase set. Use `--file` to set the phrases themselves (`syllable schema get BridgePhrasesCreateRequest`). |
+| `bridge-phrases get` summarizes the nested config | The table view shows a phrase preview, language tags, and tool names — not the full lists. Use `--output json` when you need the actual phrases. |
+| The new `bridge-phrases` nested config **does** persist | Verified 2026-07-29 against the `cli-test` org and the CI org (`TestBridgePhrasesCRUD`, PR #167). A create → update → read-back cycle returned **all** of `config.phrases.messages`, `config.phrases.localized` (`es-US`), `config.tools[]` (per-tool override incl. its phrases), `config.smart_turn_timeout_seconds`, and `config.randomize_bridge_phrases` intact. Each is asserted on typed values in that test, so a future silent drop fails the live gate rather than passing green. This says nothing about the `conversation-config` rows below — the two surfaces were not compared. |
+| `config.tools[].tool_name` is not validated | An unknown tool name is stored as-is (verified 2026-07-29 — a write naming a nonexistent tool succeeded and read back unchanged). A typo saves cleanly and simply never matches at runtime, so check the name against `tools list` yourself. |
+| `name` is unique per suborg | Among non-deleted configs — creating or renaming to an existing name is a 400 (`A bridge phrases config with name '…' already exists for this suborg`). From the backend source, 2026-07-29; not yet exercised live. |
+| `delete` is blocked while agents are attached | 400: `Cannot delete bridge phrases config with associated agents`. `get <id>` → `agents_info` lists the attached agents; clear or repoint each one's `bridge_phrases_id`, then delete. From the backend source, 2026-07-29; not yet exercised live. |
+| `conversation-config` persistence of `messages` / `randomize_messages` / `smart_turn_timeout_seconds`: **agent-scoped verified, org-default unknown — read back after every write** | Agent-scoped `bridges-update` writes persist (verified 2026-07-09 on `cli-test`, read-back confirmed — supersedes the earlier [cli#100](https://github.com/asksyllable/syllable-cli/issues/100)-era "silently dropped" reports; see `telephony-and-channels.md` § *Bridge Phrases*). Org-default (unscoped) writes have never had the settling write-then-read: the org default is a singleton with no delete, so the probe would overwrite the org's real config. (A 2026-07-29 read of `cli-test`'s org default showed all three fields populated, but the write path is unattributable — could have been the Console.) Treat org-default persistence as unknown: after any `bridges-update`, read back with `conversation-config bridges [--agent-id …]` and confirm what applied. |
 
 ## Channels (`channels targets`)
 
