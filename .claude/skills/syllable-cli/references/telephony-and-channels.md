@@ -138,7 +138,7 @@ Both `--agent-id` and `--tool-name` are optional query parameters (CLI v2.1+). A
 >
 > **Confirm which surface the org uses before writing either** — a write to the wrong one returns 200 and changes nothing. If the user doesn't know, ask whether the Console's agent config page lets them set a bridge phrase config per agent: yes → `bridge-phrases`, no → `conversation-config`. See SKILL.md § *Bridge Phrases — Confirm Which Config Surface First*, `commands.md` § *Bridge Phrases*, and `gotchas.md` § *Bridge Phrases — two separate surfaces*.
 
-Bridge phrase schema (`schemas__cortex__v1__bridge_phrases__BridgePhraseMessages`) per language:
+Bridge phrase schema (`schemas__cortex__v1__bridge_phrases__BridgePhraseMessages`; the pre-split name `BridgePhraseMessages` still resolves via `schema get`) per language:
 
 | Field | Type | Description |
 |-------|------|-------------|

@@ -2413,6 +2413,30 @@ func min(a, b int) int {
 
 // --- Output purity and hint tests ---
 
+// The bridge_phrases spec bump split BridgePhraseMessages into two qualified
+// schemas. The unqualified name keeps resolving as an alias to the cortex
+// (conversation-config) variant, which is field-for-field identical to what
+// the old key held — so lookups that predate the split don't break.
+func TestSchemaGetRenamedBridgePhraseMessages(t *testing.T) {
+	viper.Set("output", "table")
+	defer viper.Set("output", "json")
+
+	cmd := schemaGetCmd()
+	cmd.SetArgs([]string{"BridgePhraseMessages"})
+	out := captureStdout(func() {
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("aliased schema lookup should succeed, got: %v", err)
+		}
+	})
+
+	if !strings.Contains(out, "schemas__cortex__v1__bridge_phrases__BridgePhraseMessages") {
+		t.Errorf("alias should resolve to the cortex schema, got: %s", out[:min(len(out), 200)])
+	}
+	if !strings.Contains(out, "first_slow_messages") {
+		t.Errorf("resolved schema should be the legacy conversation-config shape, got: %s", out[:min(len(out), 300)])
+	}
+}
+
 func TestSchemaGetJSONOutputPure(t *testing.T) {
 	prev := viper.GetString("output")
 	defer viper.Set("output", prev)
