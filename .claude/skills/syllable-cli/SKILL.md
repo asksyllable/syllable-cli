@@ -85,7 +85,7 @@ Two commands write bridge phrases, with **separate storage**. Writing the wrong 
 
 `conversation-config` is **slated for deprecation**; `bridge-phrases` is the forward-looking surface. Until that lands, both are live and the question above is the only reliable way to tell which one an org is on — the API answers a write to either with a 200 regardless.
 
-Reads are safe to run without asking. When diagnosing, reading **both** is often the fastest way to find where an org's phrases actually live:
+Reads skip only the which-surface question — the org & environment confirmation above still applies to them. When diagnosing, reading **both** is often the fastest way to find where an org's phrases actually live:
 
 ```bash
 syllable bridge-phrases list

@@ -88,9 +88,10 @@ changes nothing the agent actually uses, so there is no error to catch it.
 config page let them set a bridge phrase config per agent?* **Yes** → use
 `bridge-phrases`. **No** → use `conversation-config bridges-update`.
 
-Reads need no confirmation — reading both is usually the fastest way to find
-where an org's phrases actually live. See SKILL.md § *Bridge Phrases — Confirm
-Which Config Surface First*.
+Reads skip only the which-surface question (org & environment confirmation
+still applies) — reading both is usually the fastest way to find where an
+org's phrases actually live. See SKILL.md § *Bridge Phrases — Confirm Which
+Config Surface First*.
 
 | Topic | What to do |
 |-------|-----------|
@@ -102,12 +103,7 @@ Which Config Surface First*.
 | `config.tools[].tool_name` is not validated | An unknown tool name is stored as-is (verified 2026-07-29 — a write naming a nonexistent tool succeeded and read back unchanged). A typo saves cleanly and simply never matches at runtime, so check the name against `tools list` yourself. |
 | `name` is unique per suborg | Among non-deleted configs — creating or renaming to an existing name is a 400 (`A bridge phrases config with name '…' already exists for this suborg`). From the backend source, 2026-07-29; not yet exercised live. |
 | `delete` is blocked while agents are attached | 400: `Cannot delete bridge phrases config with associated agents`. `get <id>` → `agents_info` lists the attached agents; clear or repoint each one's `bridge_phrases_id`, then delete. From the backend source, 2026-07-29; not yet exercised live. |
-| Unified `messages` / `randomize_messages` not yet active in prod | The v1.7.1 spec adds `messages` + `randomize_messages` to the bridges body and `bridges-update` sends them, but production doesn't persist them yet — until it does, only the legacy lists (`first_slow_messages`, `very_slow_messages`, `tool_responses`) take effect. Read back after a `bridges-update` to confirm what applied. |
-| `smart_turn_timeout_seconds` not yet active in prod | Same for the top-level `smart_turn_timeout_seconds` (number `0.25`–`30`, or `null`): `bridges-update` passes it through via `--file`, but production doesn't persist it yet. Read back to confirm. (Tracked alongside [cli#100](https://github.com/asksyllable/syllable-cli/issues/100).) |
-
-> **The two rows above are stale or at least contradicted — don't quote them as current.** They conflict with `telephony-and-channels.md`, which records agent-scoped writes as sticking (verified 2026-07-09), superseding an earlier "silently dropped" note. And on 2026-07-29 a plain `conversation-config bridges` read on `cli-test` returned `messages`, `randomize_messages: true`, and `smart_turn_timeout_seconds: 5.0` all populated — not what a dropped-field surface looks like.
->
-> That read is **not** proof the fields persist: those values could have been set via the Console while API writes still fail. Settling it needs a write-then-read on `conversation-config`, which nobody has run, because it's a singleton with no delete — writing it overwrites the org's real config rather than creating a disposable resource. Until someone does that, treat persistence here as **unknown** and read back after every write.
+| `conversation-config` persistence of `messages` / `randomize_messages` / `smart_turn_timeout_seconds`: **agent-scoped verified, org-default unknown — read back after every write** | Agent-scoped `bridges-update` writes persist (verified 2026-07-09 on `cli-test`, read-back confirmed — supersedes the earlier [cli#100](https://github.com/asksyllable/syllable-cli/issues/100)-era "silently dropped" reports; see `telephony-and-channels.md` § *Bridge Phrases*). Org-default (unscoped) writes have never had the settling write-then-read: the org default is a singleton with no delete, so the probe would overwrite the org's real config. (A 2026-07-29 read of `cli-test`'s org default showed all three fields populated, but the write path is unattributable — could have been the Console.) Treat org-default persistence as unknown: after any `bridges-update`, read back with `conversation-config bridges [--agent-id …]` and confirm what applied. |
 
 ## Channels (`channels targets`)
 
