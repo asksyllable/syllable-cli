@@ -170,7 +170,7 @@ func sessionsListCmd() *cobra.Command {
 	cmd.Flags().StringVar(&searchField, "search-field", "agent_name", "Field to search on (see API docs for valid values)")
 	cmd.Flags().StringVar(&startDate, "start-date", "", "Start datetime filter (e.g. 2024-01-01T00:00:00Z)")
 	cmd.Flags().StringVar(&endDate, "end-date", "", "End datetime filter")
-	cmd.Flags().BoolVar(&includeTest, "include-test", false, "Include test sessions (sessions on channel targets marked is_test=true, e.g. SIP test channels)")
+	cmd.Flags().BoolVar(&includeTest, "include-test", false, "Include sessions flagged is_test=true, which are hidden by default (e.g. conversation tests from 'agents send-test-message')")
 
 	return cmd
 }

@@ -21,7 +21,7 @@ Field-level reference for session commands, transcript structure, latency analys
 | `prompt_version_number` | integer | Prompt version number |
 | `source` | string | Caller (inbound) or recipient (outbound) — phone number, email, or username |
 | `target` | string | Channel target (the number/address the caller dialed) |
-| `is_test` | boolean | Whether this was a test session (from a test channel target) |
+| `is_test` | boolean | Whether this was a test session. Set on the session, not inherited from a channel target — conversation tests via `agents send-test-message` are `is_test=true` even in orgs with no channel targets. Hidden from `sessions list` unless `--include-test` is passed |
 | `user_terminated` | boolean | Whether the caller/recipient ended the call. `false` if transferred or errored. `null` for non-voice sessions |
 | `session_label_id` | string | ID of the quality label applied to this session |
 | `channel_manager_service` | string | Service facilitating the session (e.g., `hedy`, `console`) |
