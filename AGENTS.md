@@ -328,7 +328,7 @@ syllable tools history <tool-id> [--page N] [--limit N] [--order-by-direction as
 ### Sessions
 Individual voice or chat conversations. Captures transcript, AI summary, tool calls with arguments and API responses, duration, channel, user ID, labels, recording, and is_test flag. Read-only — no create/update/delete.
 ```bash
-syllable sessions list [--page N] [--limit N] [--start-date DATE] [--end-date DATE]
+syllable sessions list [--page N] [--limit N] [--start-date DATE] [--end-date DATE] [--search TEXT] [--search-field FIELD] [--include-test]
 syllable sessions get <session-id>
 syllable sessions transcript <session-id>
 syllable sessions summary <session-id>
@@ -337,6 +337,8 @@ syllable sessions recording <session-id>
 syllable sessions recording-stream --token <token>
 ```
 **List columns:** SESSION_ID, TIMESTAMP, AGENT, DURATION, SOURCE, TARGET, IS_TEST
+
+**`--include-test`:** test sessions are hidden from `sessions list` by default; this flag adds them back. It keys off the **session-level** `is_test` flag, not off channel targets — conversation tests from `agents send-test-message` are returned even in an org with no channel targets.
 
 ### Outbound
 ```bash

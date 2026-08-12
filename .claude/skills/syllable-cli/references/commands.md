@@ -178,7 +178,7 @@ syllable sessions recording-stream --token <token>   # stream recording bytes to
 ```bash
 syllable sessions list --search-field channel_manager_sid --search "CA…" -o json
 ```
-**Filter boolean fields client-side:** server-side `--search-field` filtering is reliable for string fields; for booleans (`is_outbound`, `is_test`) fetch with `-o json` and filter with `jq` (see `gotchas.md`). `--include-test` includes test sessions (channel targets marked `is_test=true`) in the list.
+**Filter boolean fields client-side:** server-side `--search-field` filtering is reliable for string fields; for booleans (`is_outbound`, `is_test`) fetch with `-o json` and filter with `jq` (see `gotchas.md`). `--include-test` adds sessions flagged `is_test=true` to the list (they are hidden by default). It keys off the **session-level** `is_test` flag, not off channel targets: on an org with zero channel targets, conversation-test sessions from `agents send-test-message` (`channel_manager_type: web_chat_v1`) are still returned. Verified on `cli-test`, 2026-08-12 ([ZOO-8613](https://syllable.atlassian.net/browse/ZOO-8613)).
 
 **Get fields:** Session ID, Conversation ID, Timestamp, Agent, Agent Type, Timezone, Prompt, Duration, Source, Target, Is Test
 
