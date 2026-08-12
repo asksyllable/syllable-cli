@@ -9,9 +9,11 @@ description: |
 
 A Go CLI for managing the Syllable AI platform. Source and releases: **https://github.com/asksyllable/syllable-cli**
 
-> **Docs synced to CLI v2.0.0** — bump this marker whenever these docs are updated for a new release.
+> **Docs synced to CLI v2.1.0** — bump this marker whenever these docs are updated for a new release.
 >
-> v2.0.0 (major) highlights — note the breaking changes for CLI users: destructive `delete` commands now confirm interactively and need `--yes` when non-interactive; `channels delete` was removed (no such API op — use `channels targets delete`); `data-sources create` inline now takes `--text` (the document-body field) in place of the old, non-functional `--content`. Also: `--output` is validated; unknown `--fields` columns warn; `--dry-run` lists any `missing_required_fields`; `--debug` redacts credentials.
+> v2.1.0 (minor) highlights — purely additive, no breaking changes: new `bridge-phrases` command (list/get/create/update/delete) for the named, reusable hold-phrase configs, attached to an agent via `bridge_phrases_id`; `conversation-config bridges` and `bridges-update` take optional `--agent-id` / `--tool-name` to scope the config (omit both for the org-level default); `sessions list --include-test` help text corrected — the flag keys off the **session-level** `is_test` flag, not channel targets.
+>
+> v2.0.0 (major) highlights — the breaking changes still apply: destructive `delete` commands confirm interactively and need `--yes` when non-interactive; `channels delete` was removed (no such API op — use `channels targets delete`); `data-sources create` inline takes `--text` (the document-body field) in place of the old, non-functional `--content`. Also: `--output` is validated; unknown `--fields` columns warn; `--dry-run` lists any `missing_required_fields`; `--debug` redacts credentials.
 
 ## Installation
 
