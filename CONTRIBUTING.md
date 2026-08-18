@@ -58,7 +58,7 @@ git push origin vX.Y.Z
   - Runs `go test ./...` as a pre-release hook.
   - Builds darwin/linux/windows binaries for amd64/arm64 (windows/arm64 excluded).
   - Publishes the GitHub release with tarballs, zip, checksums, and `install.sh`.
-  - Opens a PR titled `chore: update Homebrew cask for syllable vX.Y.Z` that updates `Casks/syllable.rb`. Merge after CI passes.
+  - Opens a PR titled `chore: update Homebrew cask for syllable vX.Y.Z` that updates `Casks/syllable.rb`. `/Casks/` is CODEOWNERS-gated, so this bot-authored PR needs a code-owner approval before it can merge: verify the diff touches only the version and the four sha256 values and that each sha matches the release's `checksums.txt`, then approve and merge (the spec-sync routine does this in its step H).
 
 ## Spec sync
 

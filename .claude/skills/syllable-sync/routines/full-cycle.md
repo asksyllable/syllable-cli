@@ -54,7 +54,7 @@ Then **guard the irreversible action on the *tag*, not the release** — the tag
 
 **G. The latest release is published but its notes are empty or a bare `## Changelog`** → set them from the merged PR's **Release notes** section (GoReleaser's commit changelog omits `chore:`/field-only changes, so never ship empty notes). Continue to H.
 
-**H. The `chore: update Homebrew cask …` PR is open** → **merge it** (`gh pr merge <n> --squash`). This is the final, easy-to-forget step that actually puts the release in front of `brew` users — never skip it. Continue to I.
+**H. The `chore: update Homebrew cask …` PR is open** → verify, approve, **merge it**. `/Casks/` is CODEOWNERS-gated behind @yorkable, and the cask PR is bot-authored, so it is unmergeable until a code-owner approval exists — a bare `gh pr merge` fails with "base branch policy prohibits the merge". First verify mechanically: the diff must change ONLY the `version` string (to the tag you just released) and the four `sha256` values, and each sha must equal the matching line in the release's `checksums.txt` (`gh release download vX.Y.Z --pattern "*checksums*" -O -`). If it verifies, `gh pr review <n> --approve` with the evidence in the review body, then `gh pr merge <n> --squash`. If it does NOT verify (unexpected files, mismatched shas), stop and ping @yorkable — never approve a cask you couldn't verify. This is the final, easy-to-forget step that actually puts the release in front of `brew` users — never skip it. Continue to I.
 
 **I. Everything above is done but the `spec-drift` issue is still open** (and there's no remaining drift) → close it.
 
