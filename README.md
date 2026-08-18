@@ -358,12 +358,13 @@ syllable tools history <id>
 
 ### Sessions
 
-Sessions are individual voice or chat conversations. Each session captures the transcript, an AI summary, all tool calls with their arguments and API responses, duration (for voice), channel, and test/live status. Use `transcript`, `summary`, `latency`, and `recording` subcommands to pull specific session data.
+Sessions are individual voice or chat conversations. Each session captures the transcript, an AI summary, all tool calls with their arguments and API responses, duration (for voice), channel, and test/live status. Use `transcript`, `timeline`, `summary`, `latency`, and `recording` subcommands to pull specific session data. The `timeline` subcommand returns a single consolidated, time-ordered stream of transcript turns, tool calls, and latency events with offsets from the session start.
 
 ```bash
 syllable sessions list [--start-date DATE] [--end-date DATE]
 syllable sessions get <id>
 syllable sessions transcript <id>
+syllable sessions timeline <id>
 syllable sessions summary <id>
 syllable sessions latency <id>
 syllable sessions recording <id>

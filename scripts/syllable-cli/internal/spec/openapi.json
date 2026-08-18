@@ -7997,6 +7997,54 @@
         }
       }
     },
+    "/api/v1/sessions/timeline/{session_id}": {
+      "get": {
+        "tags": [
+          "sessions.timeline"
+        ],
+        "summary": "Get Session Timeline By Id",
+        "description": "Consolidated, time-ordered timeline of a session's events.",
+        "operationId": "session_timeline_get_by_id",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionTimelineResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/session_debug/sid/{channel_manager_service}/{channel_manager_sid}": {
       "get": {
         "tags": [
@@ -14891,7 +14939,25 @@
           "Zephyr (Russian)",
           "Zephyr (Spanish)",
           "Zephyr (Thai)",
-          "Zephyr (Vietnamese)"
+          "Zephyr (Vietnamese)",
+          "Skylar (US)",
+          "Daniel (US)",
+          "Linda (US)",
+          "Corey (US)",
+          "Emma (US)",
+          "Ximena (MX)",
+          "Fernanda (MX)",
+          "Emilio (MX)",
+          "Marta (ES)",
+          "Mateo (MX)",
+          "Minji (KR)",
+          "Haeun (KR)",
+          "Taehyun (KR)",
+          "Jaewon (KR)",
+          "Hua (CN)",
+          "Liu (CN)",
+          "Xia (VN)",
+          "Suda (TH)"
         ],
         "title": "AgentVoiceDisplayName",
         "description": "Display names of voices that Syllable supports."
@@ -14915,7 +14981,8 @@
           "Studio",
           "WaveNet",
           "tts-1",
-          "gpt-4o-mini-tts"
+          "gpt-4o-mini-tts",
+          "sonic-3.5"
         ],
         "title": "AgentVoiceModel",
         "description": "Model for an agent voice."
@@ -15100,7 +15167,25 @@
           "wavenet:female/ru-RU-Chirp3-HD-Zephyr",
           "wavenet:female/es-US-Chirp3-HD-Zephyr",
           "wavenet:female/th-TH-Chirp3-HD-Zephyr",
-          "wavenet:female/vi-VN-Chirp3-HD-Zephyr"
+          "wavenet:female/vi-VN-Chirp3-HD-Zephyr",
+          "cartesia:Skylar",
+          "cartesia:Daniel",
+          "cartesia:Linda",
+          "cartesia:Corey",
+          "cartesia:Emma",
+          "cartesia:Ximena",
+          "cartesia:Fernanda",
+          "cartesia:Emilio",
+          "cartesia:Marta",
+          "cartesia:Mateo",
+          "cartesia:Minji",
+          "cartesia:Haeun",
+          "cartesia:Taehyun",
+          "cartesia:Jaewon",
+          "cartesia:Hua",
+          "cartesia:Liu",
+          "cartesia:Xia",
+          "cartesia:Suda"
         ],
         "title": "AgentVoiceVarName",
         "description": "The variable name of an agent voice (used when processing messages)."
@@ -15185,7 +15270,7 @@
             "title": "Batch Id",
             "description": "Unique ID for conversation batch",
             "examples": [
-              "20260729.9"
+              "20260817.9"
             ]
           },
           "campaign_id": {
@@ -15209,7 +15294,7 @@
             "title": "Expires On",
             "description": "Timestamp of batch expiration",
             "examples": [
-              "2026-07-30T00:00:00Z"
+              "2026-08-18T00:00:00Z"
             ]
           },
           "paused": {
@@ -15228,6 +15313,33 @@
               false
             ]
           },
+          "call_rate": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 3600.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Call Rate",
+            "description": "Target number of outreach attempts per hour for this batch. When omitted, the batch inherits the campaign's hourly_rate.",
+            "examples": [
+              25
+            ]
+          },
+          "auto_call_rate": {
+            "type": "boolean",
+            "title": "Auto Call Rate",
+            "description": "Pace this batch automatically to finish before expires_on, counting only the campaign's valid hours (daily_start_time..daily_end_time on active_days). The derived rate takes precedence over call_rate and over the campaign hourly_rate. Requires expires_on.",
+            "default": false,
+            "examples": [
+              true,
+              false
+            ]
+          },
           "status": {
             "$ref": "#/components/schemas/BatchStatus",
             "description": "Status of batch",
@@ -15239,6 +15351,21 @@
               "FAILED",
               "CANCELED",
               "EXPIRED"
+            ]
+          },
+          "auto_call_rate_baseline": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auto Call Rate Baseline",
+            "description": "Read-only. The auto-paced rate first computed for this batch, set on its first dialing cycle. Subsequent cycles hold the rate within +/- 20% of it. Null until the batch has dialed, or when auto_call_rate is off.",
+            "examples": [
+              25.0
             ]
           },
           "upload_filename": {
@@ -15277,7 +15404,7 @@
             "title": "Created At",
             "description": "Timestamp of batch creation",
             "examples": [
-              "2026-07-29T00:00:00Z"
+              "2026-08-17T00:00:00Z"
             ]
           },
           "deleted_at": {
@@ -15293,7 +15420,7 @@
             "title": "Deleted At",
             "description": "Timestamp of batch deletion",
             "examples": [
-              "2026-07-29T00:00:00Z"
+              "2026-08-17T00:00:00Z"
             ]
           },
           "deleted_reason": {
@@ -15324,7 +15451,7 @@
             "title": "Last Updated At",
             "description": "Timestamp of last change to batch",
             "examples": [
-              "2026-07-29T00:00:00Z"
+              "2026-08-17T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -16142,6 +16269,17 @@
             ],
             "title": "Arguments",
             "description": "Optional arguments to pass to the tool (supports template strings)"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CallResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional deterministic result-capture configuration. When present, selected fields from the tool response are saved into workflow state, so later transitions/conditions/validations can branch on them without the model re-deriving them from tool call history. Currently applied only when the call is routed in inject mode (arguments already complete); hinted/routed calls are not yet supported."
           }
         },
         "type": "object",
@@ -16149,6 +16287,72 @@
           "name"
         ],
         "title": "CallAction"
+      },
+      "CallResult": {
+        "properties": {
+          "save": {
+            "items": {
+              "$ref": "#/components/schemas/CallResultSaveMapping"
+            },
+            "type": "array",
+            "title": "Save",
+            "description": "Field mappings extracted from the tool response into workflow state."
+          }
+        },
+        "type": "object",
+        "title": "CallResult",
+        "description": "Deterministic result-capture configuration for a call action's tool response."
+      },
+      "CallResultSaveMapping": {
+        "properties": {
+          "from": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/CelExpression"
+                  },
+                  {
+                    "$ref": "#/components/schemas/JMESPathExpression"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "type",
+                  "mapping": {
+                    "cel": "#/components/schemas/CelExpression",
+                    "jmespath": "#/components/schemas/JMESPathExpression",
+                    "jp": "#/components/schemas/JMESPathExpression"
+                  }
+                }
+              },
+              {
+                "$ref": "#/components/schemas/CaseExpression"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "From",
+            "description": "Expression evaluated against the parsed tool response body (the JSON the external tool returned). Supported forms: (1) JMESPath string (default for plain strings) — a bare field name for raw passthrough, or a boolean/computed expression for derived values, (2) typed JMESPath object {\"type\":\"jp\"|\"jmespath\",\"expression\":\"...\"}, or (3) typed CEL object {\"type\":\"cel\",\"expression\":\"...\"}.",
+            "examples": [
+              "is_valid",
+              "readable_phone_number",
+              "status == 'valid'"
+            ]
+          },
+          "to": {
+            "type": "string",
+            "title": "To",
+            "description": "Workflow variable name to store the extracted value under."
+          }
+        },
+        "type": "object",
+        "required": [
+          "from",
+          "to"
+        ],
+        "title": "CallResultSaveMapping",
+        "description": "One field-extraction mapping applied to a call action's tool response.\n\nExample: {\"from\": \"is_valid\", \"to\": \"is_valid\"}\nExample (derived value): {\"from\": \"status == 'valid'\", \"to\": \"is_valid\"}"
       },
       "CampaignProperties": {
         "type": "string",
@@ -16358,6 +16562,7 @@
           "INVALID",
           "UNEXPECTED_ERROR",
           "FILTERED_LINE_TYPE",
+          "NO_OUTCOME",
           "PROCESSED",
           "DROPPED",
           "DEFERRED",
@@ -16738,7 +16943,7 @@
             "title": "Batch Id",
             "description": "Unique ID for conversation batch",
             "examples": [
-              "20260729.9"
+              "20260817.9"
             ]
           },
           "campaign_id": {
@@ -16762,7 +16967,7 @@
             "title": "Expires On",
             "description": "Timestamp of batch expiration",
             "examples": [
-              "2026-07-30T00:00:00Z"
+              "2026-08-18T00:00:00Z"
             ]
           },
           "paused": {
@@ -16781,6 +16986,33 @@
               false
             ]
           },
+          "call_rate": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 3600.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Call Rate",
+            "description": "Target number of outreach attempts per hour for this batch. When omitted, the batch inherits the campaign's hourly_rate.",
+            "examples": [
+              25
+            ]
+          },
+          "auto_call_rate": {
+            "type": "boolean",
+            "title": "Auto Call Rate",
+            "description": "Pace this batch automatically to finish before expires_on, counting only the campaign's valid hours (daily_start_time..daily_end_time on active_days). The derived rate takes precedence over call_rate and over the campaign hourly_rate. Requires expires_on.",
+            "default": false,
+            "examples": [
+              true,
+              false
+            ]
+          },
           "status": {
             "$ref": "#/components/schemas/BatchStatus",
             "description": "Status of batch",
@@ -16792,6 +17024,21 @@
               "FAILED",
               "CANCELED",
               "EXPIRED"
+            ]
+          },
+          "auto_call_rate_baseline": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auto Call Rate Baseline",
+            "description": "Read-only. The auto-paced rate first computed for this batch, set on its first dialing cycle. Subsequent cycles hold the rate within +/- 20% of it. Null until the batch has dialed, or when auto_call_rate is off.",
+            "examples": [
+              25.0
             ]
           },
           "upload_filename": {
@@ -16830,7 +17077,7 @@
             "title": "Created At",
             "description": "Timestamp of batch creation",
             "examples": [
-              "2026-07-29T00:00:00Z"
+              "2026-08-17T00:00:00Z"
             ]
           },
           "deleted_at": {
@@ -16846,7 +17093,7 @@
             "title": "Deleted At",
             "description": "Timestamp of batch deletion",
             "examples": [
-              "2026-07-29T00:00:00Z"
+              "2026-08-17T00:00:00Z"
             ]
           },
           "deleted_reason": {
@@ -16877,7 +17124,7 @@
             "title": "Last Updated At",
             "description": "Timestamp of last change to batch",
             "examples": [
-              "2026-07-29T00:00:00Z"
+              "2026-08-17T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -16920,7 +17167,7 @@
             "title": "Batch Id",
             "description": "Unique ID for conversation batch",
             "examples": [
-              "20260729.9"
+              "20260817.9"
             ]
           },
           "campaign_id": {
@@ -16944,7 +17191,7 @@
             "title": "Expires On",
             "description": "Timestamp of batch expiration",
             "examples": [
-              "2026-07-30T00:00:00Z"
+              "2026-08-18T00:00:00Z"
             ]
           },
           "paused": {
@@ -16958,6 +17205,33 @@
             ],
             "title": "Paused",
             "description": "Whether the batch is on HOLD. When on HOLD, no outreach will be made.",
+            "examples": [
+              true,
+              false
+            ]
+          },
+          "call_rate": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 3600.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Call Rate",
+            "description": "Target number of outreach attempts per hour for this batch. When omitted, the batch inherits the campaign's hourly_rate.",
+            "examples": [
+              25
+            ]
+          },
+          "auto_call_rate": {
+            "type": "boolean",
+            "title": "Auto Call Rate",
+            "description": "Pace this batch automatically to finish before expires_on, counting only the campaign's valid hours (daily_start_time..daily_end_time on active_days). The derived rate takes precedence over call_rate and over the campaign hourly_rate. Requires expires_on.",
+            "default": false,
             "examples": [
               true,
               false
@@ -17003,6 +17277,39 @@
             "description": "Timestamp of batch expiration",
             "examples": [
               "2027-01-01T06:00:00Z"
+            ]
+          },
+          "call_rate": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 3600.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Call Rate",
+            "description": "Target number of outreach attempts per hour for this batch. Omitted leaves the current value unchanged; a batch that has never set one inherits the campaign's hourly_rate.",
+            "examples": [
+              25
+            ]
+          },
+          "auto_call_rate": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auto Call Rate",
+            "description": "Pace this batch automatically to finish before expires_on. Omitted leaves the current setting unchanged. Enabling it requires the batch to have an expires_on, either already set or supplied in the same update.",
+            "examples": [
+              true,
+              false
             ]
           }
         },
@@ -17093,7 +17400,7 @@
             "title": "Created At",
             "description": "Timestamp of request creation",
             "examples": [
-              "2026-07-28T00:00:00Z"
+              "2026-08-16T00:00:00Z"
             ]
           },
           "sent_at": {
@@ -17109,7 +17416,7 @@
             "title": "Sent At",
             "description": "Timestamp at which request was sent",
             "examples": [
-              "2026-07-29T00:00:00Z"
+              "2026-08-17T00:00:00Z"
             ]
           },
           "attempt_count": {
@@ -20543,7 +20850,7 @@
             "title": "Created At",
             "description": "Timestamp at which insight upload folder was created",
             "examples": [
-              "2026-07-28T00:00:00Z"
+              "2026-08-16T00:00:00Z"
             ]
           },
           "updated_at": {
@@ -20552,7 +20859,7 @@
             "title": "Updated At",
             "description": "Timestamp at which insight upload folder was last updated",
             "examples": [
-              "2026-07-29T00:00:00Z"
+              "2026-08-17T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -21555,7 +21862,7 @@
             "title": "Created At",
             "description": "Timestamp of at which insight tool configuration was created",
             "examples": [
-              "2026-07-28T00:00:00Z"
+              "2026-08-16T00:00:00Z"
             ]
           },
           "updated_at": {
@@ -21564,7 +21871,7 @@
             "title": "Updated At",
             "description": "Timestamp at which insight tool configuration was last updated",
             "examples": [
-              "2026-07-29T00:00:00Z"
+              "2026-08-17T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -21945,7 +22252,7 @@
             "title": "Start Datetime",
             "description": "Target session timestamp the workflow (backfill) should start. An empty value indicates start on activation - live sessions only",
             "examples": [
-              "2026-07-28T00:00:00Z"
+              "2026-08-16T00:00:00Z"
             ]
           },
           "end_datetime": {
@@ -21961,7 +22268,7 @@
             "title": "End Datetime",
             "description": "Target session timestamp the workflow (backfill) should end. An empty value indicates no end, i.e., include live sessions until deactivation",
             "examples": [
-              "2026-07-29T00:00:00Z"
+              "2026-08-17T00:00:00Z"
             ]
           }
         },
@@ -22036,7 +22343,7 @@
             "title": "Start Datetime",
             "description": "Target session timestamp the workflow (backfill) should start. An empty value indicates start on activation - live sessions only",
             "examples": [
-              "2026-07-28T00:00:00Z"
+              "2026-08-16T00:00:00Z"
             ]
           },
           "end_datetime": {
@@ -22052,7 +22359,7 @@
             "title": "End Datetime",
             "description": "Target session timestamp the workflow (backfill) should end. An empty value indicates no end, i.e., include live sessions until deactivation",
             "examples": [
-              "2026-07-29T00:00:00Z"
+              "2026-08-17T00:00:00Z"
             ]
           },
           "id": {
@@ -22120,7 +22427,7 @@
             "title": "Created At",
             "description": "Timestamp at which the insight workflow was created",
             "examples": [
-              "2026-07-28T00:00:00Z"
+              "2026-08-16T00:00:00Z"
             ]
           },
           "updated_at": {
@@ -22129,7 +22436,7 @@
             "title": "Updated At",
             "description": "Timestamp of most recent update to the insight workflow",
             "examples": [
-              "2026-07-29T00:00:00Z"
+              "2026-08-17T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -22225,7 +22532,7 @@
             "title": "Created At",
             "description": "Timestamp at which insight upload folder was created",
             "examples": [
-              "2026-07-28T00:00:00Z"
+              "2026-08-16T00:00:00Z"
             ]
           },
           "updated_at": {
@@ -22234,7 +22541,7 @@
             "title": "Updated At",
             "description": "Timestamp at which insight upload folder was last updated",
             "examples": [
-              "2026-07-29T00:00:00Z"
+              "2026-08-17T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -22484,7 +22791,7 @@
             "title": "Created At",
             "description": "Timestamp at which insight tool result was created",
             "examples": [
-              "2026-07-28T00:00:00Z"
+              "2026-08-16T00:00:00Z"
             ]
           },
           "updated_at": {
@@ -22493,7 +22800,7 @@
             "title": "Updated At",
             "description": "Timestamp at which insight tool result was last updated",
             "examples": [
-              "2026-07-29T00:00:00Z"
+              "2026-08-17T00:00:00Z"
             ]
           },
           "upload_file_metadata": {
@@ -22638,7 +22945,7 @@
             "title": "Start Time",
             "description": "Start time of the uploaded file",
             "examples": [
-              "2026-07-28T00:00:00Z"
+              "2026-08-16T00:00:00Z"
             ]
           },
           "end_time": {
@@ -22654,7 +22961,7 @@
             "title": "End Time",
             "description": "End time of the uploaded file",
             "examples": [
-              "2026-07-29T00:00:00Z"
+              "2026-08-17T00:00:00Z"
             ]
           },
           "error_message": {
@@ -22709,7 +23016,7 @@
             "title": "Created At",
             "description": "Timestamp at which insight upload file was created",
             "examples": [
-              "2026-07-28T00:00:00Z"
+              "2026-08-16T00:00:00Z"
             ]
           }
         },
@@ -25714,7 +26021,7 @@
               }
             ],
             "title": "Provider Credentials",
-            "description": "Provider-specific credentials. Initially to be used for AfricasTalking creds.In a future this would be used for Twilio creds too (removing the account_sid and auth_token fields).",
+            "description": "Provider-specific credentials. Initially to be used for AfricasTalking creds. In a future this would be used for Twilio creds too (removing the account_sid and auth_token fields).",
             "examples": [
               {
                 "api_key": "atk123",
@@ -25739,6 +26046,42 @@
                 "passive_input_start": 0.5,
                 "passive_speech_input_enabled": true,
                 "pre_input_timeout": 1.2
+              },
+              {
+                "sip_configuration": {
+                  "call_info_placement": "sip_header:P-Asserted-Identity",
+                  "sip_endpoints": [
+                    {
+                      "host": "10.0.0.1",
+                      "port": "5060",
+                      "transport": "tcp"
+                    },
+                    {
+                      "host": "pbx.example.com",
+                      "port": "5071",
+                      "transport": "tls"
+                    }
+                  ],
+                  "sip_transfer_mode": "refer"
+                }
+              },
+              {
+                "sip_configuration": {
+                  "call_info_placement": "uri_parameters",
+                  "sip_endpoints": [
+                    {
+                      "host": "10.0.0.1",
+                      "port": "5060",
+                      "transport": "tcp"
+                    }
+                  ]
+                }
+              },
+              {
+                "sip_configuration": {
+                  "call_info_placement": "to_parameters",
+                  "sip_transfer_mode": "refer"
+                }
               }
             ]
           },
@@ -26596,7 +26939,7 @@
             "title": "Created At",
             "description": "Timestamp of campaign creation",
             "examples": [
-              "2026-07-29T00:00:00Z"
+              "2026-08-17T00:00:00Z"
             ]
           },
           "updated_at": {
@@ -26605,7 +26948,7 @@
             "title": "Updated At",
             "description": "Timestamp of campaign update",
             "examples": [
-              "2026-07-29T00:00:00Z"
+              "2026-08-17T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -29130,6 +29473,18 @@
             ],
             "title": "Transfer Voicemail Detected",
             "description": "Whether a voicemail was detected during the transfer leg of the session"
+          },
+          "override_timestamp": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Override Timestamp",
+            "description": "ISO 8601 datetime used to override the session's current time. Set only for test sessions that supplied a datetime override; otherwise null."
           }
         },
         "type": "object",
@@ -29674,6 +30029,43 @@
         "title": "SessionText",
         "description": "Information about a given message from a user to an agent or vice-versa."
       },
+      "SessionTimelineResponse": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "title": "Session Id",
+            "description": "Internal ID of the session"
+          },
+          "session_start": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Start",
+            "description": "The call's start (placement) time; the zero point for all offsets. Falls back to the first transcript turn for legacy sessions with no session_start event."
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/TimelineEvent"
+            },
+            "type": "array",
+            "title": "Events",
+            "description": "All events, ordered by timestamp ascending"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "events"
+        ],
+        "title": "SessionTimelineResponse",
+        "description": "Consolidated, time-ordered timeline of a session's events."
+      },
       "SessionTranscriptionResponse": {
         "properties": {
           "session_id": {
@@ -29869,6 +30261,22 @@
                   "transport": "tls"
                 }
               ]
+            ]
+          },
+          "call_info_placement": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Call Info Placement",
+            "description": "Where to place call information during a transfer. Supported values are `uri_parameters`, `to_parameters`, `from_parameters`, or `sip_header:<header-name>`.",
+            "examples": [
+              "uri_parameters",
+              "sip_header:P-Asserted-Identity"
             ]
           }
         },
@@ -30956,6 +31364,194 @@
         ],
         "title": "TestMessageResponse",
         "description": "Response from an agent in a test chat."
+      },
+      "TimelineEvent": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/TimelineEventKind",
+            "description": "Which stream this event came from"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp",
+            "description": "Absolute time of the event (for ordering)"
+          },
+          "offset": {
+            "type": "string",
+            "title": "Offset",
+            "description": "Time since session start, formatted MM:SS (or HH:MM:SS)",
+            "examples": [
+              "00:04"
+            ]
+          },
+          "turn_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turn Index",
+            "description": "0-based index of the transcript turn. Transcript events carry their own turn index; tool/latency events carry the index of the nearest preceding turn they bind to. None only for non-transcript events that precede the first transcript turn."
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "\"user\" or \"agent\" (transcript events)"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "Message content (transcript events)"
+          },
+          "lang": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lang",
+            "description": "Language code (transcript events)"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category",
+            "description": "tool | llm | tts | stt | http. A tool call surfaces once, as a `kind=tool` event; its redundant tool-latency measurement is dropped from the timeline.",
+            "examples": [
+              "tool",
+              "llm"
+            ]
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "Tool name (tool events) or the latency measurement name (e.g. stt_processing)",
+            "examples": [
+              "holiday_check",
+              "stt_processing"
+            ]
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "Provider/model parts of a latency label",
+            "examples": [
+              [
+                "Gpt-4.1",
+                "OpenAI"
+              ]
+            ]
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms",
+            "description": "Duration of the event in milliseconds"
+          },
+          "tool_request": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Request",
+            "description": "Tool request payload, JSON-encoded"
+          },
+          "tool_result": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Result",
+            "description": "Tool response payload, JSON-encoded"
+          },
+          "tool_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Error",
+            "description": "Tool error payload, JSON-encoded"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "timestamp",
+          "offset"
+        ],
+        "title": "TimelineEvent",
+        "description": "A single normalized event on the consolidated session timeline."
+      },
+      "TimelineEventKind": {
+        "type": "string",
+        "enum": [
+          "transcript",
+          "tool",
+          "latency"
+        ],
+        "title": "TimelineEventKind"
       },
       "ToolAgentInfo": {
         "properties": {
@@ -32206,7 +32802,8 @@
         "enum": [
           "OpenAI",
           "ElevenLabs",
-          "Google"
+          "Google",
+          "Cartesia"
         ],
         "title": "TtsProvider",
         "description": "TTS provider for an agent voice."

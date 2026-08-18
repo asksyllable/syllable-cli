@@ -164,6 +164,7 @@ syllable tools history <tool-id> [--page N] [--limit N] [--order-by-direction as
 syllable sessions list [--page N] [--limit N] [--start-date DATE] [--end-date DATE] [--search TEXT] [--search-field FIELD] [--include-test]
 syllable sessions get <session_id>
 syllable sessions transcript <session_id>
+syllable sessions timeline <session_id>       # consolidated time-ordered transcript+tool+latency events
 syllable sessions summary <session_id>
 syllable sessions latency <session_id>
 syllable sessions recording <session_id>

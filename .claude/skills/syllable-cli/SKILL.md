@@ -9,7 +9,9 @@ description: |
 
 A Go CLI for managing the Syllable AI platform. Source and releases: **https://github.com/asksyllable/syllable-cli**
 
-> **Docs synced to CLI v2.1.0** — bump this marker whenever these docs are updated for a new release.
+> **Docs synced to CLI v2.2.0** — bump this marker whenever these docs are updated for a new release.
+>
+> v2.2.0 (minor) highlights — purely additive, no breaking changes: new `sessions timeline <session-id>` command returning one consolidated, time-ordered stream of transcript turns, tool calls, and latency events with offsets from session start; outbound batch create/update bodies accept `call_rate` and `auto_call_rate` (per-batch rate control, with `auto_call_rate_baseline` in responses); `SipConfiguration` gains `call_info_placement`; sessions expose `override_timestamp`; new Cartesia TTS provider with the `sonic-3.5` voice model and 18 new voices across US/MX/ES/KR/CN/VN/TH.
 >
 > v2.1.0 (minor) highlights — purely additive, no breaking changes: new `bridge-phrases` command (list/get/create/update/delete) for the named, reusable hold-phrase configs, attached to an agent via `bridge_phrases_id`; `conversation-config bridges` and `bridges-update` take optional `--agent-id` / `--tool-name` to scope the config (omit both for the org-level default); `sessions list --include-test` help text corrected — the flag keys off the **session-level** `is_test` flag, not channel targets.
 >
