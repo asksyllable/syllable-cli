@@ -12,6 +12,13 @@ name: Spec Drift
 # replacing the spec atomically) is done by the `syllable-sync` skill / the
 # local `syllable-spec-sync` routine, which carries the full cycle from
 # reconcile through independent verify, merge, and release.
+#
+# It also acts as the STALL WATCHDOG for that local routine: the routine runs
+# on a laptop and dies silently when the scheduler host isn't running, so if
+# the drift issue sits open past a threshold with no active reconciliation PR,
+# this workflow nags the owner on the issue (at most once per threshold
+# window). This is the only piece of the pipeline guaranteed to keep running
+# when the laptop doesn't.
 
 on:
   schedule:
@@ -21,6 +28,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 concurrency:
   group: spec-drift
@@ -148,3 +156,58 @@ jobs:
               echo "No drift and no open issue — nothing to do."
             fi
           fi
+
+      - name: Escalate if the drift is stalled
+        if: steps.detect.outputs.drift == 'yes'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STALL_HOURS: "72"
+          OWNER: yorkable
+        run: |
+          set -eo pipefail
+
+          num="$(gh issue list --label "$LABEL" --state open --json number --jq '.[0].number // empty')"
+          [ -n "$num" ] || { echo "No open drift issue — nothing to watch."; exit 0; }
+
+          created="$(gh issue view "$num" --json createdAt --jq .createdAt)"
+          age_h=$(( ( $(date -u +%s) - $(date -u -d "$created" +%s) ) / 3600 ))
+          if [ "$age_h" -lt "$STALL_HOURS" ]; then
+            echo "Drift issue #$num is ${age_h}h old (< ${STALL_HOURS}h) — the routine still has time."
+            exit 0
+          fi
+
+          # An open, non-draft spec-sync PR with recent activity means the
+          # pipeline is moving (probably waiting on checks or a merge) — no nag.
+          # A parked DRAFT deliberately does NOT suppress the nag.
+          active="$(gh pr list --label spec-sync --state open --json isDraft,updatedAt \
+            --jq "[.[] | select(.isDraft | not) | select(.updatedAt > (now - ${STALL_HOURS}*3600 | todate))] | length")"
+          if [ "$active" -gt 0 ]; then
+            echo "An active non-draft spec-sync PR exists — no escalation."
+            exit 0
+          fi
+
+          # At most one nag per window, keyed on a marker in our own comments.
+          marker="<!-- spec-drift-stall-watchdog -->"
+          last_nag="$(gh issue view "$num" --json comments \
+            --jq "[.comments[] | select(.body | contains(\"${marker}\"))] | .[-1].createdAt // empty")"
+          if [ -n "$last_nag" ]; then
+            nag_age_h=$(( ( $(date -u +%s) - $(date -u -d "$last_nag" +%s) ) / 3600 ))
+            if [ "$nag_age_h" -lt "$STALL_HOURS" ]; then
+              echo "Already nagged ${nag_age_h}h ago — waiting out the window."
+              exit 0
+            fi
+          fi
+
+          {
+            echo "$marker"
+            echo "🚨 @$OWNER — this drift has been open for **${age_h} hours** with no active reconciliation PR. The local \`syllable-spec-sync\` routine has probably stopped firing. Check, most likely first:"
+            echo
+            echo "1. **Is the routine's scheduler alive on the host machine?** (For a desktop-app routine, the app must be running — check the task's last-run time.)"
+            echo "2. **Is a draft spec-sync PR parked on a human decision?** Deciding it unblocks the next fire."
+            echo "3. **Is a gate red?** Check the latest Spec Live Check runs."
+            echo
+            echo "_Posted by the stall watchdog in spec-drift.yml — at most once per ${STALL_HOURS}h while the drift stays unreconciled._"
+          } > /tmp/nag.md
+          gh issue comment "$num" --body-file /tmp/nag.md
+          gh issue edit "$num" --add-assignee "$OWNER" >/dev/null 2>&1 || true
+          echo "Escalated on issue #$num (${age_h}h old)."
