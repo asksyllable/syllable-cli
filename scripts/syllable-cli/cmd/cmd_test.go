@@ -162,7 +162,7 @@ func TestToolsCommandHasSubcommands(t *testing.T) {
 
 func TestSessionsCommandHasSubcommands(t *testing.T) {
 	cmd := sessionsCmd()
-	expected := []string{"list", "get", "transcript", "summary", "latency", "recording", "recording-stream"}
+	expected := []string{"list", "get", "transcript", "timeline", "summary", "latency", "recording", "recording-stream"}
 	subs := make(map[string]bool)
 	for _, c := range cmd.Commands() {
 		subs[c.Name()] = true
@@ -792,6 +792,40 @@ func TestSessionsTranscript(t *testing.T) {
 
 	if !strings.Contains(out, "Hello, how can I help?") {
 		t.Errorf("output should contain transcript content, got: %s", out)
+	}
+}
+
+func TestSessionsTimeline(t *testing.T) {
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("expected GET, got %s", r.Method)
+		}
+		if r.URL.Path != "/api/v1/sessions/timeline/sess-1" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"session_id": "sess-1",
+			"events": []map[string]interface{}{
+				{"kind": "transcript", "offset": "00:00:01", "source": "agent", "text": "Hello, how can I help?"},
+				{"kind": "latency", "offset": "00:00:03", "label": "llm", "duration_ms": 420.0},
+			},
+		})
+	})
+	defer server.Close()
+	viper.Set("output", "table")
+	defer viper.Set("output", "json")
+
+	cmd := sessionsTimelineCmd()
+	cmd.SetArgs([]string{"sess-1"})
+	out := captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if !strings.Contains(out, "Hello, how can I help?") {
+		t.Errorf("output should contain transcript event text, got: %s", out)
+	}
+	if !strings.Contains(out, "420 ms") {
+		t.Errorf("output should contain latency duration, got: %s", out)
 	}
 }
 

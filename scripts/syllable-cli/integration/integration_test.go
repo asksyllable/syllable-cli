@@ -473,6 +473,35 @@ func TestAgentsLabels(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// Session Timeline (read-only) — spec-sync
+// ---------------------------------------------------------------------------
+
+func TestSessionsTimeline(t *testing.T) {
+	// List sessions, then fetch the timeline for the first one. A fresh CI org
+	// may have no sessions, so skip rather than fail when the list is empty.
+	// --include-test so a throwaway CI org (whose sessions are likely test
+	// sessions) still has a session to exercise the timeline endpoint against.
+	out := mustRunCLI(t, "sessions", "list", "--limit", "1", "--include-test")
+	var listed struct {
+		Items []struct {
+			SessionID string `json:"session_id"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(out, &listed); err != nil {
+		t.Fatalf("parse sessions list: %v (raw: %s)", err, string(out))
+	}
+	if len(listed.Items) == 0 || listed.Items[0].SessionID == "" {
+		t.Skip("no sessions in this org; skipping timeline test")
+	}
+
+	// A clean exit proves the path, auth, and response parsing all work.
+	timeline := mustRunCLI(t, "sessions", "timeline", listed.Items[0].SessionID)
+	if !json.Valid(timeline) {
+		t.Fatalf("timeline output is not valid JSON: %s", string(timeline))
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Organization SIP IP Ranges — spec-sync v0.0.3
 // ---------------------------------------------------------------------------
 
