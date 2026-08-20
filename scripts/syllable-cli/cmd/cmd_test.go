@@ -1846,6 +1846,46 @@ func TestPromptsHistory(t *testing.T) {
 	}
 }
 
+func TestPromptsSupportedLLMs(t *testing.T) {
+	var requestPath string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		requestPath = r.URL.String()
+		json.NewEncoder(w).Encode([]interface{}{})
+	})
+	defer server.Close()
+
+	cmd := promptsSupportedLLMsCmd()
+	cmd.SetArgs([]string{})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	// Without --selected-model the request must carry no query string, so the
+	// backend applies its default (retired models omitted).
+	if requestPath != "/api/v1/prompts/llms/supported" {
+		t.Errorf("unexpected request path: %s", requestPath)
+	}
+}
+
+func TestPromptsSupportedLLMsSelectedModel(t *testing.T) {
+	var requestPath string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		requestPath = r.URL.String()
+		json.NewEncoder(w).Encode([]interface{}{})
+	})
+	defer server.Close()
+
+	cmd := promptsSupportedLLMsCmd()
+	cmd.SetArgs([]string{"--selected-model", "gpt-4o"})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if !strings.Contains(requestPath, "selected_model=gpt-4o") {
+		t.Errorf("request should include selected_model=gpt-4o, got: %s", requestPath)
+	}
+}
+
 func TestSessionsLatency(t *testing.T) {
 	var requestPath string
 	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {

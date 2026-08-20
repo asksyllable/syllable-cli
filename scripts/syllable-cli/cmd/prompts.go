@@ -286,11 +286,22 @@ func promptsHistoryCmd() *cobra.Command {
 }
 
 func promptsSupportedLLMsCmd() *cobra.Command {
-	return &cobra.Command{
+	var selectedModel string
+
+	cmd := &cobra.Command{
 		Use:   "supported-llms",
 		Short: "List supported LLM providers and models",
+		Long: "List supported LLM configs. Each model reports a lifecycle status " +
+			"(active, deprecated, or retired) resolved against the current date. " +
+			"Retired models are omitted by default; pass --selected-model to include a " +
+			"specific model even if it is retired (useful for rendering a saved config " +
+			"that still references one).",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Get("/api/v1/prompts/llms/supported")
+			path := "/api/v1/prompts/llms/supported"
+			if selectedModel != "" {
+				path += "?selected_model=" + url.QueryEscape(selectedModel)
+			}
+			data, _, err := apiClient.Get(path)
 			if err != nil {
 				return err
 			}
@@ -298,4 +309,8 @@ func promptsSupportedLLMsCmd() *cobra.Command {
 			return nil
 		},
 	}
+
+	cmd.Flags().StringVar(&selectedModel, "selected-model", "", "Include this model in the results even if it is retired (e.g. to render a saved config)")
+
+	return cmd
 }
