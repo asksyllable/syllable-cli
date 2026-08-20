@@ -308,9 +308,13 @@ syllable prompts create --file prompt.json
 syllable prompts update <prompt-id> --file prompt.json
 syllable prompts delete <prompt-id>
 syllable prompts history <prompt-id>
-syllable prompts supported-llms
+syllable prompts supported-llms [--selected-model MODEL]   # JSON; each model reports lifecycle status (active/deprecated/retired), sunset_date, removed, and a fallback model
 ```
 **Table columns:** ID, NAME, TYPE, VERSION, AGENTS, LAST_UPDATED
+
+`supported-llms` omits retired models by default (once the backend deploys this behavior); pass `--selected-model MODEL` to include a specific model even if it is retired, for example to render a saved config that still references one.
+
+Prompt responses (`get`/`list`) also carry `validation_issues`: non-blocking findings surfaced when the prompt was saved.
 
 ### Tools
 APIs agents call during sessions. Requires a Service for auth. Three types: agent tools (called during user sessions), step tools (structured multi-step workflows), system tools (pre-built: `hangup`, `transfer`, `web_search`, `summary-tool`). Dynamic variables use `{{ vars.field }}` syntax.

@@ -9,7 +9,9 @@ description: |
 
 A Go CLI for managing the Syllable AI platform. Source and releases: **https://github.com/asksyllable/syllable-cli**
 
-> **Docs synced to CLI v2.2.0** — bump this marker whenever these docs are updated for a new release.
+> **Docs synced to CLI v2.3.0** — bump this marker whenever these docs are updated for a new release.
+>
+> v2.3.0 (minor) highlights: `prompts supported-llms` gains a `--selected-model` flag and now reports each model's lifecycle state via the new `LifecycleStatus` enum (`active`, `deprecated`, `retired`), alongside `sunset_date`, a `removed` flag, and a `fallback` model to switch to. Note a backend behavior change on the same command: once the API deploys it, retired models are omitted by default, and `--selected-model MODEL` re-includes a specific one (for example to render a saved config that still points at a retired model). Also additive: `prompts` responses carry `validation_issues` (non-blocking findings surfaced on save), and the new `InsightToolResponse` schema documents insight `tool-configurations` save responses.
 >
 > v2.2.0 (minor) highlights — purely additive, no breaking changes: new `sessions timeline <session-id>` command returning one consolidated, time-ordered stream of transcript turns, tool calls, and latency events with offsets from session start; outbound batch create/update bodies accept `call_rate` and `auto_call_rate` (per-batch rate control, with `auto_call_rate_baseline` in responses); `SipConfiguration` gains `call_info_placement`; sessions expose `override_timestamp`; new Cartesia TTS provider with the `sonic-3.5` voice model and 18 new voices across US/MX/ES/KR/CN/VN/TH.
 >
