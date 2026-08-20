@@ -339,7 +339,7 @@ syllable prompts create --file prompt.json
 syllable prompts update <id> --file prompt.json
 syllable prompts delete <id>
 syllable prompts history <id>
-syllable prompts supported-llms
+syllable prompts supported-llms     # JSON; each model reports lifecycle status (active/deprecated/retired), sunset_date, removed, and a fallback model
 ```
 
 ### Tools
