@@ -204,6 +204,111 @@ class ContractDiffTests(unittest.TestCase):
         self.assertEqual(diff_specs.enum_removals(result), [])
         self.assertEqual([added for _, added, _ in result["enum_changes"]], [["a"]])
 
+    def test_optional_property_addition_preserves_union_branch_enums(self):
+        old = document()
+        old["components"]["schemas"]["Item"] = {"anyOf": [
+            {"type": "object", "properties": {"mode": {"type": "string", "enum": ["a"]}}},
+            {"type": "null"},
+        ]}
+        new = copy.deepcopy(old)
+        new["components"]["schemas"]["Item"]["anyOf"][0]["properties"]["extra"] = {"type": "string"}
+        result = diff_specs.compute_diff(old, new)
+        self.assertTrue(result["changed_schema_contracts"])
+        self.assertEqual(result["enum_changes"], [])
+
+    def test_new_optional_const_and_enum_properties_are_additive(self):
+        for extra in ({"type": "string", "const": "fixed"}, {"type": "string", "enum": ["new"]}):
+            with self.subTest(extra=extra):
+                old = document()
+                old["components"]["schemas"]["Item"] = {"oneOf": [
+                    {"type": "object", "properties": {"mode": {"type": "string", "enum": ["a"]}}},
+                    {"type": "null"},
+                ]}
+                new = copy.deepcopy(old)
+                new["components"]["schemas"]["Item"]["oneOf"][0]["properties"]["extra"] = extra
+                result = diff_specs.compute_diff(old, new)
+                self.assertEqual(diff_specs.enum_removals(result), [])
+                self.assertEqual([added for _, added, _ in result["enum_changes"]], [["new"]] if "enum" in extra else [])
+
+    def test_constraint_and_default_changes_keep_enum_association(self):
+        for change in ({"minLength": 1}, {"pattern": "^a$"}, {"default": "a"}):
+            with self.subTest(change=change):
+                old = document()
+                old["components"]["schemas"]["Item"] = {"anyOf": [
+                    {"type": "object", "properties": {"mode": {"type": "string", "enum": ["a"]}}},
+                    {"type": "null"},
+                ]}
+                new = copy.deepcopy(old)
+                new["components"]["schemas"]["Item"]["anyOf"][0]["properties"]["mode"].update(change)
+                result = diff_specs.compute_diff(old, new)
+                self.assertTrue(result["changed_schema_contracts"])
+                self.assertEqual(result["enum_changes"], [])
+
+    def test_removed_discriminator_branch_is_not_matched_to_changed_survivor(self):
+        old = document()
+        old["components"]["schemas"]["Item"] = {"oneOf": [
+            {"type": "object", "properties": {"kind": {"const": "left"}, "mode": {"enum": ["a"]}}},
+            {"type": "object", "properties": {"kind": {"const": "right"}, "mode": {"enum": ["a"]}}},
+        ]}
+        new = copy.deepcopy(old)
+        branches = new["components"]["schemas"]["Item"]["oneOf"]
+        del branches[0]
+        branches[0]["properties"]["extra"] = {"type": "string"}
+        result = diff_specs.compute_diff(old, new)
+        self.assertEqual(result["enum_changes"], [("Item.mode", [], ["a"])])
+
+    def test_removed_constraint_branch_is_not_hidden_by_changed_survivor(self):
+        old = document()
+        old["components"]["schemas"]["Item"] = {"anyOf": [
+            {"type": "object", "properties": {"mode": {"pattern": "^red$", "enum": ["red"]}}},
+            {"type": "object", "properties": {"mode": {"pattern": "^(red|green)$", "enum": ["red", "green"]}}},
+        ]}
+        new = copy.deepcopy(old)
+        branches = new["components"]["schemas"]["Item"]["anyOf"]
+        del branches[0]
+        branches[0]["properties"]["extra"] = {"type": "string"}
+        result = diff_specs.compute_diff(old, new)
+        self.assertEqual(result["enum_changes"], [("Item.mode", [], ["red"])])
+
+    def test_changed_shapes_with_shared_profiles_stay_one_to_one(self):
+        old = document()
+        old["components"]["schemas"]["Item"] = {"anyOf": [
+            {"type": "object", "properties": {"mode": {"pattern": "^a$", "enum": ["a"]}}},
+            {"type": "object", "properties": {"mode": {"pattern": "^[ab]$", "enum": ["a"]}}},
+        ]}
+        new = copy.deepcopy(old)
+        for branch in new["components"]["schemas"]["Item"]["anyOf"]:
+            branch["properties"]["extra"] = {"type": "string"}
+        result = diff_specs.compute_diff(old, new)
+        self.assertTrue(result["changed_schema_contracts"])
+        self.assertEqual(result["enum_changes"], [])
+
+    def test_reference_identity_survives_shape_changes_and_shared_enum_values(self):
+        old = document()
+        old["components"]["schemas"]["Item"] = {"anyOf": [
+            {"$ref": "#/components/schemas/Left", "type": "string", "enum": ["a"]},
+            {"$ref": "#/components/schemas/Right", "type": "string", "enum": ["a"]},
+        ]}
+        new = copy.deepcopy(old)
+        branches = new["components"]["schemas"]["Item"]["anyOf"]
+        del branches[0]
+        branches[0]["minLength"] = 1
+        result = diff_specs.compute_diff(old, new)
+        self.assertEqual(result["enum_changes"], [("Item", [], ["a"])])
+
+    def test_enum_location_move_is_reported_despite_shared_values(self):
+        old = document()
+        old["components"]["schemas"]["Item"] = {"anyOf": [
+            {"type": "object", "properties": {"mode": {"enum": ["a"]}}},
+            {"type": "null"},
+        ]}
+        new = copy.deepcopy(old)
+        properties = new["components"]["schemas"]["Item"]["anyOf"][0]["properties"]
+        properties["other"] = properties.pop("mode")
+        result = diff_specs.compute_diff(old, new)
+        self.assertEqual(diff_specs.enum_removals(result), [("Item.mode", [], ["a"])])
+        self.assertIn(("Item.other", ["a"], []), result["enum_changes"])
+
     def test_duplicate_shapes_use_one_to_one_additive_matching(self):
         before = [{"type": "string", "enum": ["a", "b"]}, {"type": "string", "enum": ["b", "c"]}]
         after = [{"type": "string", "enum": ["a", "b", "c"]}, {"type": "string", "enum": ["a", "b", "d"]}]
