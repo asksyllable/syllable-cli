@@ -202,7 +202,7 @@ func directoryCreateCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(data, &body); err != nil {
+				if err := decodeRequestJSON(data, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
 			} else {
@@ -252,7 +252,7 @@ func directoryUpdateCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(data, &body); err != nil {
+				if err := decodeRequestJSON(data, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
 			} else {
@@ -376,16 +376,29 @@ func directoryHistoryCmd() *cobra.Command {
 }
 
 func directoryRestoreCmd() *cobra.Command {
-	var comments string
+	var comments, file string
 
 	cmd := &cobra.Command{
 		Use:   "restore <member-id>",
 		Short: "Restore a soft-deleted directory member",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			body := map[string]interface{}{}
-			if comments != "" {
-				body["comments"] = comments
+			if err := exclusiveBodyFile(cmd, file, "comments"); err != nil {
+				return err
+			}
+			var body interface{}
+			if file != "" {
+				var err error
+				body, err = readJSONBody(file)
+				if err != nil {
+					return err
+				}
+			} else {
+				fields := map[string]interface{}{}
+				if cmd.Flags().Changed("comments") {
+					fields["comments"] = comments
+				}
+				body = fields
 			}
 			data, _, err := apiClient.Put("/api/v1/directory_members/"+url.PathEscape(args[0])+"/restore", body)
 			if err != nil {
@@ -401,6 +414,7 @@ func directoryRestoreCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&comments, "comments", "", "Comment stored in version history (defaults to API default \"Restored\")")
+	cmd.Flags().StringVar(&file, "file", "", "Path to full JSON body (or - for stdin)")
 	return cmd
 }
 

@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -57,11 +56,9 @@ func dashboardsListCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(fileData, &body); err != nil {
+				if err := decodeRequestJSON(fileData, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
-			} else {
-				body = map[string]interface{}{}
 			}
 
 			data, _, err := apiClient.Post("/api/v1/dashboards/list", body)
@@ -92,11 +89,9 @@ func dashboardsSessionsCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(fileData, &body); err != nil {
+				if err := decodeRequestJSON(fileData, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
-			} else {
-				body = map[string]interface{}{}
 			}
 
 			data, _, err := apiClient.Post("/api/v1/dashboards/sessions", body)
@@ -127,11 +122,9 @@ func dashboardsSessionEventsCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(fileData, &body); err != nil {
+				if err := decodeRequestJSON(fileData, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
-			} else {
-				body = map[string]interface{}{}
 			}
 
 			data, _, err := apiClient.Post("/api/v1/dashboards/session_events", body)
@@ -162,11 +155,9 @@ func dashboardsSessionTransfersCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(fileData, &body); err != nil {
+				if err := decodeRequestJSON(fileData, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
-			} else {
-				body = map[string]interface{}{}
 			}
 
 			data, _, err := apiClient.Post("/api/v1/dashboards/session_transfers", body)
@@ -197,11 +188,9 @@ func dashboardsSessionSummaryCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(fileData, &body); err != nil {
+				if err := decodeRequestJSON(fileData, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
-			} else {
-				body = map[string]interface{}{}
 			}
 
 			data, _, err := apiClient.Post("/api/v1/dashboards/session_summary", body)
@@ -230,7 +219,7 @@ func dashboardsFetchInfoCmd() *cobra.Command {
 			}
 
 			path := fmt.Sprintf("/api/v1/dashboards/fetch_info?dashboard_name=%s", url.QueryEscape(name))
-			data, _, err := apiClient.Post(path, map[string]interface{}{})
+			data, _, err := apiClient.Post(path, nil)
 			if err != nil {
 				return err
 			}

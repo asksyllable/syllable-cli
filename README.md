@@ -284,6 +284,17 @@ When using `--output json`, errors are machine-readable:
 
 ## Commands
 
+### SDK parameter and request parity
+
+Full JSON input is also available for `agents send-test-message`, workflow `activate`, `users delete`, directory `restore`, and Twilio `numbers-verify-a2p-compliance`. Use `--file -` for stdin. For these full-body actions, put body fields in the file rather than combining it with their inline body flags; positional identifiers must agree with the body. JSON numbers and explicit null values are preserved.
+
+```bash
+syllable agents send-test-message <id> --file test-message.json
+syllable insights workflows activate <id> --file activation.json
+syllable directory restore <id> --comments ""
+syllable language-groups sample --file voice.json > sample.bin
+```
+
 ### Agents
 
 Agents are the AI systems that communicate with users. Each agent is configured with a prompt, a timezone, an optional opening message, session variables for personalization, and optional tool headers. Each channel target has one assigned agent; experiments can split its traffic across agent variants. A test channel is auto-generated for every agent for pre-production testing.

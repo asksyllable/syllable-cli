@@ -23,7 +23,7 @@ func readJSONBody(file string) (interface{}, error) {
 		return nil, fmt.Errorf("reading file: %w", err)
 	}
 	var body interface{}
-	if err := json.Unmarshal(data, &body); err != nil {
+	if err := decodeRequestJSON(data, &body); err != nil {
 		return nil, fmt.Errorf("parsing JSON file: %w", err)
 	}
 	return body, nil

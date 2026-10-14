@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
@@ -49,11 +48,9 @@ func takeoutsCreateCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(fileData, &body); err != nil {
+				if err := decodeRequestJSON(fileData, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
-			} else {
-				return fmt.Errorf("use --file to provide takeout body")
 			}
 
 			data, _, err := apiClient.Post("/api/v1/takeouts/create", body)

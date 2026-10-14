@@ -32,6 +32,7 @@ syllable agents voices [--selected-voice VOICE]  # repeat for multiple saved voi
 syllable agents stt-providers [--selected-provider PROVIDER]
 syllable agents card-click <test-id> --action-id ID --action-type cta|action
 syllable agents card-click <test-id> --file click.json
+syllable agents send-test-message <agent-id> --file test-message.json
 ```
 
 **Table columns:** ID, NAME, TYPE, LABEL, DESCRIPTION, UPDATED
@@ -124,6 +125,7 @@ syllable channels twilio numbers-list
 syllable channels twilio numbers-add --file number.json
 syllable channels twilio numbers-update --file number.json
 syllable channels twilio numbers-verify-a2p-compliance <channel-id> --phone +18042221111   # v1.7
+syllable channels twilio numbers-verify-a2p-compliance <channel-id> --file verification.json
 ```
 
 **A2P compliance check (v1.7):** reports whether a number on a Twilio channel sits on a Messaging Service with an approved US A2P brand and verified campaign. Reflects Twilio configuration only — not carrier per-number registration or legal/content compliance. `--phone` must be E.164 exactly as Twilio stores it.
@@ -253,6 +255,8 @@ syllable users create --file user.json
 syllable users create --email EMAIL --role-id ID [--first-name NAME] [--last-name NAME]
 syllable users update <email> --file user.json
 syllable users delete <email>
+syllable users delete <email> --reason TEXT
+syllable users delete <email> --file user-delete.json
 syllable users me
 syllable users send-email <email>
 ```
@@ -275,6 +279,7 @@ syllable directory update <member-id> --file member.json
 syllable directory delete <member-id>
 syllable directory history <member-id>                              # version history
 syllable directory restore <member-id>                              # restore a soft-deleted member
+syllable directory restore <member-id> --file restore.json
 syllable directory test <member-id> [--timestamp ISO8601] [--language-code en-US]   # test extension lookup at a given time (defaults to now UTC)
 syllable directory download [--format normalized|raw]               # bulk-export members
 syllable directory upload --file <path>                             # bulk-import members (run `download --format raw` first to see the file shape)
@@ -297,6 +302,7 @@ syllable insights workflows create --file workflow.json
 syllable insights workflows update <workflow_id> --file workflow.json
 syllable insights workflows delete <workflow_id>
 syllable insights workflows activate <workflow_id>
+syllable insights workflows activate <workflow_id> --file activation.json
 syllable insights workflows inactivate <workflow_id>
 syllable insights workflows executions <workflow_id> [--search STATUS]
 syllable insights workflows executions-summary <workflow_id> [--start-date DATE] [--end-date DATE]
@@ -427,10 +433,11 @@ syllable session-debug tool-result <session_id> <tool_result_id>
 
 ## Takeouts
 ```bash
-syllable takeouts create --file takeout.json
+syllable takeouts create
 syllable takeouts get <job_id>
 syllable takeouts download <job_id> <file_name>
 ```
+The SDK create request has no body; optional `--file` is retained for older callers.
 
 ## Events
 ```bash

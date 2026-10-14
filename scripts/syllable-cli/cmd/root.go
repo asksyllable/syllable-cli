@@ -574,7 +574,9 @@ func identifierMatches(existing interface{}, positional string) bool {
 		p, err := strconv.ParseFloat(positional, 64)
 		return err == nil && p == v
 	case json.Number:
-		return v.String() == positional
+		want, err := strconv.ParseInt(positional, 10, 64)
+		got, ok := requestInteger(v)
+		return err == nil && ok && got == want
 	}
 	return false
 }

@@ -288,7 +288,7 @@ func toolsCreateCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(data, &body); err != nil {
+				if err := decodeRequestJSON(data, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
 			} else {
@@ -338,7 +338,7 @@ func toolsUpdateCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(data, &body); err != nil {
+				if err := decodeRequestJSON(data, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
 			} else {

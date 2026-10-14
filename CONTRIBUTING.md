@@ -74,6 +74,8 @@ Release readiness also needs the `ai-specialist` companion documentation and rea
 
 The catch-up completeness audit is pinned to SDK 1.0.68 at `6c6fc6f906f103b763dcffa65ccc6ea2403883d4`: 118 paths and 190 HTTP operations. `TestSDKOperationCoverage` executes registered command implementations without network access and verifies exact HTTP methods/paths against the embedded spec. It covers 188 operations, including all 14 added since the branch base and legacy language-group sampling. Two deliberate exclusions are documented in the test: organization create/delete remain console-only. `TestSDKCatchUpPayloadPassthrough` checks both create and update for all five new nested request fields across custom messages, tools, directory members, and campaigns. These checks verify command availability and serialization; the live fixture-dependent tests above verify backend behavior.
 
+Further opt-in integration coverage in `integration/body_parity_test.go` uses `SYLLABLE_TEST_AGENT_ID` for full-file test messages, `SYLLABLE_TEST_WORKFLOW_ACTIVATION_ID` for an inactive workflow with no backfill, and `SYLLABLE_VOICE_SAMPLE_BODY_FILE` for both sample endpoints. These fixture-dependent tests have not been run against production in this catch-up. Use isolated test resources and inspect individual skips before declaring live readiness.
+
 ## Branch and release workflow
 
 - Feature branches; squash-merge into `main`. Commit titles end with `(#NN)`.

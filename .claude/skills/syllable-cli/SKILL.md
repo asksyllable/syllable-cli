@@ -129,6 +129,8 @@ If `default_org` is set in `~/.syllable/config.yaml`, it's used when `--org` is 
 
 ## Common List Flags
 
+Use full `--file` / stdin JSON on specialized body actions too: agent test messages, workflow activation, user deletion, directory restore, and Twilio A2P checks. Put all body fields in the file; don't combine it with their inline body flags. Numeric precision and explicit null are preserved. Legacy `language-groups sample` remains available alongside `voice-groups sample`.
+
 All list commands support these flags:
 
 | Flag | Default | Description |

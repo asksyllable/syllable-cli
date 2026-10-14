@@ -266,6 +266,7 @@ syllable agents card-click <test-id> --action-id ID --action-type cta|action
 syllable agents card-click <test-id> --file click.json
 syllable agents labels
 syllable agents send-test-message <agent-id> --test-id ID [--session-start] [--text TEXT] [--override-timestamp ISO8601]
+syllable agents send-test-message <agent-id> --file test-message.json
 ```
 **Table columns:** ID, NAME, TYPE, LABEL, DESCRIPTION, UPDATED
 
@@ -315,6 +316,7 @@ syllable channels twilio numbers-list
 syllable channels twilio numbers-add --file number.json
 syllable channels twilio numbers-update --file number.json
 syllable channels twilio numbers-verify-a2p-compliance <channel-id> --phone +18042221111
+syllable channels twilio numbers-verify-a2p-compliance <channel-id> --file verification.json
 ```
 **Table columns:** ID, NAME, SERVICE, IS_SYSTEM
 
@@ -398,6 +400,8 @@ syllable users create --file user.json
 syllable users create --email EMAIL --role-id ID [--first-name NAME] [--last-name NAME]
 syllable users update <email> --file user.json
 syllable users delete <email>
+syllable users delete <email> --reason TEXT
+syllable users delete <email> --file user-delete.json
 syllable users me
 syllable users send-email <email>
 syllable users delete-account --confirm
@@ -417,6 +421,7 @@ syllable directory upload --file members.csv
 syllable directory download [--format normalized|raw]
 syllable directory history <member-id> [--page N] [--limit N] [--order-by-direction asc|desc]
 syllable directory restore <member-id> [--comments TEXT]
+syllable directory restore <member-id> --file restore.json
 syllable directory test <member-id> [--timestamp ISO8601] [--language-code BCP47]
 ```
 
@@ -432,6 +437,7 @@ syllable insights workflows create --file workflow.json
 syllable insights workflows update <workflow-id> --file workflow.json
 syllable insights workflows delete <workflow-id>
 syllable insights workflows activate <workflow-id>
+syllable insights workflows activate <workflow-id> --file activation.json
 syllable insights workflows inactivate <workflow-id>
 syllable insights workflows queue-work --file work.json
 syllable insights workflows executions <workflow-id> [--search STATUS]
@@ -571,10 +577,11 @@ syllable session-debug tool-result <session-id> <tool-result-id>
 ### Takeouts
 Data export jobs. Workflow: create → poll with get until complete → download file.
 ```bash
-syllable takeouts create --file takeout.json
+syllable takeouts create
 syllable takeouts get <job-id>
 syllable takeouts download <job-id> <file-name>
 ```
+The SDK's create operation sends no body. Optional `--file` remains available for compatibility with older callers.
 
 ### Events
 ```bash

@@ -399,7 +399,7 @@ func sessionsRecordingCmd() *cobra.Command {
 		Short: "Get recording for a session",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Post("/api/v1/sessions/recording/"+args[0], map[string]interface{}{})
+			data, _, err := apiClient.Post("/api/v1/sessions/recording/"+args[0], nil)
 			if err != nil {
 				return err
 			}
