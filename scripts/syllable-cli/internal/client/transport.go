@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -46,15 +48,23 @@ func (c *Client) execute(req *http.Request, operationTimeout *time.Duration) (*h
 	if retries < 0 || !c.retryMethod(req.Method) || req.Body != nil && req.GetBody == nil {
 		retries = 0
 	}
-	started := time.Now()
+	var retryDeadline time.Time
+	if retries > 0 && c.RetryMaxElapsedTime > 0 {
+		retryDeadline = time.Now().Add(c.RetryMaxElapsedTime)
+	}
+	current := req.Clone(req.Context())
+	var previousResponse *http.Response
+	var previousError error
 	for attempt := 0; ; attempt++ {
-		current := req.Clone(req.Context())
-		if attempt > 0 && req.Body != nil {
-			body, err := req.GetBody()
-			if err != nil {
-				return nil, fmt.Errorf("replaying request body: %w", err)
-			}
-			current.Body = body
+		// The initial attempt is governed only by the request timeout. Retry
+		// preparation, backoff, and cleanup must leave time for a new attempt.
+		if attempt > 0 && req.Context().Err() != nil {
+			closeRequestBody(current)
+			return nil, req.Context().Err()
+		}
+		if attempt > 0 && !retryBudgetAvailable(retryDeadline, 0) {
+			closeRequestBody(current)
+			return previousResponse, previousError
 		}
 		resp, err := httpClient.Do(current)
 		if contextErr := req.Context().Err(); contextErr != nil {
@@ -67,15 +77,8 @@ func (c *Client) execute(req *http.Request, operationTimeout *time.Duration) (*h
 			return resp, err
 		}
 		delay := c.retryDelay(attempt, resp, time.Now())
-		if c.RetryMaxElapsedTime > 0 {
-			elapsed := time.Since(started)
-			if elapsed >= c.RetryMaxElapsedTime || delay >= c.RetryMaxElapsedTime-elapsed {
-				return resp, err
-			}
-		}
-		if resp != nil && resp.Body != nil {
-			_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 64*1024))
-			_ = resp.Body.Close()
+		if !retryBudgetAvailable(retryDeadline, delay) {
+			return resp, err
 		}
 		if c.Verbose {
 			fmt.Fprintf(os.Stderr, "retrying %s request (%d/%d) in %s\n", req.Method, attempt+1, retries, delay)
@@ -84,10 +87,134 @@ func (c *Client) execute(req *http.Request, operationTimeout *time.Duration) (*h
 		select {
 		case <-req.Context().Done():
 			timer.Stop()
+			closeResponseBody(resp)
 			return nil, req.Context().Err()
 		case <-timer.C:
 		}
+		if contextErr := req.Context().Err(); contextErr != nil {
+			closeResponseBody(resp)
+			return nil, contextErr
+		}
+		if !retryBudgetAvailable(retryDeadline, 0) {
+			return resp, err
+		}
+		next := req.Clone(req.Context())
+		if req.Body != nil {
+			body, replayErr := req.GetBody()
+			next.Body = body
+			if contextErr := req.Context().Err(); contextErr != nil {
+				closeRequestBody(next)
+				closeResponseBody(resp)
+				return nil, contextErr
+			}
+			if !retryBudgetAvailable(retryDeadline, 0) {
+				closeRequestBody(next)
+				return resp, err
+			}
+			if replayErr != nil {
+				closeRequestBody(next)
+				closeResponseBody(resp)
+				return nil, fmt.Errorf("replaying request body: %w", replayErr)
+			}
+		}
+		if resp != nil && resp.Body != nil {
+			// Retain the response while draining: if the budget runs out, its
+			// complete error body must still be available to the caller.
+			body := newRetryResponseBody(resp.Body)
+			resp.Body = body
+			if cleanupErr := body.drain(req.Context(), retryDeadline); cleanupErr != nil {
+				closeRequestBody(next)
+				if req.Context().Err() != nil {
+					_ = body.Close()
+					return nil, req.Context().Err()
+				}
+				return resp, err
+			}
+			_ = body.Close()
+		}
+		if contextErr := req.Context().Err(); contextErr != nil {
+			closeRequestBody(next)
+			return nil, contextErr
+		}
+		if !retryBudgetAvailable(retryDeadline, 0) {
+			closeRequestBody(next)
+			return resp, err
+		}
+		previousResponse, previousError, current = resp, err, next
 	}
+}
+
+func retryBudgetAvailable(deadline time.Time, delay time.Duration) bool {
+	return deadline.IsZero() || time.Until(deadline) > delay
+}
+
+func closeRequestBody(req *http.Request) {
+	if req.Body != nil {
+		_ = req.Body.Close()
+	}
+}
+
+func closeResponseBody(resp *http.Response) {
+	if resp != nil && resp.Body != nil {
+		_ = resp.Body.Close()
+	}
+}
+
+// retryResponseBody drains in one worker and serializes any subsequent reads
+// behind its completion. Budget expiry returns this body without cancelling
+// the original response: its bytes and read errors remain intact. Close must
+// unblock Read, as required by http.Response.Body, and joins the worker.
+type retryResponseBody struct {
+	original  io.ReadCloser
+	done      chan struct{}
+	data      []byte
+	readErr   error
+	reader    *bytes.Reader
+	readOnce  sync.Once
+	closeOnce sync.Once
+	closeErr  error
+}
+
+func newRetryResponseBody(original io.ReadCloser) *retryResponseBody {
+	body := &retryResponseBody{original: original, done: make(chan struct{})}
+	go func() {
+		body.data, body.readErr = io.ReadAll(original)
+		close(body.done)
+	}()
+	return body
+}
+
+func (b *retryResponseBody) drain(ctx context.Context, deadline time.Time) error {
+	var expired <-chan time.Time
+	if !deadline.IsZero() {
+		timer := time.NewTimer(time.Until(deadline))
+		defer timer.Stop()
+		expired = timer.C
+	}
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-expired:
+		return context.DeadlineExceeded
+	case <-b.done:
+		return nil
+	}
+}
+
+func (b *retryResponseBody) Read(p []byte) (int, error) {
+	<-b.done
+	b.readOnce.Do(func() { b.reader = bytes.NewReader(b.data) })
+	n, err := b.reader.Read(p)
+	if err == io.EOF && b.readErr != nil {
+		err = b.readErr
+	}
+	return n, err
+}
+
+func (b *retryResponseBody) Close() error {
+	b.closeOnce.Do(func() { b.closeErr = b.original.Close() })
+	<-b.done
+	return b.closeErr
 }
 
 func (c *Client) retryMethod(method string) bool {

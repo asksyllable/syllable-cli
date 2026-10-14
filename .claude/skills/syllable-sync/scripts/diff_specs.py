@@ -30,7 +30,9 @@ Exit codes:
 """
 
 import json
+import re
 import sys
+from collections import Counter
 
 METHODS = ("get", "post", "put", "patch", "delete", "head", "options", "trace")
 
@@ -39,6 +41,7 @@ METHODS = ("get", "post", "put", "patch", "delete", "head", "options", "trace")
 ANNOTATIONS = {"description", "summary", "title", "example", "examples", "externalDocs", "x-codeSamples"}
 UNORDERED_ARRAYS = {"required", "enum", "anyOf", "oneOf", "allOf", "parameters", "type", "security"}
 NAMED_MAPS = {"properties", "schemas", "paths", "responses", "content", "headers", "$defs", "definitions", "parameters", "requestBodies", "securitySchemes", "webhooks"}
+UNIONS = {"anyOf", "oneOf", "allOf"}
 
 
 def contract(node, key=""):
@@ -147,6 +150,125 @@ def enum_members(spec):
     return out
 
 
+def enum_shape(node, omit_nested_unions=False, key=""):
+    """Branch identity without mutable enum values; keep all other constraints.
+
+    The outer shape is a fallback for a branch whose nested union gained/lost
+    members. Defaults and constants remain data, including keys named 'enum'.
+    """
+    if key in {"default", "const"}:
+        return node
+    if isinstance(node, dict):
+        named = key in NAMED_MAPS
+        return {
+            k: [] if not named and omit_nested_unions and k in UNIONS else
+            enum_shape(v, omit_nested_unions, "" if named else k)
+            for k, v in node.items() if named or k != "enum"
+        }
+    if isinstance(node, list):
+        return [enum_shape(v, omit_nested_unions) for v in node]
+    return node
+
+
+def enum_profile(branch):
+    """Enum overlap guides one-to-one matching, never the removal report.
+
+    Ignore union positions but retain field paths and multiplicity. Actual
+    changes are still compared separately in each aligned branch below.
+    """
+    profile = Counter()
+    for path, values in enum_members(branch).items():
+        path = re.sub(r"/(anyOf|oneOf|allOf)/[0-9]+", r"/\1/branch", path)
+        profile.update((path, value) for value in values)
+    return profile
+
+
+def match_union_branches(old, new):
+    """Match unchanged branches first, then enum-free structural identities.
+
+    Within duplicate shapes, augmenting paths find an additive matching when
+    one exists (greedy overlap alone can invent a removal). Remaining changed
+    pairs prefer enum overlap. Distinct constraints/discriminators stay separate,
+    so a value retained in another branch cannot hide a meaningful loss.
+    """
+    pending_old, pending_new = set(range(len(old))), set(range(len(new)))
+    pairs = {}
+    profiles_old, profiles_new = list(map(enum_profile, old)), list(map(enum_profile, new))
+
+    def distance(i, j):
+        before, after = profiles_old[i], profiles_new[j]
+        return sum((before - after).values()), sum((after - before).values())
+
+    for shape in (lambda node: node, enum_shape, lambda node: enum_shape(node, True)):
+        before, after = {}, {}
+        for indexes, branches, groups in ((pending_old, old, before), (pending_new, new, after)):
+            for i in sorted(indexes):
+                identity = json.dumps(contract(shape(branches[i])), sort_keys=True)
+                groups.setdefault(identity, []).append(i)
+        for identity in sorted(before.keys() & after.keys()):
+            candidates = {
+                i: sorted((j for j in after[identity] if distance(i, j)[0] == 0),
+                          key=lambda j: (distance(i, j)[1], j))
+                for i in before[identity]
+            }
+            matched_new = {}
+
+            def augment(i, visited):
+                for j in candidates[i]:
+                    if j in visited:
+                        continue
+                    visited.add(j)
+                    if j not in matched_new or augment(matched_new[j], visited):
+                        matched_new[j] = i
+                        return True
+                return False
+
+            for i in sorted(before[identity], key=lambda i: (len(candidates[i]), i)):
+                augment(i, set())
+            matched = {i: j for j, i in matched_new.items()}
+            unused_old = set(before[identity]) - matched.keys()
+            unused_new = set(after[identity]) - set(matched.values())
+            while unused_old and unused_new:
+                i, j = min(((i, j) for i in unused_old for j in unused_new),
+                           key=lambda pair: (*distance(*pair), *pair))
+                matched[i] = j
+                unused_old.remove(i)
+                unused_new.remove(j)
+            pairs.update(matched)
+            pending_old.difference_update(matched)
+            pending_new.difference_update(matched.values())
+    return pairs
+
+
+def align_enum_branches(old, new, key=""):
+    """Align only the enum walk; the structural diff keeps its canonical order."""
+    if key in {"default", "const", "enum"}:
+        return new
+    if isinstance(new, dict):
+        old = old if isinstance(old, dict) else {}
+        named = key in NAMED_MAPS
+        return {k: align_enum_branches(old.get(k), v, "" if named else k) for k, v in new.items()}
+    if isinstance(new, list):
+        old = old if isinstance(old, list) else []
+        if key in UNIONS:
+            pairs = match_union_branches(old, new)
+            # Empty placeholders retain paths for removed branches; additions
+            # get fresh paths after the old slots, rather than shifting them.
+            aligned = [align_enum_branches(branch, new[pairs[i]]) if i in pairs else {}
+                       for i, branch in enumerate(old)]
+            aligned.extend(branch for j, branch in enumerate(new) if j not in pairs.values())
+            return aligned
+        if key == "parameters":
+            def identity(parameter):
+                if isinstance(parameter, dict) and "in" in parameter and "name" in parameter:
+                    return parameter["in"], parameter["name"]
+                return json.dumps(parameter, sort_keys=True)
+            previous = {identity(parameter): parameter for parameter in old}
+            return [align_enum_branches(previous.get(identity(parameter)), parameter) for parameter in new]
+        return [align_enum_branches(old[i] if i < len(old) else None, v) for i, v in enumerate(new)]
+    return new
+
+
 def enum_label(path):
     """Render a readable label for an enum's JSON path."""
     parts = [p for p in path.split("/") if p]
@@ -221,8 +343,9 @@ def compute_diff(old, new):
 
     # Enum-member diff (walks the whole spec). Removed values are breaking and
     # are invisible to the field-level schema diff above.
-    old_enums = enum_members(contract(old))
-    new_enums = enum_members(contract(new))
+    old_contract = contract(old)
+    old_enums = enum_members(old_contract)
+    new_enums = enum_members(align_enum_branches(old_contract, contract(new)))
     enum_changes = []  # (label, added_values, removed_values)
     for p in sorted(set(old_enums) | set(new_enums)):
         a = old_enums.get(p, set())
