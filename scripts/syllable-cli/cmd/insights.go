@@ -143,6 +143,10 @@ func insightsWorkflowsCmd() *cobra.Command {
 	cmd.AddCommand(insightsWorkflowsActivateCmd())
 	cmd.AddCommand(insightsWorkflowsInactivateCmd())
 	cmd.AddCommand(insightsWorkflowsQueueWorkCmd())
+	cmd.AddCommand(insightsWorkflowRowsCmd("executions"))
+	cmd.AddCommand(insightsWorkflowRowsCmd("sessions"))
+	cmd.AddCommand(insightsWorkflowRowsCmd("files"))
+	cmd.AddCommand(insightsWorkflowExecutionSummaryCmd())
 
 	return cmd
 }

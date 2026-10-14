@@ -286,11 +286,16 @@ func promptsHistoryCmd() *cobra.Command {
 }
 
 func promptsSupportedLLMsCmd() *cobra.Command {
-	return &cobra.Command{
+	var selectedModel string
+	cmd := &cobra.Command{
 		Use:   "supported-llms",
 		Short: "List supported LLM providers and models",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Get("/api/v1/prompts/llms/supported")
+			path := "/api/v1/prompts/llms/supported"
+			if selectedModel != "" {
+				path += "?selected_model=" + url.QueryEscape(selectedModel)
+			}
+			data, _, err := apiClient.Get(path)
 			if err != nil {
 				return err
 			}
@@ -298,4 +303,6 @@ func promptsSupportedLLMsCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().StringVar(&selectedModel, "selected-model", "", "Include a saved model even if retired")
+	return cmd
 }
