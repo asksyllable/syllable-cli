@@ -43,3 +43,16 @@ jobs:
         # The integration suite is gated behind the `integration` build tag, so
         # plain ./... never compiles or runs it (see CONTRIBUTING.md).
         run: go test -race ./...
+
+      - name: Set up Node for SDK differential contracts
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: tests/sdk-parity/package-lock.json
+
+      - name: Install pinned SDK contract-test dependency
+        run: npm ci --prefix tests/sdk-parity --ignore-scripts --no-audit --no-fund
+
+      - name: Compare actual SDK and CLI HTTP contracts
+        run: npm test --prefix tests/sdk-parity
