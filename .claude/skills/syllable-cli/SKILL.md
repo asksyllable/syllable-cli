@@ -9,7 +9,9 @@ description: |
 
 A Go CLI for managing the Syllable AI platform. Source and releases: **https://github.com/asksyllable/syllable-cli**
 
-> **Docs synced to CLI v2.3.0** — bump this marker whenever these docs are updated for a new release.
+> **Docs synced to CLI v2.3.1** — bump this marker whenever these docs are updated for a new release.
+>
+> v2.3.1 (patch) highlights: field-only spec sync for `insights tools-test`. The request body's `session_id` and `upload_file_id` now also accept strings, `tool_name` must be non-blank, and the API documents 502/504 responses. The CLI passes the `--file` body through unchanged.
 >
 > v2.3.0 (minor) highlights — catches the CLI up to SDK 1.0.68 (commit `6c6fc6f906f103b763dcffa65ccc6ea2403883d4`): new `experiments` command (list/get/create/update/delete/start/stop/results); `agents stt-providers` and `agents card-click`; insight workflow execution/summary/session/file views; `prompts supported-llms --selected-model` (retired models are hidden unless selected); every SDK query option as a flag (sorting, date ranges, `--api-fields`, paired `--search-fields`/`--search-values`); full JSON bodies on specialized actions; opt-in `--request-timeout`/`--retries`/`--retry-writes` and multipart `--upload-filename`/`--upload-content-type`. The differential suite covers all 188 allowed operations against the real SDK; organization create/delete stay console-only. No commands or flags were removed. Behavior changes to note: deletes whose API operation declares no `reason` no longer send `?reason=deleted via cli`; body-free POST/PUT actions (several `dashboards` commands, `sessions recording`, `users send-email`, `insights workflows inactivate`) send no body instead of `{}`; `organizations update` now sends explicit empty values; `agents voices` tables gain STATUS/SUNSET_DATE/FALLBACK columns; `--file` bodies keep exact numbers and literal `null`. `Deepgram Nova 3 (On-Prem)` is gone from the STT enum; use current options. Mock contract coverage does not establish live routing/workflow/card behavior.
 >
