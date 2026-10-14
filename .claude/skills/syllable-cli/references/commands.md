@@ -294,7 +294,7 @@ syllable directory upload --file <path>                             # bulk-impor
 syllable insights workflows list
 syllable insights workflows get <workflow_id>
 syllable insights workflows create --file workflow.json
-syllable insights workflows update --file workflow.json
+syllable insights workflows update <workflow_id> --file workflow.json
 syllable insights workflows delete <workflow_id>
 syllable insights workflows activate <workflow_id>
 syllable insights workflows inactivate <workflow_id>
@@ -307,7 +307,7 @@ syllable insights workflows files <workflow_id> [--search TEXT] [--search-field 
 syllable insights folders list
 syllable insights folders get <folder_id>
 syllable insights folders create --file folder.json
-syllable insights folders update --file folder.json
+syllable insights folders update <folder_id> --file folder.json
 syllable insights folders delete <folder_id>
 syllable insights folders files <folder_id>
 
@@ -315,11 +315,11 @@ syllable insights folders files <folder_id>
 syllable insights tool-configs list
 syllable insights tool-configs get <config_id>
 syllable insights tool-configs create --file config.json
-syllable insights tool-configs update --file config.json
+syllable insights tool-configs update <config_id> --file config.json
 syllable insights tool-configs delete <config_id>
 
 # Tool Definitions
-syllable insights tool-definitions list
+syllable insights tool-definitions
 ```
 
 Workflow execution/session/file lists support `--page`, `--limit`, `--search`, `--search-field`, `--order-by`, `--order-by-direction`, `--start-date`, and `--end-date`. Execution search is by `status` only, and supports `--api-fields`. Summary filters `created_at` with an inclusive start and exclusive end. Session/file JSON preserves `results` keyed by tool and insight key.

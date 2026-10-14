@@ -43,6 +43,35 @@ Without `-tags integration` the suite's files are excluded from the build, so `g
 
 SDK catch-up coverage lives in `integration/sdk_sync_test.go`. STT and experiment lists run with the usual integration credentials; workflow views use an existing workflow and skip if none exist. The experiment lifecycle test requires `SYLLABLE_EXPERIMENT_TARGET_ID`, `SYLLABLE_EXPERIMENT_CONTROL_AGENT_ID`, and `SYLLABLE_EXPERIMENT_VARIANT_AGENT_ID`, all belonging to dedicated test resources. It starts/stops routing on that target and cleans up by stopping before deleting. The card-click test requires `SYLLABLE_TEST_AGENT_ID` and creates a conversation-test session before logging a click. Compile this coverage without any live calls with `go test -tags integration -c ./integration -o /tmp/syllable-integration.test`.
 
+### Testing the SDK catch-up
+
+Build the branch binary explicitly so the tests exercise the new code rather than an older Homebrew release:
+
+```bash
+cd scripts/syllable-cli
+go test -race ./...
+go vet ./...
+go build -o /tmp/syllable-sdk-catch-up .
+```
+
+To use credentials already configured through `syllable setup`, select the org/environment by name. Unset `SYLLABLE_API_KEY` for this command because it overrides YAML credentials. Check configured names with `/tmp/syllable-sdk-catch-up status`; the following example targets the dedicated `cli-test` org in production and runs only read-only tests:
+
+```bash
+env -u SYLLABLE_API_KEY \
+  SYLLABLE_ORG=cli-test SYLLABLE_ENV=prod \
+  SYLLABLE_CLI_BINARY=/tmp/syllable-sdk-catch-up \
+  go test -tags integration -count=1 -v ./integration \
+    -run '^(TestAgentSTTProviders|TestExperimentsList|TestInsightWorkflowExecutionViews)$'
+```
+
+Inspect individual test results: `SKIP` means the feature was not exercised, even when the suite prints `PASS`. A workflow fixture is needed to exercise all four workflow views. Catalog selection, directory status/raw-format queries, and experiment list filtering/sorting/projection should also be smoke-tested against the live API; empty collections verify request acceptance, not filtering semantics on populated data.
+
+Live validation on 2026-10-13 (`cli-test`, production): STT provider and experiment-list integration tests passed; workflow views skipped because the org had no workflows. Twelve additional read-only checks passed for catalog selection queries, lifecycle table columns, directory status/raw-format queries, and experiment list search/sort/date/projection options. The directory returned zero active rows and ten deleted rows on the first page; explicit active status also returned zero rows with `--include-deleted`. A further `--selected-provider "Deepgram Nova 3 (On-Prem)"` query succeeded but did not return that removed provider. Retention of registered retired options, workflow result semantics, experiment routing, and card interactions still need suitable fixtures.
+
+The mutable test selection is `-run '^(TestExperimentsCRUD|TestAgentCardClick)$'`, with the dedicated fixture variables described above. The experiment test covers CRUD and start/stop transitions. To verify actual traffic routing, start a test experiment and create new sessions through its channel target, then check per-variant result counts and session attribution. `agents send-test-message` targets an agent directly and does not exercise channel-target routing. The card-click test verifies the event endpoint; rendered card behavior needs a test agent/tool that emits a card plus a real client interaction.
+
+Release readiness also needs the `ai-specialist` companion documentation and read-only-hook update described under the cross-repo contract below. Its installed CLI executable is upgraded separately from its skill docs. Keep the published docs-version marker until a CLI release exists; prerelease notes should identify the SDK source commit without inventing a CLI release version.
+
 ## Branch and release workflow
 
 - Feature branches; squash-merge into `main`. Commit titles end with `(#NN)`.

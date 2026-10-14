@@ -48,6 +48,8 @@ Practical notes on non-obvious CLI and platform behavior — exact payload shape
 
 SDK 1.0.68 catalog lifecycle fields include `status`, `sunset_date`, `removed`, and `fallback`. Saved retired voices, STT providers, and LLMs can be included using `--selected-voice`, `--selected-provider`, and `--selected-model`. `Deepgram Nova 3 (On-Prem)` was removed from the STT enum. Inspect current catalogs and resource `validation_issues` in JSON before changing a saved configuration.
 
+Verified on `cli-test` production, 2026-10-13: `agents stt-providers --selected-provider "Deepgram Nova 3 (On-Prem)"` returned the current five-provider catalog without that removed provider. The selection flag does not recover this option; choose a supported replacement from the live catalog. Retention of a registered retired option remains unverified.
+
 Experiments route update IDs through the URL, not the JSON body. Updates are allowed only in draft status; variants are submitted as a complete set with different agents, weights totaling 100, and exactly one control. Stop a running experiment before deletion. A historical response can have `target_id: null` after its channel target is deleted.
 
 | Topic | What to do |

@@ -429,7 +429,7 @@ Automated LLM-based evaluation of call sessions or recordings. Three workflow ty
 syllable insights workflows list
 syllable insights workflows get <workflow-id>
 syllable insights workflows create --file workflow.json
-syllable insights workflows update --file workflow.json
+syllable insights workflows update <workflow-id> --file workflow.json
 syllable insights workflows delete <workflow-id>
 syllable insights workflows activate <workflow-id>
 syllable insights workflows inactivate <workflow-id>
@@ -443,7 +443,7 @@ syllable insights workflows files <workflow-id> [--search TEXT] [--search-field 
 syllable insights folders list
 syllable insights folders get <folder-id>
 syllable insights folders create --file folder.json
-syllable insights folders update --file folder.json
+syllable insights folders update <folder-id> --file folder.json
 syllable insights folders delete <folder-id>
 syllable insights folders files <folder-id>
 syllable insights folders move-files <folder-id> --file move.json
@@ -452,7 +452,7 @@ syllable insights folders move-files <folder-id> --file move.json
 syllable insights tool-configs list
 syllable insights tool-configs get <config-id>
 syllable insights tool-configs create --file config.json
-syllable insights tool-configs update --file config.json
+syllable insights tool-configs update <config-id> --file config.json
 syllable insights tool-configs delete <config-id>
 
 # Tool Definitions

@@ -482,7 +482,7 @@ syllable insights folders files <id>
 syllable insights tool-configs list
 syllable insights tool-configs get <id>
 
-syllable insights tool-definitions list
+syllable insights tool-definitions
 ```
 
 Workflow execution/session/file lists support pagination, sorting, and date filters. The summary counts pending, processing, completed, and failed executions, filtered on `created_at` with an inclusive start and exclusive end. Use JSON output for session/file results grouped by tool and insight key. Execution lists also accept `--api-fields`.

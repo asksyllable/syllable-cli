@@ -120,8 +120,7 @@ If `default_org` is set in `~/.syllable/config.yaml`, it's used when `--org` is 
 | Flag | Env Var | Default | Description |
 |------|---------|---------|-------------|
 | `--org` | -- | `default_org` in config | Org name to look up API key (e.g. `acme`, `globex`) |
-| `--base-url` | -- | `https://api.syllable.cloud` | API base URL (overrides `--env`) |
-| `--env` | -- | -- | Named environment (e.g. `prod`, `staging`, `dev`) — sets base URL from config |
+| `--env` | -- | `default_env` or `prod` | Named environment — selects its configured base URL and per-org credentials |
 | `--output` / `-o` | -- | `table` | Output format: `table` or `json` |
 | `--fields` | -- | -- | Comma-separated columns to show in table output (e.g. `id,name,type`) |
 | `--config` | -- | `~/.syllable/config.yaml` | Config file path |
@@ -188,7 +187,7 @@ syllable <resource> delete <id> --yes            # destructive — see note belo
 |---|---|
 | `prompts` | `history <id>`, `supported-llms [--selected-model MODEL]` |
 | `tools` | `history <tool-id>` (v1.7, version history); `get` accepts name **or** numeric ID (v1.7 — IDs resolved via the list endpoint) |
-| `sessions` | `transcript <id>`, `summary <id>`, `latency <id>`, `recording <id>`, `recording-stream --token <token>` |
+| `sessions` | `transcript <id>`, `timeline <id>`, `summary <id>`, `latency <id>`, `recording <id>`, `recording-stream --token <token>` |
 | `outbound batches` | `results <id>`, `requests <id> --file …`, `remove-requests <id> --file …` |
 | `channels` | `get <id>` (v1.7, resolved client-side via list), `targets list/get/create/update/delete`, `available-targets`, `twilio get/create/update/numbers-list/numbers-add/numbers-update/numbers-verify-a2p-compliance` (last is v1.7). **No top-level `channels delete`** — the API has no delete-channel op; remove a target with `channels targets delete <channel-id> <target-id>` (v1.8) |
 | `agents` | `send-test-message <id> --test-id <id> [--session-start] --text "<msg>"`, `labels`, `voices [--selected-voice VOICE]`, `stt-providers [--selected-provider PROVIDER]`, `card-click <test-id> --action-id ID --action-type cta\|action` |
