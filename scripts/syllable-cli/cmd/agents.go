@@ -265,7 +265,7 @@ func agentsCreateCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(data, &body); err != nil {
+				if err := decodeRequestJSON(data, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
 			} else {
@@ -320,7 +320,7 @@ func agentsUpdateCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(data, &body); err != nil {
+				if err := decodeRequestJSON(data, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
 			} else {
@@ -370,7 +370,7 @@ func agentsDeleteCmd() *cobra.Command {
 }
 
 func agentsSendTestMessageCmd() *cobra.Command {
-	var testID, text, serviceName, source, overrideTimestamp string
+	var file, testID, text, serviceName, source, overrideTimestamp, orgName string
 	var sessionStart bool
 	var timeout int
 
@@ -398,23 +398,47 @@ the same --test-id).`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			agentID := args[0]
 
-			body := map[string]interface{}{
-				"agent_id":      agentID,
-				"test_id":       testID,
-				"service_name":  serviceName,
-				"source":        source,
-				"session_start": sessionStart,
+			if err := exclusiveBodyFile(cmd, file, "test-id", "text", "service-name", "source", "override-timestamp", "org-name", "session-start"); err != nil {
+				return err
 			}
-			if cmd.Flags().Changed("text") {
-				body["text"] = text
-			} else if sessionStart {
-				body["text"] = ""
-			}
-			if cmd.Flags().Changed("override-timestamp") {
-				if w := overrideTimestampWarning(overrideTimestamp); w != "" {
-					fmt.Fprintln(cmd.ErrOrStderr(), w)
+			var body interface{}
+			if file != "" {
+				fileData, err := readFile(file)
+				if err != nil {
+					return fmt.Errorf("reading file: %w", err)
 				}
-				body["override_timestamp"] = overrideTimestamp
+				if err := decodeRequestJSON(fileData, &body); err != nil {
+					return fmt.Errorf("parsing JSON file: %w", err)
+				}
+				if err := ensureBodyIdentifier(body, "agent_id", agentID, false); err != nil {
+					return err
+				}
+			} else {
+				if testID == "" {
+					return fmt.Errorf("required flag: --test-id (or use --file)")
+				}
+				message := map[string]interface{}{
+					"agent_id":      agentID,
+					"test_id":       testID,
+					"service_name":  serviceName,
+					"source":        source,
+					"session_start": sessionStart,
+				}
+				if cmd.Flags().Changed("text") {
+					message["text"] = text
+				} else if sessionStart {
+					message["text"] = ""
+				}
+				if cmd.Flags().Changed("org-name") {
+					message["org_name"] = orgName
+				}
+				if cmd.Flags().Changed("override-timestamp") {
+					if w := overrideTimestampWarning(overrideTimestamp); w != "" {
+						fmt.Fprintln(cmd.ErrOrStderr(), w)
+					}
+					message["override_timestamp"] = overrideTimestamp
+				}
+				body = message
 			}
 
 			data, _, err := apiClient.PostWithTimeout(
@@ -453,14 +477,15 @@ the same --test-id).`,
 		},
 	}
 
-	cmd.Flags().StringVar(&testID, "test-id", "", "Test session identifier (required)")
+	cmd.Flags().StringVar(&file, "file", "", "Full TestMessage JSON body (use '-' for stdin; cannot combine with message flags)")
+	cmd.Flags().StringVar(&testID, "test-id", "", "Test session identifier (required unless using --file)")
 	cmd.Flags().StringVar(&text, "text", "", "Message text to send to the agent")
 	cmd.Flags().StringVar(&overrideTimestamp, "override-timestamp", "", "Timezone-naive ISO 8601 timestamp (e.g. 2030-12-25T09:30:00) to pin the agent's wall clock for this turn, interpreted in the agent's timezone. Offset (-07:00), 'Z', and space-separated forms are silently ignored by the server. Omit to use current time.")
 	cmd.Flags().BoolVar(&sessionStart, "session-start", false, "Start a new test session")
 	cmd.Flags().StringVar(&serviceName, "service-name", "test", "Service name for the test")
 	cmd.Flags().StringVar(&source, "source", "tester@syllable.ai", "Source identifier for the test caller")
+	cmd.Flags().StringVar(&orgName, "org-name", "", "Deprecated SDK body org_name; separate from --org credential selection")
 	cmd.Flags().IntVar(&timeout, "timeout", 90, "Request timeout in seconds")
-	_ = cmd.MarkFlagRequired("test-id")
 
 	return cmd
 }

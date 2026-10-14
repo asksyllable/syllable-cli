@@ -278,7 +278,7 @@ func insightsWorkflowsCreateCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(fileData, &body); err != nil {
+				if err := decodeRequestJSON(fileData, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
 			} else {
@@ -314,7 +314,7 @@ func insightsWorkflowsUpdateCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(data, &body); err != nil {
+				if err := decodeRequestJSON(data, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
 			} else {
@@ -359,26 +359,38 @@ func insightsWorkflowsDeleteCmd() *cobra.Command {
 }
 
 func insightsWorkflowsActivateCmd() *cobra.Command {
-	return &cobra.Command{
+	var file string
+	cmd := &cobra.Command{
 		Use:   "activate <workflow-id>",
 		Short: "Activate an insight workflow",
+		Long:  "Activate using the current workflow estimate and acknowledgement, or provide the full InsightWorkflowActivate request with --file.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Fetch the current workflow to get the exact estimate the API requires.
-			wfData, _, err := apiClient.Get("/api/v1/insights/workflows/" + url.PathEscape(args[0]))
-			if err != nil {
-				return fmt.Errorf("fetching workflow: %w", err)
-			}
-			var wf struct {
-				Estimate json.RawMessage `json:"estimate"`
-			}
-			if err := json.Unmarshal(wfData, &wf); err != nil {
-				return fmt.Errorf("parsing workflow: %w", err)
-			}
-
-			body := map[string]interface{}{
-				"is_acknowledged": true,
-				"estimate":        wf.Estimate,
+			var body interface{}
+			if file != "" {
+				fileData, err := readFile(file)
+				if err != nil {
+					return fmt.Errorf("reading file: %w", err)
+				}
+				if err := decodeRequestJSON(fileData, &body); err != nil {
+					return fmt.Errorf("parsing JSON file: %w", err)
+				}
+			} else {
+				// Fetch the exact current estimate for the convenience mode.
+				wfData, _, err := apiClient.Get("/api/v1/insights/workflows/" + url.PathEscape(args[0]))
+				if err != nil {
+					return fmt.Errorf("fetching workflow: %w", err)
+				}
+				var wf struct {
+					Estimate json.RawMessage `json:"estimate"`
+				}
+				if err := json.Unmarshal(wfData, &wf); err != nil {
+					return fmt.Errorf("parsing workflow: %w", err)
+				}
+				body = map[string]interface{}{
+					"is_acknowledged": true,
+					"estimate":        wf.Estimate,
+				}
 			}
 
 			path := fmt.Sprintf("/api/v1/insights/workflows/%s/activate", url.PathEscape(args[0]))
@@ -391,6 +403,8 @@ func insightsWorkflowsActivateCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().StringVar(&file, "file", "", "Full InsightWorkflowActivate JSON body (use '-' for stdin; skips estimate fetch)")
+	return cmd
 }
 
 func insightsWorkflowsInactivateCmd() *cobra.Command {
@@ -400,7 +414,7 @@ func insightsWorkflowsInactivateCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			path := fmt.Sprintf("/api/v1/insights/workflows/%s/inactivate", url.PathEscape(args[0]))
-			data, _, err := apiClient.Put(path, map[string]interface{}{})
+			data, _, err := apiClient.Put(path, nil)
 			if err != nil {
 				return err
 			}
@@ -546,7 +560,7 @@ func insightsFoldersCreateCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(fileData, &body); err != nil {
+				if err := decodeRequestJSON(fileData, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
 			} else {
@@ -582,7 +596,7 @@ func insightsFoldersUpdateCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(data, &body); err != nil {
+				if err := decodeRequestJSON(data, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
 			} else {
@@ -783,7 +797,7 @@ func insightsToolConfigsCreateCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(fileData, &body); err != nil {
+				if err := decodeRequestJSON(fileData, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
 			} else {
@@ -819,7 +833,7 @@ func insightsToolConfigsUpdateCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(data, &body); err != nil {
+				if err := decodeRequestJSON(data, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
 			} else {
@@ -898,7 +912,7 @@ func insightsToolsTestCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("reading file: %w", err)
 			}
-			if err := json.Unmarshal(fileData, &body); err != nil {
+			if err := decodeRequestJSON(fileData, &body); err != nil {
 				return fmt.Errorf("parsing JSON file: %w", err)
 			}
 
@@ -935,7 +949,7 @@ func insightsFoldersMoveFilesCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("reading file: %w", err)
 			}
-			if err := json.Unmarshal(fileData, &body); err != nil {
+			if err := decodeRequestJSON(fileData, &body); err != nil {
 				return fmt.Errorf("parsing JSON file: %w", err)
 			}
 
@@ -972,7 +986,7 @@ func insightsWorkflowsQueueWorkCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("reading file: %w", err)
 			}
-			if err := json.Unmarshal(fileData, &body); err != nil {
+			if err := decodeRequestJSON(fileData, &body); err != nil {
 				return fmt.Errorf("parsing JSON file: %w", err)
 			}
 

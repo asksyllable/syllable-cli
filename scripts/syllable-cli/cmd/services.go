@@ -162,7 +162,7 @@ func servicesCreateCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(fileData, &body); err != nil {
+				if err := decodeRequestJSON(fileData, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
 			} else {
@@ -207,7 +207,7 @@ func servicesUpdateCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(data, &body); err != nil {
+				if err := decodeRequestJSON(data, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
 			} else {
