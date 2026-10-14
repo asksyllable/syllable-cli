@@ -183,6 +183,36 @@ def enum_profile(branch):
     return profile
 
 
+def branch_anchors(branch):
+    """Stable type/ref/discriminator hints, rather than a whole mutable shape."""
+    if not isinstance(branch, dict):
+        return {}, {}
+    typ = branch.get("type", "object" if "properties" in branch else "array" if "items" in branch else None)
+    discriminator = branch.get("discriminator")
+    anchors = {"types": set(typ if isinstance(typ, list) else [typ]) - {None},
+               "$ref": branch.get("$ref"),
+               "discriminator": discriminator.get("propertyName") if isinstance(discriminator, dict) else None}
+    constants = {}
+
+    def walk(node, path="", key=""):
+        if key in {"default", "const", "enum"}:
+            return
+        if isinstance(node, dict):
+            named = key in NAMED_MAPS
+            if not named and "const" in node:
+                constants[path] = node["const"]
+            for k, v in node.items():
+                if not named and k in UNIONS:
+                    continue  # Nested branches get their own matching/anchors.
+                walk(v, path + "/" + k, "" if named else k)
+        elif isinstance(node, list):
+            for i, v in enumerate(node):
+                walk(v, path + "/" + str(i))
+
+    walk(branch)
+    return anchors, constants
+
+
 def match_union_branches(old, new):
     """Match unchanged branches first, then enum-free structural identities.
 
@@ -199,6 +229,41 @@ def match_union_branches(old, new):
         before, after = profiles_old[i], profiles_new[j]
         return sum((before - after).values()), sum((after - before).values())
 
+    def match_group(before, after, eligible, rank):
+        candidates = {
+            i: sorted((j for j in after if eligible(i, j) and distance(i, j)[0] == 0),
+                      key=lambda j: (*rank(i, j), j))
+            for i in before
+        }
+        matched_new = {}
+
+        def augment(i, visited):
+            for j in candidates[i]:
+                if j in visited:
+                    continue
+                visited.add(j)
+                if j not in matched_new or augment(matched_new[j], visited):
+                    matched_new[j] = i
+                    return True
+            return False
+
+        for i in sorted(before, key=lambda i: (len(candidates[i]),
+                        min((rank(i, j) for j in candidates[i]), default=()), i)):
+            augment(i, set())
+        matched = {i: j for j, i in matched_new.items()}
+        unused_old, unused_new = set(before) - matched.keys(), set(after) - set(matched.values())
+        while unused_old and unused_new:
+            available = [(i, j) for i in unused_old for j in unused_new if eligible(i, j)]
+            if not available:
+                break
+            i, j = min(available, key=lambda pair: (*rank(*pair), *pair))
+            matched[i] = j
+            unused_old.remove(i)
+            unused_new.remove(j)
+        pairs.update(matched)
+        pending_old.difference_update(matched)
+        pending_new.difference_update(matched.values())
+
     for shape in (lambda node: node, enum_shape, lambda node: enum_shape(node, True)):
         before, after = {}, {}
         for indexes, branches, groups in ((pending_old, old, before), (pending_new, new, after)):
@@ -206,37 +271,33 @@ def match_union_branches(old, new):
                 identity = json.dumps(contract(shape(branches[i])), sort_keys=True)
                 groups.setdefault(identity, []).append(i)
         for identity in sorted(before.keys() & after.keys()):
-            candidates = {
-                i: sorted((j for j in after[identity] if distance(i, j)[0] == 0),
-                          key=lambda j: (distance(i, j)[1], j))
-                for i in before[identity]
-            }
-            matched_new = {}
+            match_group(before[identity], after[identity], lambda i, j: True, distance)
 
-            def augment(i, visited):
-                for j in candidates[i]:
-                    if j in visited:
-                        continue
-                    visited.add(j)
-                    if j not in matched_new or augment(matched_new[j], visited):
-                        matched_new[j] = i
-                        return True
+    # A field/default/constraint addition can change every exact shape while
+    # retaining the same enum declaration. Match remaining branches one-to-one
+    # by stable anchors and enum locations; prefer the closest non-enum contract.
+    anchors_old, anchors_new = list(map(branch_anchors, old)), list(map(branch_anchors, new))
+    shapes_old = [contract(enum_shape(branch)) for branch in old]
+    shapes_new = [contract(enum_shape(branch)) for branch in new]
+
+    def compatible(i, j):
+        before, constants_before = anchors_old[i]
+        after, constants_after = anchors_new[j]
+        if before.get("types") and after.get("types") and not before["types"] & after["types"]:
+            return False
+        for key in ("$ref", "discriminator"):
+            if before.get(key) and after.get(key) and before[key] != after[key]:
                 return False
+        if any(constants_before[path] != constants_after[path] for path in constants_before.keys() & constants_after.keys()):
+            return False
+        locations_before = {path for path, value in profiles_old[i]}
+        locations_after = {path for path, value in profiles_new[j]}
+        return bool(locations_before & locations_after) or not (locations_before or locations_after)
 
-            for i in sorted(before[identity], key=lambda i: (len(candidates[i]), i)):
-                augment(i, set())
-            matched = {i: j for j, i in matched_new.items()}
-            unused_old = set(before[identity]) - matched.keys()
-            unused_new = set(after[identity]) - set(matched.values())
-            while unused_old and unused_new:
-                i, j = min(((i, j) for i in unused_old for j in unused_new),
-                           key=lambda pair: (*distance(*pair), *pair))
-                matched[i] = j
-                unused_old.remove(i)
-                unused_new.remove(j)
-            pairs.update(matched)
-            pending_old.difference_update(matched)
-            pending_new.difference_update(matched.values())
+    def rank(i, j):
+        return len(contract_changes(shapes_old[i], shapes_new[j])), *distance(i, j)
+
+    match_group(sorted(pending_old), sorted(pending_new), compatible, rank)
     return pairs
 
 
