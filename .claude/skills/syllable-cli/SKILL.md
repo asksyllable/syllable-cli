@@ -129,7 +129,11 @@ If `default_org` is set in `~/.syllable/config.yaml`, it's used when `--org` is 
 
 ## Common List Flags
 
+For SDK 1.0.68 parameter parity, inspect each command's `--help`: sorting, date filters, API projection (`--api-fields`, separate from table `--fields`), repeated paired `--search-fields` / `--search-values`, and operation-specific filters are exposed wherever declared by the SDK. Repeat each plural search option per value; commas within values are literal. Explicit empty, zero, and false values are preserved.
+
 Use full `--file` / stdin JSON on specialized body actions too: agent test messages, workflow activation, user deletion, directory restore, and Twilio A2P checks. Put all body fields in the file; don't combine it with their inline body flags. Numeric precision and explicit null are preserved. Legacy `language-groups sample` remains available alongside `voice-groups sample`.
+
+Global HTTP controls include `--request-timeout`, opt-in `--retries` / `--retry-writes`, backoff/status/connection-error options, `--user-agent`, and multipart `--upload-filename` / `--upload-content-type`. Defaults retain existing timeouts and perform no retries. See `references/commands.md` for examples. Organization creation/deletion remain console-only.
 
 All list commands support these flags:
 

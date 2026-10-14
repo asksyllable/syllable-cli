@@ -19,6 +19,8 @@ syllable status
 Shows all configured orgs and environments with API key presence. No API calls are made — reads from local config only. Use this to resolve ambiguous org references, confirm naming conventions, and verify the target before running commands.
 
 ## Agents
+
+SDK query options are exposed on each mapped operation; use its `--help` for exact availability. Common list options include sorting, dates, `--api-fields`, and paired repeated `--search-fields` / `--search-values` (commas literal). `--fields` filters the CLI table. Global `--request-timeout` and opt-in retry controls apply across HTTP transports; multipart files support `--upload-filename` / `--upload-content-type`.
 ```bash
 syllable agents list [--page N] [--limit N] [--search TEXT]
 syllable agents get <agent-id>
@@ -258,10 +260,12 @@ syllable users delete <email>
 syllable users delete <email> --reason TEXT
 syllable users delete <email> --file user-delete.json
 syllable users me
-syllable users send-email <email>
+syllable users send-email <email> [--skip-auth]
 ```
 
 **Table columns:** ID, EMAIL, NAME, ROLE, STATUS, LAST_UPDATED
+
+Explicit `users send-email --skip-auth=true` supports anonymous requests without a configured key; live use sends email.
 
 **Get fields:** ID, Email, First Name, Last Name, Role Name, Role ID, Activity Status, Last Updated, Last Updated By, Last Session At
 

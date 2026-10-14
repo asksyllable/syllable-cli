@@ -159,6 +159,10 @@ Auth and base URL are sourced from `~/.syllable/config.yaml`. Use `--org` and `-
 
 ## Common List Flags
 
+SDK query options are available on each command that declares them. Check `--help`. Common additions include `--order-by`, `--order-by-direction`, `--start-date`, `--end-date`, `--api-fields`, and paired repeated `--search-fields` / `--search-values` (commas are literal). Keep `--fields` for table columns. Explicit empty/zero/false inputs are preserved. SDK query flags also expose operation-specific options such as role deletion `--new-role-id`, outbound result filters, and directory `--response-format` (or existing `--format`).
+
+Global transport controls: `--request-timeout` (duration; explicit 0 disables), `--retries` (default 0), `--retry-writes`, `--retry-delay`, `--retry-max-delay`, `--retry-exponent`, `--retry-max-elapsed-time`, `--retry-statuses`, `--retry-connection-errors`, `--user-agent`, `--upload-filename`, and `--upload-content-type`. Write retries require explicit opt-in. Headers and multipart encodings follow the SDK's media types.
+
 All list commands support:
 
 | Flag | Default | Description |
@@ -403,10 +407,12 @@ syllable users delete <email>
 syllable users delete <email> --reason TEXT
 syllable users delete <email> --file user-delete.json
 syllable users me
-syllable users send-email <email>
+syllable users send-email <email> [--skip-auth]
 syllable users delete-account --confirm
 ```
 **Table columns:** ID, EMAIL, NAME, ROLE, STATUS, LAST_UPDATED
+
+Only explicit `users send-email --skip-auth=true` may run without an API key, matching the SDK's anonymous request. It sends email; the offline parity suite uses a local mock server.
 
 ### Directory
 Member/contact list for call routing and agent-initiated transfers.
