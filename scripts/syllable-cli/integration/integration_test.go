@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"testing"
 )
@@ -345,34 +346,14 @@ func TestToolsCRUD(t *testing.T) {
 
 	toolName := fmt.Sprintf("test-integ-tool-%d", os.Getpid())
 
-	createBody := map[string]interface{}{
-		"name":       toolName,
-		"service_id": serviceID,
-		"definition": map[string]interface{}{
-			"type": "tool",
-			"tool": map[string]interface{}{
-				"name":        toolName,
-				"description": "Integration test tool",
-				"parameters": map[string]interface{}{
-					"type":       "object",
-					"properties": map[string]interface{}{},
-					"required":   []interface{}{},
-				},
-			},
-			"endpoint": map[string]interface{}{
-				"url":    "https://httpbin.org/get",
-				"method": "GET",
-			},
-			"static_parameters": []interface{}{},
-		},
-	}
-	f := writeTempJSON(t, createBody)
+	f := writeTempJSON(t, integrationToolBody(t, toolName, serviceID, "Integration test tool"))
 
 	// Create
 	out := mustRunCLI(t, "tools", "create", "--file", f)
 	// tools use name as identifier, not numeric ID
 	name := mustExtractField(t, out, "name")
-	t.Logf("created tool name=%s", name)
+	toolID := mustExtractField(t, out, "id")
+	t.Logf("created tool name=%s id=%s", name, toolID)
 
 	registerDelete("tools", "delete", name)
 
@@ -385,33 +366,55 @@ func TestToolsCRUD(t *testing.T) {
 	assertContains(t, string(out), name)
 
 	// Update
-	updateBody := map[string]interface{}{
-		"name":       name,
-		"service_id": serviceID,
-		"definition": map[string]interface{}{
-			"type": "tool",
-			"tool": map[string]interface{}{
-				"name":        name,
-				"description": "Updated integration test tool",
-				"parameters": map[string]interface{}{
-					"type":       "object",
-					"properties": map[string]interface{}{},
-					"required":   []interface{}{},
-				},
-			},
-			"endpoint": map[string]interface{}{
-				"url":    "https://httpbin.org/get",
-				"method": "GET",
-			},
-			"static_parameters": []interface{}{},
-		},
+	// PUT is a full replacement keyed by the numeric id (get -> edit -> put).
+	updateBody := integrationToolBody(t, name, serviceID, "Updated integration test tool")
+	id, err := strconv.Atoi(toolID)
+	if err != nil {
+		t.Fatalf("tool id %q is not an integer: %v", toolID, err)
 	}
+	updateBody["id"] = id
 	uf := writeTempJSON(t, updateBody)
 	out = mustRunCLI(t, "tools", "update", name, "--file", uf)
 	assertContains(t, string(out), name)
 
 	// Delete
 	mustRunCLI(t, "tools", "delete", name)
+}
+
+// integrationToolBody builds a minimal endpoint tool in the current API shape:
+// definition.type is "endpoint" and the OpenAI-style schema sits under
+// tool.function (see .claude/skills/syllable-cli/references/payload-examples.md).
+func integrationToolBody(t *testing.T, name, serviceID, description string) map[string]interface{} {
+	t.Helper()
+	id, err := strconv.Atoi(serviceID)
+	if err != nil {
+		t.Fatalf("SYLLABLE_TOOL_SERVICE_ID must be an integer: %v", err)
+	}
+	return map[string]interface{}{
+		"name":       name,
+		"service_id": id,
+		"definition": map[string]interface{}{
+			"type": "endpoint",
+			"endpoint": map[string]interface{}{
+				"url":               "https://httpbin.org/get",
+				"method":            "get",
+				"argument_location": "query",
+			},
+			"tool": map[string]interface{}{
+				"type": "function",
+				"function": map[string]interface{}{
+					"name":        name,
+					"description": description,
+					"parameters": map[string]interface{}{
+						"type":       "object",
+						"properties": map[string]interface{}{},
+						"required":   []interface{}{},
+					},
+				},
+			},
+			"static_parameters": []interface{}{},
+		},
+	}
 }
 
 // ---------------------------------------------------------------------------
