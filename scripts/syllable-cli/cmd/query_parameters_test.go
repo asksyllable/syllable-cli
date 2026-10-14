@@ -45,7 +45,7 @@ func TestSDKQueryParameterSerialization(t *testing.T) {
 	t.Cleanup(func() { apiClient, dryRun = previous, previousDryRun })
 	apiClient = client.New("https://api.example.invalid", "unit-test")
 	apiClient.DryRun, dryRun = true, true
-	checked := 0
+	checked, expected := 0, 0
 	for id, operation := range operations {
 		argv, mapped := sdkOperationCommands[id]
 		if !mapped {
@@ -57,6 +57,7 @@ func TestSDKQueryParameterSerialization(t *testing.T) {
 				parameters = append(parameters, parameter)
 			}
 		}
+		expected += len(parameters)
 		if len(parameters) == 0 {
 			continue
 		}
@@ -127,8 +128,10 @@ func TestSDKQueryParameterSerialization(t *testing.T) {
 			}
 		})
 	}
-	if checked != 339 {
-		t.Errorf("checked %d query occurrences; update the reviewed SDK total if the contract changes", checked)
+	// Derived from the embedded spec rather than pinned, so a spec sync that
+	// adds query parameters needs no manual count bump (#162-style stalls).
+	if expected == 0 || checked != expected {
+		t.Errorf("checked %d of %d query occurrences declared by the embedded spec", checked, expected)
 	}
 }
 
