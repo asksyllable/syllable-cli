@@ -119,7 +119,7 @@ Based on the diff output, categorize the work into a checklist:
 - [ ] Preserve renamed schema lookups with aliases when appropriate; document actual removals
 - [ ] Add every new operation to `cmd/sdk_operations.go`; `cmd/api_surface_test.go` must show complete coverage with only documented policy exceptions
 - [ ] Verify spec-backed flags through `TestSDKQueryParameterSerialization` and test new nested request fields through file input
-- [ ] Update the exact SDK dependency and lockfile in `tests/sdk-parity/`, set the upstream source commit in `generate-manifest.cjs`, and refresh the implementation manifest with `npm run refresh-manifest --prefix tests/sdk-parity`; review the diff against the actual SDK
+- [ ] Bump the pinned SDK in `tests/sdk-parity/` only when a **stable** `syllable-sdk` release on npm matches the embedded spec (`npm view syllable-sdk dist-tags`; upstream `main` usually sits on an `-rc`). Then update the exact dependency and lockfile, set the upstream source commit in `generate-manifest.cjs`, refresh the manifest with `npm run refresh-manifest --prefix tests/sdk-parity`, and review the diff against the actual SDK. Otherwise leave the pin alone: new commands the pinned SDK doesn't know are logged as "parity pending" (still gated by the Go coverage tests), so a sync never waits on an SDK release.
 
 **Doc updates:**
 - [ ] README.md — add/remove/update the resource's section under Commands
@@ -276,7 +276,7 @@ npm ci --prefix tests/sdk-parity --ignore-scripts --no-audit --no-fund
 npm test --prefix tests/sdk-parity
 ```
 
-This uses synthetic credentials and a loopback mock server. It must pass every allowed operation without skips. Do not refresh the manifest just to silence failures, and keep fixture-dependent live behavior distinct from mock contract coverage.
+This uses synthetic credentials and a loopback mock server. It must pass every allowed operation in the pinned SDK without skips; expected totals derive from the pinned manifest, so there are no counts to bump. Do not refresh the manifest just to silence failures, and keep fixture-dependent live behavior distinct from mock contract coverage.
 
 Fix any compilation errors or test failures before proceeding.
 
