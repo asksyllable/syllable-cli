@@ -41,6 +41,36 @@ SYLLABLE_ORG=sandbox go test -tags integration ./integration/...
 
 Without `-tags integration` the suite's files are excluded from the build, so `go test ./...` reports no tests for the package and makes no live calls. `SYLLABLE_API_KEY` is read directly by the CLI (no config file needed — this is how CI authenticates); `SYLLABLE_ORG` instead resolves the key from `~/.syllable/config.yaml`. **Do not point integration tests at customer orgs** — use a dedicated throwaway org such as `cli-test`. The org slugs in [AGENTS.md](AGENTS.md) examples (`acme`, `globex`, etc.) are placeholders, not test targets.
 
+#### `cli-test` fixtures (full live run)
+
+`cli-test` on prod has standing resources for the fixture-gated tests. Run everything from `scripts/syllable-cli` against the binary you want to verify (here the Homebrew install; use a fresh `go build` for unreleased code):
+
+```bash
+env -u SYLLABLE_API_KEY SYLLABLE_ORG=cli-test SYLLABLE_ENV=prod \
+  SYLLABLE_CLI_BINARY=/opt/homebrew/bin/syllable \
+  SYLLABLE_TEST_AGENT_ID=768 \
+  SYLLABLE_TOOL_SERVICE_ID=134 SYLLABLE_TEST_TOOL_ID=560 \
+  SYLLABLE_TEST_CHANNEL_ID=111 SYLLABLE_TEST_PHONE=+18087311842 \
+  SYLLABLE_VOICE_SAMPLE_BODY_FILE=/path/to/voice-sample.json \
+  go test -tags integration -count=1 -v ./integration
+```
+
+`voice-sample.json` is `{"language_code":"en-US","voice_provider":"Google","voice_display_name":"Achernar (English)","text":"Integration test sample."}`. Sample synthesis incurs a little TTS usage.
+
+| Variable | `cli-test` value | What it is |
+|---|---|---|
+| `SYLLABLE_TEST_AGENT_ID` | `768` | Agent "test"; used for full-body test messages and card-click |
+| `SYLLABLE_TOOL_SERVICE_ID` | `134` | Service "default-v1"; tool CRUD creates and deletes a temporary tool under it |
+| `SYLLABLE_TEST_TOOL_ID` | `560` | Tool "greeting"; read-only history |
+| `SYLLABLE_TEST_CHANNEL_ID` / `SYLLABLE_TEST_PHONE` | `111` / `+18087311842` | Twilio channel and a number on its account; read-only A2P compliance check |
+
+Last full run (2026-10-14, v2.3.1): everything passed except these known gaps:
+
+- **`TestAgentCardClick`** fails on a server-side 404 for a live conversation-test session ([#192](https://github.com/asksyllable/syllable-cli/issues/192)). Leave it failing until prod is fixed; the CLI request matches the SDK.
+- **`TestExperimentsCRUD`** has no fixture. Experiments reject an agent's built-in test target, and every free target name in `cli-test` is reserved for system-generated test targets. It needs a dedicated non-test target (a test phone number or SIP target) provisioned in `cli-test`.
+- **`TestOutboundCampaignsCRUD`** has no fixture. `--caller-id` must be a number assigned to an agent through a target in the org, and `cli-test` has none. Don't borrow a shared Twilio number for this; it needs the same provisioned voice target.
+- **Workflow views and `TestWorkflowActivationFullBody`** skip because `cli-test` has no insight workflows.
+
 SDK catch-up coverage lives in `integration/sdk_sync_test.go`. STT and experiment lists run with the usual integration credentials; workflow views use an existing workflow and skip if none exist. The experiment lifecycle test requires `SYLLABLE_EXPERIMENT_TARGET_ID`, `SYLLABLE_EXPERIMENT_CONTROL_AGENT_ID`, and `SYLLABLE_EXPERIMENT_VARIANT_AGENT_ID`, all belonging to dedicated test resources. It starts/stops routing on that target and cleans up by stopping before deleting. The card-click test requires `SYLLABLE_TEST_AGENT_ID` and creates a conversation-test session before logging a click. Compile this coverage without any live calls with `go test -tags integration -c ./integration -o /tmp/syllable-integration.test`.
 
 ### Testing the SDK catch-up
