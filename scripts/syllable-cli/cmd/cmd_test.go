@@ -102,7 +102,7 @@ func TestRootCommandHasSubcommands(t *testing.T) {
 		"custom-messages", "language-groups", "organizations", "schema",
 		"data-sources", "voice-groups", "services", "roles", "incidents",
 		"pronunciations", "session-labels", "session-debug", "takeouts",
-		"events", "permissions", "conversation-config", "dashboards",
+		"events", "permissions", "conversation-config", "dashboards", "experiments",
 	}
 
 	commands := rootCmd.Commands()
@@ -120,7 +120,7 @@ func TestRootCommandHasSubcommands(t *testing.T) {
 
 func TestAgentsCommandHasSubcommands(t *testing.T) {
 	cmd := agentsCmd()
-	expected := []string{"list", "get", "create", "update", "delete", "send-test-message", "voices"}
+	expected := []string{"list", "get", "create", "update", "delete", "send-test-message", "voices", "stt-providers", "card-click"}
 	subs := make(map[string]bool)
 	for _, c := range cmd.Commands() {
 		subs[c.Name()] = true

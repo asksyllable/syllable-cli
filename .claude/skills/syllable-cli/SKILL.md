@@ -11,6 +11,8 @@ A Go CLI for managing the Syllable AI platform. Source and releases: **https://g
 
 > **Docs synced to CLI v2.2.0** — bump this marker whenever these docs are updated for a new release.
 >
+> Pending SDK 1.0.68 refresh: experiments (list/get/create/update/delete/start/stop/results); `agents stt-providers` and `card-click`; insight workflow `executions`, `executions-summary`, `sessions`, and `files`; saved catalog selection flags; directory deleted-member filters; legacy `language-groups sample`. Embedded spec source is SDK commit `6c6fc6f906f103b763dcffa65ccc6ea2403883d4`. The upstream `AgentSttProvider` enum removes `Deepgram Nova 3 (On-Prem)`; use the STT catalog to find current options. Nested configuration additions are supported through `--file`, including campaign schedule overrides, holiday greetings, SIP transfer mode, and tool response display mappings. This refresh is not yet a CLI release.
+>
 > v2.2.0 (minor) highlights — purely additive, no breaking changes: new `sessions timeline <session-id>` command returning one consolidated, time-ordered stream of transcript turns, tool calls, and latency events with offsets from session start; outbound batch create/update bodies accept `call_rate` and `auto_call_rate` (per-batch rate control, with `auto_call_rate_baseline` in responses); `SipConfiguration` gains `call_info_placement`; sessions expose `override_timestamp`; new Cartesia TTS provider with the `sonic-3.5` voice model and 18 new voices across US/MX/ES/KR/CN/VN/TH.
 >
 > v2.1.0 (minor) highlights — purely additive, no breaking changes: new `bridge-phrases` command (list/get/create/update/delete) for the named, reusable hold-phrase configs, attached to an agent via `bridge_phrases_id`; `conversation-config bridges` and `bridges-update` take optional `--agent-id` / `--tool-name` to scope the config (omit both for the org-level default); `sessions list --include-test` help text corrected — the flag keys off the **session-level** `is_test` flag, not channel targets.
@@ -118,8 +120,7 @@ If `default_org` is set in `~/.syllable/config.yaml`, it's used when `--org` is 
 | Flag | Env Var | Default | Description |
 |------|---------|---------|-------------|
 | `--org` | -- | `default_org` in config | Org name to look up API key (e.g. `acme`, `globex`) |
-| `--base-url` | -- | `https://api.syllable.cloud` | API base URL (overrides `--env`) |
-| `--env` | -- | -- | Named environment (e.g. `prod`, `staging`, `dev`) — sets base URL from config |
+| `--env` | -- | `default_env` or `prod` | Named environment — selects its configured base URL and per-org credentials |
 | `--output` / `-o` | -- | `table` | Output format: `table` or `json` |
 | `--fields` | -- | -- | Comma-separated columns to show in table output (e.g. `id,name,type`) |
 | `--config` | -- | `~/.syllable/config.yaml` | Config file path |
@@ -163,7 +164,7 @@ For sessions, the valid `--search-field` values are the `SessionProperties` enum
 
 Every command takes the form `syllable [--org X] [--env Y] <resource> <verb> [args]`.
 
-**Resources:** `agents`, `prompts`, `tools`, `services`, `channels` (+ `channels targets`, `channels twilio`, `channels available-targets`), `sessions`, `conversations`, `outbound batches`, `outbound campaigns`, `users`, `directory`, `insights workflows`, `insights folders`, `insights tool-configs`, `insights tool-definitions`, `custom-messages`, `language-groups` (deprecated → use `voice-groups`), `voice-groups`, `data-sources`, `roles`, `incidents`, `pronunciations`, `session-labels`, `session-debug`, `takeouts`, `events`, `permissions`, `bridge-phrases`, `conversation-config` (slated for deprecation → prefer `bridge-phrases`), `dashboards`, `organizations` (current-org get/update + sip-ip-ranges; no create/delete), `schema`, `status`.
+**Resources:** `agents`, `experiments`, `prompts`, `tools`, `services`, `channels` (+ `channels targets`, `channels twilio`, `channels available-targets`), `sessions`, `conversations`, `outbound batches`, `outbound campaigns`, `users`, `directory`, `insights workflows`, `insights folders`, `insights tool-configs`, `insights tool-definitions`, `custom-messages`, `language-groups` (deprecated → use `voice-groups`), `voice-groups`, `data-sources`, `roles`, `incidents`, `pronunciations`, `session-labels`, `session-debug`, `takeouts`, `events`, `permissions`, `bridge-phrases`, `conversation-config` (slated for deprecation → prefer `bridge-phrases`), `dashboards`, `organizations` (current-org get/update + sip-ip-ranges; no create/delete), `schema`, `status`.
 
 **Standard verbs** (most resources):
 ```bash
@@ -184,13 +185,14 @@ syllable <resource> delete <id> --yes            # destructive — see note belo
 
 | Resource | Verbs |
 |---|---|
-| `prompts` | `history <id>`, `supported-llms` |
+| `prompts` | `history <id>`, `supported-llms [--selected-model MODEL]` |
 | `tools` | `history <tool-id>` (v1.7, version history); `get` accepts name **or** numeric ID (v1.7 — IDs resolved via the list endpoint) |
-| `sessions` | `transcript <id>`, `summary <id>`, `latency <id>`, `recording <id>`, `recording-stream --token <token>` |
+| `sessions` | `transcript <id>`, `timeline <id>`, `summary <id>`, `latency <id>`, `recording <id>`, `recording-stream --token <token>` |
 | `outbound batches` | `results <id>`, `requests <id> --file …`, `remove-requests <id> --file …` |
 | `channels` | `get <id>` (v1.7, resolved client-side via list), `targets list/get/create/update/delete`, `available-targets`, `twilio get/create/update/numbers-list/numbers-add/numbers-update/numbers-verify-a2p-compliance` (last is v1.7). **No top-level `channels delete`** — the API has no delete-channel op; remove a target with `channels targets delete <channel-id> <target-id>` (v1.8) |
-| `agents` | `send-test-message <id> --test-id <id> [--session-start] --text "<msg>"` (conversation test API), `labels` (v1.7, active agent labels), `voices` (available voices) |
-| `insights workflows` | `activate <id>`, `inactivate <id>` |
+| `agents` | `send-test-message <id> --test-id <id> [--session-start] --text "<msg>"`, `labels`, `voices [--selected-voice VOICE]`, `stt-providers [--selected-provider PROVIDER]`, `card-click <test-id> --action-id ID --action-type cta\|action` |
+| `experiments` | standard CRUD plus `start <id>`, `stop <id>`, `results <id>`; create/update use `--file` and complete variant sets |
+| `insights workflows` | `activate <id>`, `inactivate <id>`, `executions <id>`, `executions-summary <id>`, `sessions <id>`, `files <id>` |
 | `insights folders` | `files <id>` |
 | `users` | `me` (requires your email in config — fails loudly otherwise, v1.7), `send-email <email>` |
 | `directory` | `history <id>`, `restore <id>`, `test <id> [--timestamp …]`, `download`, `upload --file …` |

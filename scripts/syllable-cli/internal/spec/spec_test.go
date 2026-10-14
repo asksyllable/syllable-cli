@@ -77,6 +77,8 @@ func TestBulkOperationPathsMatch(t *testing.T) {
 		// slashless item path.
 		"/api/v1/bridge_phrases/",
 		"/api/v1/bridge_phrases/{bridge_phrases_id}",
+		"/api/v1/experiments/",
+		"/api/v1/experiments/{experiment_id}",
 	}
 	for _, p := range want {
 		if _, ok := paths[p]; !ok {

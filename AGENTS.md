@@ -4,6 +4,8 @@ Machine-readable reference for AI agents using the Syllable CLI. The `syllable` 
 
 Run via: `cd scripts/syllable-cli && go run .` or build with `go build -o syllable .` (no binary is checked in; use releases or local build).
 
+Embedded spec source: `asksyllable/syllable-sdk-typescript` SDK 1.0.68, commit `6c6fc6f906f103b763dcffa65ccc6ea2403883d4` (OpenAPI `info.version` remains 0.0.3).
+
 ---
 
 ## Resource Overview
@@ -12,12 +14,13 @@ Quick reference for every resource: what it is, key fields, and hard constraints
 
 | Resource | Purpose | Key Fields | Constraints |
 |----------|---------|------------|-------------|
-| **Agents** | AI system that talks to users via a channel | prompt_id, timezone, opening_message, session_variables, tool_headers, voice_group_id, bridge_phrases_id | 1:1 with channel target — one agent per target. Test channel is auto-generated. `bridge_phrases_id` attaches a **Bridge Phrases** config; set it via `--file` (no dedicated flag). |
+| **Agents** | AI system that talks to users via a channel | prompt_id, timezone, opening_message, session_variables, tool_headers, voice_group_id, bridge_phrases_id | One assigned agent per target; experiments can split traffic across variants. Test channel is auto-generated. `bridge_phrases_id` attaches a **Bridge Phrases** config; set it via `--file` (no dedicated flag). |
+| **Experiments** | Split a channel target's traffic across agent variants | name, target_id, variants (name, agent_id, weight, is_control), status | Two or more different agents, weights totaling 100, exactly one control. Only drafts can be updated/started; stop before deleting a running experiment. Variant updates replace the complete set. |
 | **Prompts** | Natural language instructions defining agent behavior, backed by an LLM | name, provider, model, temperature, seed, tools, version | Every edit auto-creates a new version. Previous versions can be previewed and restored via `prompts history`. |
 | **Tools** | APIs agents call during sessions (look up data, transfer calls, schedule, etc.) | endpoint_url, method, function definition (name, description, JSON Schema params), service_id, static_params, dynamic vars (`{{ vars.field }}`) | Requires a Service for auth. Three types: agent, step, system. `tools history <id>` lists past versions (version_number, operation, updated_by). |
 | **Services** | Centralized credential store for tool authentication | name, auth_type (basic/bearer/custom), credentials | Credentials are masked and not stored by Syllable after configuration. Multiple tools may share one service. |
 | **Channels** | Communication modes (voice, SMS, chat) | name, service, is_system | System channels include Freeswitch Twilio (voice) and Syllable Webchat (chat). Twilio channels configurable via CLI; others via SDK. |
-| **Channel Targets** | Specific address (phone number or chat ID) where an agent operates | target (e.g., +18002832940 or chat-1-org-3), agent_id | 1:1 with agent — one agent per target. |
+| **Channel Targets** | Specific address (phone number or chat ID) where an agent operates | target (e.g., +18002832940 or chat-1-org-3), agent_id | One assigned agent per target; a running experiment splits traffic across its variants. |
 | **Data Sources** | Text knowledge bases agents can search | name (no whitespace), description, content | Connect to agents via a tool — not directly. Content should start with contextual framing for better search. Lower latency than embedding knowledge in a prompt. |
 | **Sessions** | Individual voice or chat conversations | session_id, transcript, summary, tool_calls, duration, channel, user_id, labels, recording, is_test | Read-only. |
 | **Session Labels** | Manual annotations on sessions | session_id, rating (Bad/OK/Good/N/A), issue_category, notes | **Immutable — once added, a label cannot be updated or deleted.** |
@@ -65,6 +68,7 @@ Services
 - **Tool** requires a **Service** (`service_id`) for authentication.
 - **Data Source** connects to an agent via a **Tool** — create the data source, create a tool that references it, add that tool to a prompt, and attach the prompt to an agent.
 - **Channel Target** requires an **Agent** (`agent_id`).
+- **Experiment** requires a **Channel Target** (`target_id`) and two or more distinct **Agents** in its variants. A running experiment splits target traffic across those agents.
 - **Outbound Batch** belongs to an **Outbound Campaign**.
 - **Insights Workflow** references **Insights Tool Configs** and **Tool Definitions**.
 - **User** requires a **Role** (`role_id`).
@@ -256,14 +260,36 @@ syllable agents create --file agent.json
 syllable agents create --name NAME --type TYPE --prompt-id ID --timezone TZ
 syllable agents update <agent-id> --file agent.json
 syllable agents delete <agent-id>
-syllable agents voices
+syllable agents voices [--selected-voice VOICE]  # repeat for multiple saved voices
+syllable agents stt-providers [--selected-provider PROVIDER]
+syllable agents card-click <test-id> --action-id ID --action-type cta|action
+syllable agents card-click <test-id> --file click.json
 syllable agents labels
 syllable agents send-test-message <agent-id> --test-id ID [--session-start] [--text TEXT] [--override-timestamp ISO8601]
 ```
 **Table columns:** ID, NAME, TYPE, LABEL, DESCRIPTION, UPDATED
 
+Catalog selection flags include saved retired options. Voice tables include STATUS, SUNSET_DATE, and FALLBACK; STT tables also include DEPRECATED and REMOVED. SDK 1.0.68 removes `Deepgram Nova 3 (On-Prem)` from `AgentSttProvider`. `card-click` logs a card interaction for a test session using `CardClickRequest` (`action_id`, `action_type`).
+
+### Experiments
+```bash
+syllable experiments list [--page N] [--limit N] [--search TEXT] [--search-field FIELD]
+syllable experiments get <experiment-id>
+syllable experiments create --file experiment.json
+syllable experiments update <experiment-id> --file experiment-update.json
+syllable experiments start <experiment-id>
+syllable experiments stop <experiment-id>
+syllable experiments results <experiment-id>
+syllable experiments delete <experiment-id>
+```
+Create uses `ExperimentCreateRequest` (`name`, `target_id`, `variants`); update uses `ExperimentUpdateRequest` (`name`, optional `description`, complete `variants`). Updates route by the URL ID, without a body ID. Start returns `{experiment, warnings}`; results returns per-variant `session_count`. `target_id` can be null on historical responses if the target was deleted.
+
+List flags also include `--order-by`, `--order-by-direction asc|desc`, `--start-date`, `--end-date`, and `--api-fields` (comma-separated API fields; distinct from table `--fields`). Default search field is `name`; use `ExperimentProperties` for supported fields. Sessions expose `experiment_id`, `experiment_variant_id`, `experiment_variant`, and `experiment_variant_is_control` in JSON.
+
+**List columns:** ID, NAME, STATUS, TARGET_ID, VARIANTS, UPDATED_AT. **Results columns:** VARIANT_ID, SESSION_COUNT.
+
 ### Channels
-Channels define communication modes (voice, SMS, chat). Targets are the specific phone number or chat ID where an agent operates. **Constraint: 1:1 agent-to-target.** Twilio channels configurable via CLI; other channels via SDK.
+Channels define communication modes (voice, SMS, chat). Targets are the specific phone number or chat ID where an agent operates. **Constraint: one assigned agent per target; experiments can split traffic across variants.** Twilio channels configurable via CLI; other channels via SDK.
 ```bash
 syllable channels list [--page N] [--limit N] [--search TEXT]
 syllable channels get <channel-id>   # resolved via the list endpoint (the API has no by-ID GET)
@@ -308,7 +334,7 @@ syllable prompts create --file prompt.json
 syllable prompts update <prompt-id> --file prompt.json
 syllable prompts delete <prompt-id>
 syllable prompts history <prompt-id>
-syllable prompts supported-llms
+syllable prompts supported-llms [--selected-model MODEL]
 ```
 **Table columns:** ID, NAME, TYPE, VERSION, AGENTS, LAST_UPDATED
 
@@ -381,7 +407,7 @@ syllable users delete-account --confirm
 ### Directory
 Member/contact list for call routing and agent-initiated transfers.
 ```bash
-syllable directory list [--page N] [--limit N] [--search TEXT]
+syllable directory list [--page N] [--limit N] [--search TEXT] [--include-deleted] [--status active|deleted|all] [--format normalized|raw]
 syllable directory get <member-id>
 syllable directory create --file member.json
 syllable directory create --name NAME --type TYPE
@@ -394,6 +420,8 @@ syllable directory restore <member-id> [--comments TEXT]
 syllable directory test <member-id> [--timestamp ISO8601] [--language-code BCP47]
 ```
 
+Explicit `--status` overrides `--include-deleted`. Defaults exclude deleted members and normalize stored hours; `--format raw` returns stored values. Directory extensions and test responses expose `sip_transfer_mode`.
+
 ### Insights
 Automated LLM-based evaluation of call sessions or recordings. Three workflow types: Agent (analyzes AI agent portion), Transfer (includes post-transfer legs), Folder (processes uploaded recordings). Produces structured outputs (boolean, string, integer, array) that appear in Dashboards.
 ```bash
@@ -401,17 +429,21 @@ Automated LLM-based evaluation of call sessions or recordings. Three workflow ty
 syllable insights workflows list
 syllable insights workflows get <workflow-id>
 syllable insights workflows create --file workflow.json
-syllable insights workflows update --file workflow.json
+syllable insights workflows update <workflow-id> --file workflow.json
 syllable insights workflows delete <workflow-id>
 syllable insights workflows activate <workflow-id>
 syllable insights workflows inactivate <workflow-id>
 syllable insights workflows queue-work --file work.json
+syllable insights workflows executions <workflow-id> [--search STATUS]
+syllable insights workflows executions-summary <workflow-id> [--start-date DATE] [--end-date DATE]
+syllable insights workflows sessions <workflow-id> [--search SESSION_ID] [--search-field session_id|status]
+syllable insights workflows files <workflow-id> [--search TEXT] [--search-field filename|status]
 
 # Folders
 syllable insights folders list
 syllable insights folders get <folder-id>
 syllable insights folders create --file folder.json
-syllable insights folders update --file folder.json
+syllable insights folders update <folder-id> --file folder.json
 syllable insights folders delete <folder-id>
 syllable insights folders files <folder-id>
 syllable insights folders move-files <folder-id> --file move.json
@@ -420,7 +452,7 @@ syllable insights folders move-files <folder-id> --file move.json
 syllable insights tool-configs list
 syllable insights tool-configs get <config-id>
 syllable insights tool-configs create --file config.json
-syllable insights tool-configs update --file config.json
+syllable insights tool-configs update <config-id> --file config.json
 syllable insights tool-configs delete <config-id>
 
 # Tool Definitions
@@ -428,6 +460,12 @@ syllable insights tool-configs delete <config-id>
 # Test a tool against sample input
 syllable insights tools-test --file sample.json
 ```
+
+Workflow execution/session/file lists support `--page`, `--limit`, `--search`, `--search-field`, `--order-by`, `--order-by-direction`, `--start-date`, and `--end-date`. Execution search is by `status` only and supports `--api-fields`. Summary filters are on `created_at`, inclusive start/exclusive end. Session/file JSON includes `results` grouped by tool name and insight key. Workflow and tool-config JSON includes lifecycle findings on configured models.
+
+### SDK 1.0.68 schema additions
+
+Use JSON files for nested fields: campaign `outreach_override_rules` (`days` and `dates`), custom-message rule `holidays`, tool-definition `response_display`, and voicemail `voicemail_detection_v2_pre_speech_timeout`. Session transcript JSON includes `transcript_complete` and `stt_confidence`; resource responses expose lifecycle `validation_issues` where supported. Inspect each schema before writing (`syllable schema get <TypeName>`).
 
 ### Custom Messages
 Opening greetings for agents, configured per agent.
@@ -449,6 +487,7 @@ syllable language-groups create --file group.json
 syllable language-groups create --name NAME
 syllable language-groups update <group-id> --file group.json
 syllable language-groups delete <group-id>
+syllable language-groups sample --file voice.json > sample.bin
 ```
 
 ### Data Sources

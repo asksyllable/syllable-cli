@@ -38,7 +38,14 @@ func languageGroupsCmd() *cobra.Command {
 	cmd.AddCommand(languageGroupsCreateCmd())
 	cmd.AddCommand(languageGroupsUpdateCmd())
 	cmd.AddCommand(languageGroupsDeleteCmd())
+	cmd.AddCommand(languageGroupsSampleCmd())
 
+	return cmd
+}
+
+func languageGroupsSampleCmd() *cobra.Command {
+	cmd := voiceSampleCmd("language-groups", "/api/v1/language_groups/voices/sample")
+	cmd.Long = "Generate a voice sample using the legacy language-group endpoint. Returns binary audio bytes; redirect to a file (e.g. > sample.mp3). Prefer voice-groups sample for new configurations."
 	return cmd
 }
 

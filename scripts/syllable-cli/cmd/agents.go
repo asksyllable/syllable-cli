@@ -49,6 +49,8 @@ func agentsCmd() *cobra.Command {
 	cmd.AddCommand(agentsDeleteCmd())
 	cmd.AddCommand(agentsSendTestMessageCmd())
 	cmd.AddCommand(agentsVoicesCmd())
+	cmd.AddCommand(agentsSTTProvidersCmd())
+	cmd.AddCommand(agentsCardClickCmd())
 	cmd.AddCommand(agentsLabelsCmd())
 
 	return cmd
@@ -87,11 +89,17 @@ func agentsLabelsCmd() *cobra.Command {
 }
 
 func agentsVoicesCmd() *cobra.Command {
-	return &cobra.Command{
+	var selectedVoices []string
+	cmd := &cobra.Command{
 		Use:   "voices",
 		Short: "List available agent voices",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Get("/api/v1/agents/voices/available")
+			path := "/api/v1/agents/voices/available"
+			if len(selectedVoices) > 0 {
+				query := url.Values{"selected_voice": selectedVoices}
+				path += "?" + query.Encode()
+			}
+			data, _, err := apiClient.Get(path)
 			if err != nil {
 				return err
 			}
@@ -106,22 +114,27 @@ func agentsVoicesCmd() *cobra.Command {
 				DisplayName string `json:"display_name"`
 				Gender      string `json:"gender"`
 				Model       string `json:"model"`
+				Status      string `json:"status"`
+				SunsetDate  string `json:"sunset_date"`
+				Fallback    string `json:"fallback"`
 			}
 			if err := json.Unmarshal(data, &voices); err != nil {
 				output.PrintJSON(data)
 				return nil
 			}
 
-			headers := []string{"PROVIDER", "DISPLAY_NAME", "GENDER", "MODEL"}
+			headers := []string{"PROVIDER", "DISPLAY_NAME", "GENDER", "MODEL", "STATUS", "SUNSET_DATE", "FALLBACK"}
 			rows := make([][]string, len(voices))
 			for i, v := range voices {
-				rows[i] = []string{v.Provider, v.DisplayName, v.Gender, v.Model}
+				rows[i] = []string{v.Provider, v.DisplayName, v.Gender, v.Model, v.Status, v.SunsetDate, v.Fallback}
 			}
 			printTable(headers, rows)
 			fmt.Printf("\nTotal: %d\n", len(voices))
 			return nil
 		},
 	}
+	cmd.Flags().StringArrayVar(&selectedVoices, "selected-voice", nil, "Include a saved voice even if retired (repeat for multiple voices)")
+	return cmd
 }
 
 func agentsListCmd() *cobra.Command {
