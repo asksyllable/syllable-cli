@@ -50,6 +50,8 @@ SDK 1.0.68 catalog lifecycle fields include `status`, `sunset_date`, `removed`, 
 
 Verified on `cli-test` production, 2026-10-13: `agents stt-providers --selected-provider "Deepgram Nova 3 (On-Prem)"` returned the current five-provider catalog without that removed provider. The selection flag does not recover this option; choose a supported replacement from the live catalog. Retention of a registered retired option remains unverified.
 
+Other SDK 1.0.68 contract changes: `TestMessage.agent_id` must be a positive integer string (`^[1-9][0-9]*$`), and `CustomMessageRule.date` must consist entirely of `YYYY-MM-DD` rather than containing such a substring. Upstream replaces `PromptHistory` with `PromptHistoryResponse`, `ListResponse_InsightToolOutput_` with `ListResponse_InsightToolResponse_`, and `ListResponse_InsightWorkflowOutput_` with `ListResponse_InsightWorkflowResponse_`; the CLI keeps the old names as case-insensitive `schema get` aliases and prints a rename note to stderr. Historical prompt and insight response models now include lifecycle findings in JSON. `TelephonyConfigurations.async_enabled` has a schema default of `true`.
+
 Experiments route update IDs through the URL, not the JSON body. Updates are allowed only in draft status; variants are submitted as a complete set with different agents, weights totaling 100, and exactly one control. Stop a running experiment before deletion. A historical response can have `target_id: null` after its channel target is deleted.
 
 | Topic | What to do |

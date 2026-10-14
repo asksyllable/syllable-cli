@@ -72,6 +72,8 @@ The mutable test selection is `-run '^(TestExperimentsCRUD|TestAgentCardClick)$'
 
 Release readiness also needs the `ai-specialist` companion documentation and read-only-hook update described under the cross-repo contract below. Its installed CLI executable is upgraded separately from its skill docs. Keep the published docs-version marker until a CLI release exists; prerelease notes should identify the SDK source commit without inventing a CLI release version.
 
+The catch-up completeness audit is pinned to SDK 1.0.68 at `6c6fc6f906f103b763dcffa65ccc6ea2403883d4`: 118 paths and 190 HTTP operations. `TestSDKOperationCoverage` executes registered command implementations without network access and verifies exact HTTP methods/paths against the embedded spec. It covers 187 operations, including all 14 added since the branch base. Three deliberate exclusions are documented in the test: organization create/delete remain console-only, and deprecated language-group sampling is superseded by `voice-groups sample`. `TestSDKCatchUpPayloadPassthrough` checks both create and update for all five new nested request fields across custom messages, tools, directory members, and campaigns. These checks verify command availability and serialization; the live fixture-dependent tests above verify backend behavior.
+
 ## Branch and release workflow
 
 - Feature branches; squash-merge into `main`. Commit titles end with `(#NN)`.
@@ -111,7 +113,7 @@ Drift is **detected automatically**, and reconciliation is assisted — but the 
 
 **Live validation — [`spec-live-check.yml`](.github/workflows/spec-live-check.yml).** Catches spec-vs-reality drift by building the CLI and running the integration suite against a **dedicated, non-customer CI org**, authenticating with the `SYLLABLE_CI_API_KEY` repo secret. Runs daily, on demand, and on any PR labeled `spec-sync` (so reconciliation PRs are live-validated). **The secret must be a key for that CI org, never a customer key** — the key itself is the org boundary (`SYLLABLE_ORG` is left unset; CI has no `~/.syllable/config.yaml`). Fork PRs don't receive secrets, so the job skips there automatically.
 
-**The diff script — [`diff_specs.py`](.claude/skills/syllable-sync/scripts/diff_specs.py)** (committed in the repo, so CI and the skill share one copy). Reports new/removed/changed paths, schemas, and enum members (a removed enum value is flagged as breaking). For CI/scripting it takes `--exit-code` (1 = structural differences, 0 = equivalent, 2 = usage error) and `--format json`:
+**The diff script — [`diff_specs.py`](.claude/skills/syllable-sync/scripts/diff_specs.py)** (committed in the repo, so CI and the skill share one copy). Reports new/removed paths and methods, deep operation/schema contract changes, and enum members (a removed enum value is flagged as breaking). Deep comparison includes query/path parameters, request/response schemas, defaults, required fields, nullable types, validation constraints, servers, security schemes, and shared components; prose and irrelevant ordering are ignored. The earlier shallow field-type comparison could miss changes inside unions and parameters on existing operations. Regression tests run in CI via `python3 -m unittest discover -s .claude/skills/syllable-sync/scripts -p 'test_*.py'`. For CI/scripting it takes `--exit-code` (1 = structural differences, 0 = equivalent, 2 = usage error) and `--format json`:
 
 ```bash
 python3 .claude/skills/syllable-sync/scripts/diff_specs.py --exit-code \

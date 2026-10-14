@@ -88,6 +88,7 @@ The script reports:
 - **NEW SCHEMAS** — new request/response types (with fields)
 - **REMOVED SCHEMAS** — types that no longer exist
 - **CHANGED SCHEMAS** — field-level diffs on existing types
+- **CHANGED OPERATION/SCHEMA CONTRACTS** — deep differences in parameters, request/response schemas, defaults, nullability, required fields, and constraints (including inside unions). Review these even when the shallow field-level report is unchanged.
 
 Present the summary to the user and ask them to confirm before making any changes:
 > "Here's what changed. Want me to proceed with updating the CLI?"
@@ -108,6 +109,12 @@ Based on the diff output, categorize the work into a checklist:
 
 **For each changed schema (field added/removed on a Create/Update type):**
 - [ ] Update flags in the relevant `create` or `update` subcommand
+
+**For deep contract changes on existing operations/models:**
+- [ ] Expose new query parameters, and check changed defaults, constraints, required fields, and nullable types
+- [ ] Verify response JSON preserves new fields and renamed response models
+- [ ] Preserve renamed schema lookups with aliases when appropriate; document actual removals
+- [ ] Add every new operation to `cmd/api_surface_test.go` and test new nested request fields through file input
 
 **Doc updates:**
 - [ ] README.md — add/remove/update the resource's section under Commands
