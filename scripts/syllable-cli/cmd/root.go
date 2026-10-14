@@ -6,12 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
+	"mime"
 	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/asksyllable/syllable-cli/internal/client"
 	"github.com/asksyllable/syllable-cli/internal/output"
@@ -23,15 +26,27 @@ import (
 var Version = "dev"
 
 var (
-	cfgFile    string
-	orgName    string
-	envName    string
-	outputFmt  string
-	dryRun     bool
-	debugMode  bool
-	fieldsFlag string
-	assumeYes  bool
-	apiClient  *client.Client
+	cfgFile               string
+	orgName               string
+	envName               string
+	outputFmt             string
+	dryRun                bool
+	debugMode             bool
+	fieldsFlag            string
+	assumeYes             bool
+	apiClient             *client.Client
+	requestTimeout        time.Duration
+	retries               int
+	retryWrites           bool
+	retryDelay            time.Duration
+	retryMaxDelay         time.Duration
+	retryExponent         float64
+	retryMaxElapsedTime   time.Duration
+	retryConnectionErrors bool
+	retryStatuses         []string
+	userAgent             string
+	uploadFilename        string
+	uploadContentType     string
 )
 
 // rootCmd is the base command for the syllable CLI.
@@ -77,7 +92,7 @@ Feedback: https://github.com/asksyllable/syllable-cli/issues`,
 		if cmd.Root() == cmd && len(args) == 0 {
 			return nil
 		}
-		return initClient()
+		return initClient(cmd)
 	},
 }
 
@@ -258,6 +273,18 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&debugMode, "debug", false, "Print HTTP request and response details to stderr")
 	rootCmd.PersistentFlags().StringVar(&fieldsFlag, "fields", "", "Comma-separated columns to show in table output (e.g. id,name,type)")
 	rootCmd.PersistentFlags().BoolVarP(&assumeYes, "yes", "y", false, "Skip the confirmation prompt on destructive commands (for non-interactive use)")
+	rootCmd.PersistentFlags().DurationVar(&requestTimeout, "request-timeout", 0, "Override the HTTP timeout (e.g. 45s); explicit 0 disables it")
+	rootCmd.PersistentFlags().IntVar(&retries, "retries", 0, "Additional attempts for retryable responses (default: none)")
+	rootCmd.PersistentFlags().BoolVar(&retryWrites, "retry-writes", false, "Allow retrying mutating requests when --retries is enabled")
+	rootCmd.PersistentFlags().DurationVar(&retryDelay, "retry-delay", 500*time.Millisecond, "Initial retry backoff delay")
+	rootCmd.PersistentFlags().DurationVar(&retryMaxDelay, "retry-max-delay", time.Minute, "Maximum retry delay (0 disables the cap)")
+	rootCmd.PersistentFlags().Float64Var(&retryExponent, "retry-exponent", 1.5, "Exponent applied to the retry attempt number for backoff")
+	rootCmd.PersistentFlags().DurationVar(&retryMaxElapsedTime, "retry-max-elapsed-time", time.Hour, "Maximum elapsed time for retries (0 disables the cap)")
+	rootCmd.PersistentFlags().BoolVar(&retryConnectionErrors, "retry-connection-errors", false, "Retry transport/time-out errors when --retries is enabled")
+	rootCmd.PersistentFlags().StringSliceVar(&retryStatuses, "retry-statuses", []string{"429", "500", "502", "503", "504"}, "Retryable HTTP statuses or ranges (e.g. 429,5xx)")
+	rootCmd.PersistentFlags().StringVar(&userAgent, "user-agent", "", "Override the HTTP User-Agent")
+	rootCmd.PersistentFlags().StringVar(&uploadFilename, "upload-filename", "", "Override the filename on multipart uploads (useful with --file -)")
+	rootCmd.PersistentFlags().StringVar(&uploadContentType, "upload-content-type", "", "Override multipart file MIME type (default: inferred from filename)")
 
 	// Bind flags to viper
 	viper.BindPFlag("org", rootCmd.PersistentFlags().Lookup("org"))
@@ -297,6 +324,9 @@ func init() {
 	rootCmd.AddCommand(conversationConfigCmd())
 	rootCmd.AddCommand(dashboardsCmd())
 	rootCmd.AddCommand(bridgePhrasesCmd())
+	if err := bindSDKQueryParameters(rootCmd); err != nil {
+		panic(err)
+	}
 }
 
 func initConfig() {
@@ -327,7 +357,10 @@ func initConfig() {
 	}
 }
 
-func initClient() error {
+func initClient(commands ...*cobra.Command) error {
+	if err := validateTransportOptions(); err != nil {
+		return err
+	}
 	baseURL, err := resolveBaseURL()
 	if err != nil {
 		return err
@@ -337,7 +370,8 @@ func initClient() error {
 		return err
 	}
 
-	if key == "" {
+	anonymous := len(commands) > 0 && sdkAnonymousRequest(commands[0])
+	if key == "" && !anonymous {
 		return errors.New("not configured — run `syllable setup` and select an org with --org <name>, or set SYLLABLE_API_KEY for non-interactive use")
 	}
 
@@ -346,6 +380,54 @@ func initClient() error {
 	apiClient.DryRun = dryRun
 	apiClient.Verbose = debugMode
 	apiClient.Preflight = specPreflight
+	apiClient.RequestAccept = sdkRequestAccept
+	apiClient.DeleteReasonRequired = sdkDeleteReasonRequired
+	if len(commands) > 0 && commands[0].Flag("request-timeout") != nil && commands[0].Flag("request-timeout").Changed {
+		timeout := requestTimeout
+		apiClient.RequestTimeout = &timeout
+	}
+	apiClient.Retries = retries
+	apiClient.RetryWrites = retryWrites
+	apiClient.RetryDelay = retryDelay
+	apiClient.RetryMaxDelay = retryMaxDelay
+	apiClient.RetryExponent = retryExponent
+	apiClient.RetryMaxElapsedTime = retryMaxElapsedTime
+	apiClient.RetryConnectionErrors = retryConnectionErrors
+	apiClient.RetryStatuses = append([]string(nil), retryStatuses...)
+	apiClient.UserAgent = userAgent
+	apiClient.UploadFilename = uploadFilename
+	apiClient.UploadContentType = uploadContentType
+	return nil
+}
+
+// This SDK operation explicitly supports an anonymous authentication-skipping
+// request. All other commands retain the normal configured-credential gate.
+func sdkAnonymousRequest(cmd *cobra.Command) bool {
+	if cmd == nil || cmd.Annotations["syllable.sdk.operation"] != "users_send_email" {
+		return false
+	}
+	skip, err := cmd.Flags().GetBool("skip-auth")
+	return err == nil && skip
+}
+
+func validateTransportOptions() error {
+	if requestTimeout < 0 || retries < 0 || retryDelay < 0 || retryMaxDelay < 0 || retryMaxElapsedTime < 0 || retryExponent < 0 || math.IsNaN(retryExponent) || math.IsInf(retryExponent, 0) {
+		return errors.New("request timeout, retry counts, delays, elapsed time, and exponent must be non-negative")
+	}
+	for _, status := range retryStatuses {
+		if len(status) == 3 && status[0] >= '1' && status[0] <= '5' && strings.EqualFold(status[1:], "xx") {
+			continue
+		}
+		code, err := strconv.Atoi(status)
+		if err != nil || len(status) != 3 || code < 100 || code > 599 {
+			return fmt.Errorf("invalid --retry-statuses value %q: use HTTP status codes or ranges such as 429,5xx", status)
+		}
+	}
+	if uploadContentType != "" {
+		if _, _, err := mime.ParseMediaType(uploadContentType); err != nil {
+			return fmt.Errorf("invalid --upload-content-type: %w", err)
+		}
+	}
 	return nil
 }
 
@@ -574,7 +656,9 @@ func identifierMatches(existing interface{}, positional string) bool {
 		p, err := strconv.ParseFloat(positional, 64)
 		return err == nil && p == v
 	case json.Number:
-		return v.String() == positional
+		want, err := strconv.ParseInt(positional, 10, 64)
+		got, ok := requestInteger(v)
+		return err == nil && ok && got == want
 	}
 	return false
 }

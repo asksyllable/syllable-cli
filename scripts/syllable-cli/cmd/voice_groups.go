@@ -48,14 +48,19 @@ func voiceGroupsCmd() *cobra.Command {
 }
 
 func voiceGroupsSampleCmd() *cobra.Command {
+	return voiceSampleCmd("voice-groups", "/api/v1/voice_groups/voices/sample")
+}
+
+// voiceSampleCmd retains both SDK sample surfaces, including the deprecated
+// language-group endpoint, and writes the binary response without formatting.
+func voiceSampleCmd(resource, path string) *cobra.Command {
 	var file string
 
 	cmd := &cobra.Command{
-		Use:   "sample",
-		Short: "Generate a voice sample",
-		Long:  "Generate a voice sample. Returns binary audio bytes; redirect to a file (e.g. > sample.mp3).",
-		Example: `  # Generate a sample from a voice config and write to a file
-  syllable voice-groups sample --file voice.json > sample.mp3`,
+		Use:     "sample",
+		Short:   "Generate a voice sample",
+		Long:    "Generate a voice sample. Returns binary audio bytes; redirect to a file (e.g. > sample.mp3).",
+		Example: fmt.Sprintf("  syllable %s sample --file voice.json > sample.mp3", resource),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var body interface{}
 
@@ -66,17 +71,17 @@ func voiceGroupsSampleCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("reading file: %w", err)
 			}
-			if err := json.Unmarshal(fileData, &body); err != nil {
+			if err := decodeRequestJSON(fileData, &body); err != nil {
 				return fmt.Errorf("parsing JSON file: %w", err)
 			}
 
-			data, _, err := apiClient.Post("/api/v1/voice_groups/voices/sample", body)
+			data, _, err := apiClient.Post(path, body)
 			if err != nil {
 				return err
 			}
 
-			os.Stdout.Write(data)
-			return nil
+			_, err = os.Stdout.Write(data)
+			return err
 		},
 	}
 
@@ -201,7 +206,7 @@ func voiceGroupsCreateCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(fileData, &body); err != nil {
+				if err := decodeRequestJSON(fileData, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
 			} else {
@@ -245,7 +250,7 @@ func voiceGroupsUpdateCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(data, &body); err != nil {
+				if err := decodeRequestJSON(data, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
 			} else {

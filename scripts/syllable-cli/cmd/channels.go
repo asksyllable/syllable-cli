@@ -199,7 +199,7 @@ func channelsCreateCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(data, &body); err != nil {
+				if err := decodeRequestJSON(data, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
 			} else {
@@ -245,7 +245,7 @@ func channelsUpdateCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(data, &body); err != nil {
+				if err := decodeRequestJSON(data, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
 			} else {
@@ -382,7 +382,7 @@ func channelsTargetsCreateCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(fileData, &body); err != nil {
+				if err := decodeRequestJSON(fileData, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
 			} else {
@@ -419,7 +419,7 @@ func channelsTargetsUpdateCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(fileData, &body); err != nil {
+				if err := decodeRequestJSON(fileData, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
 			} else {
@@ -505,7 +505,7 @@ func channelsTwilioCmd() *cobra.Command {
 }
 
 func channelsTwilioNumbersVerifyA2pCmd() *cobra.Command {
-	var phone string
+	var phone, file string
 
 	cmd := &cobra.Command{
 		Use:   "numbers-verify-a2p-compliance <channel-id>",
@@ -515,11 +515,22 @@ approved US A2P brand and verified campaign. Reflects Twilio configuration, not
 carrier per-number registration or legal/content compliance.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if phone == "" {
-				return fmt.Errorf("required flag: --phone")
+			if err := exclusiveBodyFile(cmd, file, "phone"); err != nil {
+				return err
 			}
-
-			body := map[string]interface{}{"phone": phone}
+			var body interface{}
+			if file != "" {
+				var err error
+				body, err = readJSONBody(file)
+				if err != nil {
+					return err
+				}
+			} else {
+				if !cmd.Flags().Changed("phone") {
+					return fmt.Errorf("required flag: --phone (or use --file)")
+				}
+				body = map[string]interface{}{"phone": phone}
+			}
 			path := fmt.Sprintf("/api/v1/channels/twilio/%s/numbers/verify-a2p-compliance", url.PathEscape(args[0]))
 			data, _, err := apiClient.Post(path, body)
 			if err != nil {
@@ -532,7 +543,7 @@ carrier per-number registration or legal/content compliance.`,
 	}
 
 	cmd.Flags().StringVar(&phone, "phone", "", "E.164 phone number exactly as Twilio stores it, e.g. +18042221111 (required)")
-	_ = cmd.MarkFlagRequired("phone")
+	cmd.Flags().StringVar(&file, "file", "", "Path to full JSON body (or - for stdin)")
 	return cmd
 }
 
@@ -566,7 +577,7 @@ func channelsTwilioCreateCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(fileData, &body); err != nil {
+				if err := decodeRequestJSON(fileData, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
 			} else {
@@ -601,7 +612,7 @@ func channelsTwilioUpdateCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(fileData, &body); err != nil {
+				if err := decodeRequestJSON(fileData, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
 			} else {
@@ -653,7 +664,7 @@ func channelsTwilioNumbersAddCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(fileData, &body); err != nil {
+				if err := decodeRequestJSON(fileData, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
 			} else {
@@ -689,7 +700,7 @@ func channelsTwilioNumbersUpdateCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(fileData, &body); err != nil {
+				if err := decodeRequestJSON(fileData, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
 			} else {

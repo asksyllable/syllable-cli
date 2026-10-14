@@ -239,7 +239,7 @@ func usersCreateCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(data, &body); err != nil {
+				if err := decodeRequestJSON(data, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
 			} else {
@@ -292,7 +292,7 @@ func usersUpdateCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(data, &body); err != nil {
+				if err := decodeRequestJSON(data, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
 			} else {
@@ -319,20 +319,35 @@ func usersUpdateCmd() *cobra.Command {
 }
 
 func usersDeleteCmd() *cobra.Command {
-	return &cobra.Command{
+	var file, reason string
+	cmd := &cobra.Command{
 		Use:   "delete <user-email>",
 		Short: "Delete a user",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := exclusiveBodyFile(cmd, file, "reason"); err != nil {
+				return err
+			}
+			var body interface{}
+			if file != "" {
+				fileData, err := readFile(file)
+				if err != nil {
+					return fmt.Errorf("reading file: %w", err)
+				}
+				if err := decodeRequestJSON(fileData, &body); err != nil {
+					return fmt.Errorf("parsing JSON file: %w", err)
+				}
+				if err := ensureBodyIdentifier(body, "email", args[0], false); err != nil {
+					return err
+				}
+			} else {
+				body = map[string]interface{}{"email": args[0], "reason": reason}
+			}
 			if err := confirmDelete(cmd, args); err != nil {
 				return err
 			}
 			// DELETE /api/v1/users/ takes a JSON body (email + reason both
 			// required), not a query param (#115).
-			body := map[string]interface{}{
-				"email":  args[0],
-				"reason": "deleted via cli",
-			}
 			data, _, err := apiClient.DeleteWithBody("/api/v1/users/", body)
 			if err != nil {
 				return err
@@ -345,6 +360,9 @@ func usersDeleteCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().StringVar(&file, "file", "", "Full UserDeleteRequest JSON body (use '-' for stdin)")
+	cmd.Flags().StringVar(&reason, "reason", "deleted via cli", "Reason for deleting the user")
+	return cmd
 }
 
 func usersMeCmd() *cobra.Command {
@@ -419,7 +437,7 @@ func usersSendEmailCmd() *cobra.Command {
 		Short: "Send an email to a user",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, _, err := apiClient.Post("/api/v1/users/"+url.PathEscape(args[0])+"/send_email", map[string]interface{}{})
+			data, _, err := apiClient.Post("/api/v1/users/"+url.PathEscape(args[0])+"/send_email", nil)
 			if err != nil {
 				return err
 			}

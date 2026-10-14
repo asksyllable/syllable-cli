@@ -10,23 +10,23 @@ import (
 )
 
 // orgFormFields builds the multipart form-field map for organization update.
-// Optional values are only included when set, so the API doesn't receive
-// empty strings for fields the caller didn't touch.
-func orgFormFields(displayName, description, domains, samlProviderID, updateComments string) map[string]string {
+// Include explicitly provided empty values so optional fields can be cleared,
+// while omitting fields the caller didn't touch.
+func orgFormFields(cmd *cobra.Command, displayName, description, domains, samlProviderID, updateComments string) map[string]string {
 	fields := map[string]string{}
-	if displayName != "" {
+	if cmd.Flags().Changed("display-name") {
 		fields["display_name"] = displayName
 	}
-	if description != "" {
+	if cmd.Flags().Changed("description") {
 		fields["description"] = description
 	}
-	if domains != "" {
+	if cmd.Flags().Changed("domains") {
 		fields["domains"] = domains
 	}
-	if samlProviderID != "" {
+	if cmd.Flags().Changed("saml-provider-id") {
 		fields["saml_provider_id"] = samlProviderID
 	}
-	if updateComments != "" {
+	if cmd.Flags().Changed("update-comments") {
 		fields["update_comments"] = updateComments
 	}
 	return fields
@@ -148,7 +148,7 @@ func organizationsSipIPRangesCreateCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(data, &body); err != nil {
+				if err := decodeRequestJSON(data, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
 			} else {
@@ -193,7 +193,7 @@ func organizationsSipIPRangesUpdateCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
-				if err := json.Unmarshal(data, &body); err != nil {
+				if err := decodeRequestJSON(data, &body); err != nil {
 					return fmt.Errorf("parsing JSON file: %w", err)
 				}
 			} else {
@@ -319,11 +319,11 @@ func organizationsUpdateCmd() *cobra.Command {
 		Long: `Update the current organization. Multipart/form-data: --display-name
 is required by the API; logo and other fields are optional.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if displayName == "" {
+			if !cmd.Flags().Changed("display-name") {
 				return fmt.Errorf("required flag: --display-name")
 			}
 
-			fields := orgFormFields(displayName, description, domains, samlProviderID, updateComments)
+			fields := orgFormFields(cmd, displayName, description, domains, samlProviderID, updateComments)
 			data, _, err := apiClient.PutMultipartForm("/api/v1/organizations/", fields, "logo", logo)
 			if err != nil {
 				return err

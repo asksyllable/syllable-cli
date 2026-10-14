@@ -45,14 +45,41 @@ type Client struct {
 	// it never blocks a real request (spec and prod can legitimately differ). The
 	// validator is injected by the cmd layer so this package stays spec-free (#143).
 	Preflight func(method, path string, body []byte) []string
+	// RequestPath applies operation-scoped CLI query options before any request
+	// is sent or rendered by --dry-run. It is set on a command-local client copy.
+	RequestPath func(method, path string) (string, error)
+	// RequestAccept selects the SDK operation's response media type.
+	RequestAccept func(method, path string) string
+	// DeleteReasonRequired limits the legacy default delete reason to operations
+	// that declare it. Nil preserves compatibility for direct client callers.
+	DeleteReasonRequired func(path string) bool
+	// A nil RequestTimeout preserves each operation's timeout; explicit zero
+	// disables the timeout. Retry controls are disabled unless Retries is set.
+	RequestTimeout        *time.Duration
+	Retries               int
+	RetryWrites           bool
+	RetryDelay            time.Duration
+	RetryMaxDelay         time.Duration
+	RetryExponent         float64
+	RetryMaxElapsedTime   time.Duration
+	RetryConnectionErrors bool
+	RetryStatuses         []string
+	UserAgent             string
+	UploadFilename        string
+	UploadContentType     string
 }
 
 // New creates a new Client.
 func New(baseURL, apiKey string) *Client {
 	return &Client{
-		BaseURL:    baseURL,
-		APIKey:     apiKey,
-		HTTPClient: newHTTPClient(30 * time.Second),
+		BaseURL:             baseURL,
+		APIKey:              apiKey,
+		HTTPClient:          newHTTPClient(30 * time.Second),
+		RetryDelay:          500 * time.Millisecond,
+		RetryMaxDelay:       time.Minute,
+		RetryExponent:       1.5,
+		RetryMaxElapsedTime: time.Hour,
+		RetryStatuses:       []string{"429", "500", "502", "503", "504"},
 	}
 }
 
@@ -127,6 +154,10 @@ func redactValue(v interface{}) {
 
 // Do performs an HTTP request and returns the response body, status code, and error.
 func (c *Client) Do(method, path string, body interface{}) ([]byte, int, error) {
+	path, err := c.requestPath(method, path)
+	if err != nil {
+		return nil, 0, err
+	}
 	var bodyBytes []byte
 	if body != nil {
 		var err error
@@ -166,11 +197,10 @@ func (c *Client) Do(method, path string, body interface{}) ([]byte, int, error) 
 		return nil, 0, fmt.Errorf("creating request: %w", err)
 	}
 
-	req.Header.Set("Syllable-API-Key", c.APIKey)
+	c.setRequestHeaders(req, path, "application/json")
 	if bodyBytes != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	req.Header.Set("Accept", "application/json")
 
 	if c.Verbose {
 		fmt.Fprintf(os.Stderr, "> %s %s\n", method, c.BaseURL+path)
@@ -185,7 +215,7 @@ func (c *Client) Do(method, path string, body interface{}) ([]byte, int, error) 
 		fmt.Fprintln(os.Stderr)
 	}
 
-	resp, err := c.HTTPClient.Do(req)
+	resp, err := c.execute(req, nil)
 	if err != nil {
 		return nil, 0, fmt.Errorf("executing request: %w", err)
 	}
@@ -239,6 +269,10 @@ func (c *Client) Get(path string) ([]byte, int, error) {
 // On non-2xx responses the body is read into memory and returned as an
 // APIError, since errors are typically small JSON payloads.
 func (c *Client) GetStream(path string) (io.ReadCloser, int, error) {
+	path, err := c.requestPath(http.MethodGet, path)
+	if err != nil {
+		return nil, 0, err
+	}
 	if c.DryRun {
 		out := map[string]interface{}{
 			"dry_run": true,
@@ -254,8 +288,7 @@ func (c *Client) GetStream(path string) (io.ReadCloser, int, error) {
 	if err != nil {
 		return nil, 0, fmt.Errorf("creating request: %w", err)
 	}
-	req.Header.Set("Syllable-API-Key", c.APIKey)
-	req.Header.Set("Accept", "application/octet-stream")
+	c.setRequestHeaders(req, path, "application/octet-stream")
 
 	if c.Verbose {
 		fmt.Fprintf(os.Stderr, "> %s %s\n", http.MethodGet, c.BaseURL+path)
@@ -263,8 +296,8 @@ func (c *Client) GetStream(path string) (io.ReadCloser, int, error) {
 		fmt.Fprintln(os.Stderr)
 	}
 
-	streamClient := newHTTPClient(30 * time.Minute)
-	resp, err := streamClient.Do(req)
+	streamTimeout := 30 * time.Minute
+	resp, err := c.execute(req, &streamTimeout)
 	if err != nil {
 		return nil, 0, fmt.Errorf("executing request: %w", err)
 	}
@@ -304,7 +337,7 @@ func (c *Client) Put(path string, body interface{}) ([]byte, int, error) {
 // automatically unless the path already contains a query string (in which case
 // the caller is responsible for supplying the required param).
 func (c *Client) Delete(path string) ([]byte, int, error) {
-	if !strings.Contains(path, "?") {
+	if !strings.Contains(path, "?") && (c.DeleteReasonRequired == nil || c.DeleteReasonRequired(path)) {
 		path += "?reason=" + url.QueryEscape("deleted via cli")
 	}
 	return c.Do(http.MethodDelete, path, nil)
@@ -320,7 +353,7 @@ func (c *Client) DeleteWithBody(path string, body interface{}) ([]byte, int, err
 // it never mutates the shared client's timeout and is safe to call concurrently (#132).
 func (c *Client) PostWithTimeout(path string, body interface{}, timeout time.Duration) ([]byte, int, error) {
 	tmp := *c
-	tmp.HTTPClient = newHTTPClient(timeout)
+	tmp.HTTPClient = c.httpClientFor(&timeout)
 	return tmp.Do(http.MethodPost, path, body)
 }
 
@@ -336,6 +369,10 @@ func (c *Client) PutMultipart(path, fieldName, filePath string) ([]byte, int, er
 }
 
 func (c *Client) doMultipart(method, path, fieldName, filePath string) ([]byte, int, error) {
+	path, err := c.requestPath(method, path)
+	if err != nil {
+		return nil, 0, err
+	}
 	var src io.Reader
 	var formName string
 	if filePath == "-" {
@@ -354,7 +391,7 @@ func (c *Client) doMultipart(method, path, fieldName, filePath string) ([]byte, 
 	var buf bytes.Buffer
 	w := multipart.NewWriter(&buf)
 
-	part, err := w.CreateFormFile(fieldName, formName)
+	part, err := c.createFormFile(w, fieldName, formName)
 	if err != nil {
 		return nil, 0, fmt.Errorf("creating form file: %w", err)
 	}
@@ -380,9 +417,8 @@ func (c *Client) doMultipart(method, path, fieldName, filePath string) ([]byte, 
 	if err != nil {
 		return nil, 0, fmt.Errorf("creating request: %w", err)
 	}
-	req.Header.Set("Syllable-API-Key", c.APIKey)
+	c.setRequestHeaders(req, path, "application/json")
 	req.Header.Set("Content-Type", w.FormDataContentType())
-	req.Header.Set("Accept", "application/json")
 
 	if c.Verbose {
 		fmt.Fprintf(os.Stderr, "> %s %s\n", method, c.BaseURL+path)
@@ -392,8 +428,8 @@ func (c *Client) doMultipart(method, path, fieldName, filePath string) ([]byte, 
 	}
 
 	// Use a longer timeout for file uploads
-	uploadClient := newHTTPClient(5 * time.Minute)
-	resp, err := uploadClient.Do(req)
+	uploadTimeout := 5 * time.Minute
+	resp, err := c.execute(req, &uploadTimeout)
 	if err != nil {
 		return nil, 0, fmt.Errorf("executing request: %w", err)
 	}
@@ -426,6 +462,10 @@ func (c *Client) PutMultipartForm(path string, fields map[string]string, fileFie
 }
 
 func (c *Client) doMultipartForm(method, path string, fields map[string]string, fileField, filePath string) ([]byte, int, error) {
+	path, err := c.requestPath(method, path)
+	if err != nil {
+		return nil, 0, err
+	}
 	var buf bytes.Buffer
 	w := multipart.NewWriter(&buf)
 
@@ -450,7 +490,7 @@ func (c *Client) doMultipartForm(method, path string, fields map[string]string, 
 			src = f
 			formName = filepath.Base(filePath)
 		}
-		part, err := w.CreateFormFile(fileField, formName)
+		part, err := c.createFormFile(w, fileField, formName)
 		if err != nil {
 			return nil, 0, fmt.Errorf("creating form file: %w", err)
 		}
@@ -480,9 +520,8 @@ func (c *Client) doMultipartForm(method, path string, fields map[string]string, 
 	if err != nil {
 		return nil, 0, fmt.Errorf("creating request: %w", err)
 	}
-	req.Header.Set("Syllable-API-Key", c.APIKey)
+	c.setRequestHeaders(req, path, "application/json")
 	req.Header.Set("Content-Type", w.FormDataContentType())
-	req.Header.Set("Accept", "application/json")
 
 	if c.Verbose {
 		fmt.Fprintf(os.Stderr, "> %s %s\n", method, c.BaseURL+path)
@@ -500,8 +539,8 @@ func (c *Client) doMultipartForm(method, path string, fields map[string]string, 
 		fmt.Fprintln(os.Stderr)
 	}
 
-	uploadClient := newHTTPClient(5 * time.Minute)
-	resp, err := uploadClient.Do(req)
+	uploadTimeout := 5 * time.Minute
+	resp, err := c.execute(req, &uploadTimeout)
 	if err != nil {
 		return nil, 0, fmt.Errorf("executing request: %w", err)
 	}
@@ -529,6 +568,10 @@ func (c *Client) doMultipartForm(method, path string, fields map[string]string, 
 
 // DeleteWithForm performs a DELETE request with an application/x-www-form-urlencoded body.
 func (c *Client) DeleteWithForm(path string, fields map[string]string) ([]byte, int, error) {
+	path, err := c.requestPath(http.MethodDelete, path)
+	if err != nil {
+		return nil, 0, err
+	}
 	form := url.Values{}
 	for k, v := range fields {
 		form.Set(k, v)
@@ -550,9 +593,8 @@ func (c *Client) DeleteWithForm(path string, fields map[string]string) ([]byte, 
 	if err != nil {
 		return nil, 0, fmt.Errorf("creating request: %w", err)
 	}
-	req.Header.Set("Syllable-API-Key", c.APIKey)
+	c.setRequestHeaders(req, path, "application/json")
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Accept", "application/json")
 
 	if c.Verbose {
 		fmt.Fprintf(os.Stderr, "> %s %s\n", http.MethodDelete, c.BaseURL+path)
@@ -560,7 +602,7 @@ func (c *Client) DeleteWithForm(path string, fields map[string]string) ([]byte, 
 		fmt.Fprintf(os.Stderr, "> Content-Type: application/x-www-form-urlencoded\n>\n> %s\n\n", encoded)
 	}
 
-	resp, err := c.HTTPClient.Do(req)
+	resp, err := c.execute(req, nil)
 	if err != nil {
 		return nil, 0, fmt.Errorf("executing request: %w", err)
 	}
@@ -585,4 +627,11 @@ func (c *Client) DeleteWithForm(path string, fields map[string]string) ([]byte, 
 		return data, resp.StatusCode, &APIError{StatusCode: resp.StatusCode, Body: data}
 	}
 	return data, resp.StatusCode, nil
+}
+
+func (c *Client) requestPath(method, path string) (string, error) {
+	if c.RequestPath == nil {
+		return path, nil
+	}
+	return c.RequestPath(method, path)
 }
