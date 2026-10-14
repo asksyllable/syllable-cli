@@ -30,9 +30,53 @@ Exit codes:
 """
 
 import json
+import re
 import sys
+from collections import Counter
 
-METHODS = ("get", "post", "put", "patch", "delete")
+METHODS = ("get", "post", "put", "patch", "delete", "head", "options", "trace")
+
+# These annotate a contract without changing accepted input or returned data.
+# Defaults, deprecated flags, constraints, and $refs deliberately remain.
+ANNOTATIONS = {"description", "summary", "title", "example", "examples", "externalDocs", "x-codeSamples"}
+UNORDERED_ARRAYS = {"required", "enum", "anyOf", "oneOf", "allOf", "parameters", "type", "security"}
+NAMED_MAPS = {"properties", "schemas", "paths", "responses", "content", "headers", "$defs", "definitions", "parameters", "requestBodies", "securitySchemes", "webhooks"}
+UNIONS = {"anyOf", "oneOf", "allOf"}
+
+
+def contract(node, key=""):
+    """Normalize structural API data, ignoring prose and irrelevant ordering."""
+    # Default/const/enum values are data, not schema annotations. An object
+    # value may itself have a key called "description" that must be preserved.
+    if key in {"default", "const", "enum"}:
+        return sorted(node, key=lambda v: json.dumps(v, sort_keys=True)) if key == "enum" and isinstance(node, list) else node
+    if isinstance(node, dict):
+        named = key in NAMED_MAPS
+        return {k: contract(v, "" if named else k) for k, v in node.items() if named or k not in ANNOTATIONS}
+    if isinstance(node, list):
+        values = [contract(v) for v in node]
+        if key in UNORDERED_ARRAYS:
+            values = sorted(values, key=lambda v: json.dumps(v, sort_keys=True))
+        return values
+    return node
+
+
+def contract_changes(old, new, path=""):
+    """Describe deep differences, including constraints inside union/array types."""
+    if old == new:
+        return []
+    if isinstance(old, dict) and isinstance(new, dict):
+        changes = []
+        for key in sorted(old.keys() | new.keys()):
+            location = path + "/" + key.replace("~", "~0").replace("/", "~1")
+            if key not in old:
+                changes.append({"path": location, "kind": "added", "new": new[key]})
+            elif key not in new:
+                changes.append({"path": location, "kind": "removed", "old": old[key]})
+            else:
+                changes.extend(contract_changes(old[key], new[key], location))
+        return changes
+    return [{"path": path or "/", "kind": "changed", "old": old, "new": new}]
 
 
 def load(path):
@@ -97,10 +141,193 @@ def enum_members(spec):
                 walk(v, f"{path}/{k}")
         elif isinstance(node, list):
             for i, v in enumerate(node):
-                walk(v, f"{path}/{i}")
+                # Parameter indices shift when an unrelated query is inserted.
+                # Identify them by name/location so that doesn't invent enum removals.
+                part = f"{v['in']}:{v['name']}" if path.endswith("/parameters") and isinstance(v, dict) and "name" in v and "in" in v else str(i)
+                walk(v, f"{path}/{part}")
 
     walk(spec, "")
     return out
+
+
+def enum_shape(node, omit_nested_unions=False, key=""):
+    """Branch identity without mutable enum values; keep all other constraints.
+
+    The outer shape is a fallback for a branch whose nested union gained/lost
+    members. Defaults and constants remain data, including keys named 'enum'.
+    """
+    if key in {"default", "const"}:
+        return node
+    if isinstance(node, dict):
+        named = key in NAMED_MAPS
+        return {
+            k: [] if not named and omit_nested_unions and k in UNIONS else
+            enum_shape(v, omit_nested_unions, "" if named else k)
+            for k, v in node.items() if named or k != "enum"
+        }
+    if isinstance(node, list):
+        return [enum_shape(v, omit_nested_unions) for v in node]
+    return node
+
+
+def enum_profile(branch):
+    """Enum overlap guides one-to-one matching, never the removal report.
+
+    Ignore union positions but retain field paths and multiplicity. Actual
+    changes are still compared separately in each aligned branch below.
+    """
+    profile = Counter()
+    for path, values in enum_members(branch).items():
+        path = re.sub(r"/(anyOf|oneOf|allOf)/[0-9]+", r"/\1/branch", path)
+        profile.update((path, value) for value in values)
+    return profile
+
+
+def branch_anchors(branch):
+    """Stable type/ref/discriminator hints, rather than a whole mutable shape."""
+    if not isinstance(branch, dict):
+        return {}, {}
+    typ = branch.get("type", "object" if "properties" in branch else "array" if "items" in branch else None)
+    discriminator = branch.get("discriminator")
+    anchors = {"types": set(typ if isinstance(typ, list) else [typ]) - {None},
+               "$ref": branch.get("$ref"),
+               "discriminator": discriminator.get("propertyName") if isinstance(discriminator, dict) else None}
+    constants = {}
+
+    def walk(node, path="", key=""):
+        if key in {"default", "const", "enum"}:
+            return
+        if isinstance(node, dict):
+            named = key in NAMED_MAPS
+            if not named and "const" in node:
+                constants[path] = node["const"]
+            for k, v in node.items():
+                if not named and k in UNIONS:
+                    continue  # Nested branches get their own matching/anchors.
+                walk(v, path + "/" + k, "" if named else k)
+        elif isinstance(node, list):
+            for i, v in enumerate(node):
+                walk(v, path + "/" + str(i))
+
+    walk(branch)
+    return anchors, constants
+
+
+def match_union_branches(old, new):
+    """Match unchanged branches first, then enum-free structural identities.
+
+    Within duplicate shapes, augmenting paths find an additive matching when
+    one exists (greedy overlap alone can invent a removal). Remaining changed
+    pairs prefer enum overlap. Distinct constraints/discriminators stay separate,
+    so a value retained in another branch cannot hide a meaningful loss.
+    """
+    pending_old, pending_new = set(range(len(old))), set(range(len(new)))
+    pairs = {}
+    profiles_old, profiles_new = list(map(enum_profile, old)), list(map(enum_profile, new))
+
+    def distance(i, j):
+        before, after = profiles_old[i], profiles_new[j]
+        return sum((before - after).values()), sum((after - before).values())
+
+    def match_group(before, after, eligible, rank):
+        candidates = {
+            i: sorted((j for j in after if eligible(i, j) and distance(i, j)[0] == 0),
+                      key=lambda j: (*rank(i, j), j))
+            for i in before
+        }
+        matched_new = {}
+
+        def augment(i, visited):
+            for j in candidates[i]:
+                if j in visited:
+                    continue
+                visited.add(j)
+                if j not in matched_new or augment(matched_new[j], visited):
+                    matched_new[j] = i
+                    return True
+            return False
+
+        for i in sorted(before, key=lambda i: (len(candidates[i]),
+                        min((rank(i, j) for j in candidates[i]), default=()), i)):
+            augment(i, set())
+        matched = {i: j for j, i in matched_new.items()}
+        unused_old, unused_new = set(before) - matched.keys(), set(after) - set(matched.values())
+        while unused_old and unused_new:
+            available = [(i, j) for i in unused_old for j in unused_new if eligible(i, j)]
+            if not available:
+                break
+            i, j = min(available, key=lambda pair: (*rank(*pair), *pair))
+            matched[i] = j
+            unused_old.remove(i)
+            unused_new.remove(j)
+        pairs.update(matched)
+        pending_old.difference_update(matched)
+        pending_new.difference_update(matched.values())
+
+    for shape in (lambda node: node, enum_shape, lambda node: enum_shape(node, True)):
+        before, after = {}, {}
+        for indexes, branches, groups in ((pending_old, old, before), (pending_new, new, after)):
+            for i in sorted(indexes):
+                identity = json.dumps(contract(shape(branches[i])), sort_keys=True)
+                groups.setdefault(identity, []).append(i)
+        for identity in sorted(before.keys() & after.keys()):
+            match_group(before[identity], after[identity], lambda i, j: True, distance)
+
+    # A field/default/constraint addition can change every exact shape while
+    # retaining the same enum declaration. Match remaining branches one-to-one
+    # by stable anchors and enum locations; prefer the closest non-enum contract.
+    anchors_old, anchors_new = list(map(branch_anchors, old)), list(map(branch_anchors, new))
+    shapes_old = [contract(enum_shape(branch)) for branch in old]
+    shapes_new = [contract(enum_shape(branch)) for branch in new]
+
+    def compatible(i, j):
+        before, constants_before = anchors_old[i]
+        after, constants_after = anchors_new[j]
+        if before.get("types") and after.get("types") and not before["types"] & after["types"]:
+            return False
+        for key in ("$ref", "discriminator"):
+            if before.get(key) and after.get(key) and before[key] != after[key]:
+                return False
+        if any(constants_before[path] != constants_after[path] for path in constants_before.keys() & constants_after.keys()):
+            return False
+        locations_before = {path for path, value in profiles_old[i]}
+        locations_after = {path for path, value in profiles_new[j]}
+        return bool(locations_before & locations_after) or not (locations_before or locations_after)
+
+    def rank(i, j):
+        return len(contract_changes(shapes_old[i], shapes_new[j])), *distance(i, j)
+
+    match_group(sorted(pending_old), sorted(pending_new), compatible, rank)
+    return pairs
+
+
+def align_enum_branches(old, new, key=""):
+    """Align only the enum walk; the structural diff keeps its canonical order."""
+    if key in {"default", "const", "enum"}:
+        return new
+    if isinstance(new, dict):
+        old = old if isinstance(old, dict) else {}
+        named = key in NAMED_MAPS
+        return {k: align_enum_branches(old.get(k), v, "" if named else k) for k, v in new.items()}
+    if isinstance(new, list):
+        old = old if isinstance(old, list) else []
+        if key in UNIONS:
+            pairs = match_union_branches(old, new)
+            # Empty placeholders retain paths for removed branches; additions
+            # get fresh paths after the old slots, rather than shifting them.
+            aligned = [align_enum_branches(branch, new[pairs[i]]) if i in pairs else {}
+                       for i, branch in enumerate(old)]
+            aligned.extend(branch for j, branch in enumerate(new) if j not in pairs.values())
+            return aligned
+        if key == "parameters":
+            def identity(parameter):
+                if isinstance(parameter, dict) and "in" in parameter and "name" in parameter:
+                    return parameter["in"], parameter["name"]
+                return json.dumps(parameter, sort_keys=True)
+            previous = {identity(parameter): parameter for parameter in old}
+            return [align_enum_branches(previous.get(identity(parameter)), parameter) for parameter in new]
+        return [align_enum_branches(old[i] if i < len(old) else None, v) for i, v in enumerate(new)]
+    return new
 
 
 def enum_label(path):
@@ -127,11 +354,19 @@ def compute_diff(old, new):
     old_schemas = old.get("components", {}).get("schemas", {})
     new_schemas = new.get("components", {}).get("schemas", {})
 
+    def global_contract(spec):
+        value = {k: spec.get(k) for k in ("openapi", "jsonSchemaDialect", "security", "servers", "webhooks")}
+        value["components"] = {k: v for k, v in spec.get("components", {}).items() if k != "schemas"}
+        return contract(value)
+
+    changed_global_contracts = contract_changes(global_contract(old), global_contract(new))
+
     added_paths = sorted(set(new_paths) - set(old_paths))
     removed_paths = sorted(set(old_paths) - set(new_paths))
     common_paths = sorted(set(old_paths) & set(new_paths))
 
     changed_paths = []
+    changed_operation_contracts = []
     for p in common_paths:
         old_methods = {m for m in old_paths[p] if m in METHODS}
         new_methods = {m for m in new_paths[p] if m in METHODS}
@@ -139,22 +374,39 @@ def compute_diff(old, new):
         removed_m = old_methods - new_methods
         if added_m or removed_m:
             changed_paths.append((p, added_m, removed_m))
+        for method in sorted(old_methods & new_methods):
+            # Include inherited path parameters, not just operation parameters.
+            before = {k: old_paths[p][method].get(k) for k in
+                      ("parameters", "requestBody", "responses", "security", "servers", "deprecated")}
+            after = {k: new_paths[p][method].get(k) for k in before}
+            before["path_parameters"] = old_paths[p].get("parameters")
+            after["path_parameters"] = new_paths[p].get("parameters")
+            before["path_servers"] = old_paths[p].get("servers")
+            after["path_servers"] = new_paths[p].get("servers")
+            changes = contract_changes(contract(before), contract(after))
+            if changes:
+                changed_operation_contracts.append({"path": p, "method": method, "changes": changes})
 
     added_schemas = sorted(set(new_schemas) - set(old_schemas))
     removed_schemas = sorted(set(old_schemas) - set(new_schemas))
 
     changed_schema_summary = []
+    changed_schema_contracts = []
     for s in sorted(set(old_schemas) & set(new_schemas)):
         added_f, removed_f, changed_f = diff_schemas(
             old_schemas[s], new_schemas[s], old_schemas, new_schemas
         )
         if added_f or removed_f or changed_f:
             changed_schema_summary.append((s, added_f, removed_f, changed_f))
+        changes = contract_changes(contract(old_schemas[s]), contract(new_schemas[s]))
+        if changes:
+            changed_schema_contracts.append({"schema": s, "changes": changes})
 
     # Enum-member diff (walks the whole spec). Removed values are breaking and
     # are invisible to the field-level schema diff above.
-    old_enums = enum_members(old)
-    new_enums = enum_members(new)
+    old_contract = contract(old)
+    old_enums = enum_members(old_contract)
+    new_enums = enum_members(align_enum_branches(old_contract, contract(new)))
     enum_changes = []  # (label, added_values, removed_values)
     for p in sorted(set(old_enums) | set(new_enums)):
         a = old_enums.get(p, set())
@@ -169,10 +421,13 @@ def compute_diff(old, new):
         "added_paths": added_paths,
         "removed_paths": removed_paths,
         "changed_paths": changed_paths,
+        "changed_operation_contracts": changed_operation_contracts,
         "added_schemas": added_schemas,
         "removed_schemas": removed_schemas,
         "changed_schema_summary": changed_schema_summary,
+        "changed_schema_contracts": changed_schema_contracts,
         "enum_changes": enum_changes,
+        "changed_global_contracts": changed_global_contracts,
     }
 
 
@@ -187,9 +442,12 @@ def has_changes(d):
             d["added_paths"],
             d["removed_paths"],
             d["changed_paths"],
+            d["changed_operation_contracts"],
             d["added_schemas"],
             d["removed_schemas"],
             d["changed_schema_summary"],
+            d["changed_schema_contracts"],
+            d["changed_global_contracts"],
             d["enum_changes"],
         ]
     )
@@ -206,6 +464,11 @@ def render_text(d):
     new_paths = d["new_paths"]
     old_paths = d["old_paths"]
     new_schemas = d["new_schemas"]
+
+    if d["changed_global_contracts"]:
+        print("\n## CHANGED GLOBAL CONTRACT — servers, security, shared components")
+        for change in d["changed_global_contracts"]:
+            print("  " + json.dumps(change, sort_keys=True))
 
     if added_paths:
         print(f"\n## NEW PATHS ({len(added_paths)})")
@@ -273,11 +536,29 @@ def render_text(d):
                 f"relying on them; do not treat as additive."
             )
 
+    for label, entries, identifier in (
+        ("OPERATION CONTRACTS", d["changed_operation_contracts"], "path"),
+        ("SCHEMA CONTRACTS", d["changed_schema_contracts"], "schema"),
+    ):
+        if not entries:
+            continue
+        print(f"\n## CHANGED {label} — deep structural diffs ({len(entries)})")
+        for entry in entries:
+            prefix = entry.get("method", "").upper()
+            print(f"\n~ {prefix} {entry[identifier]}".rstrip())
+            for change in entry["changes"]:
+                values = {k: v for k, v in change.items() if k in ("old", "new")}
+                detail = json.dumps(values, sort_keys=True)
+                if len(detail) > 240:
+                    detail = detail[:237] + "..."
+                print(f"  {change['kind']} {change['path']}: {detail}")
+
     print(f"""
 ## SUMMARY
   Paths:   +{len(added_paths)} added, -{len(removed_paths)} removed, ~{len(changed_paths)} changed
   Schemas: +{len(added_schemas)} added, -{len(removed_schemas)} removed, ~{len(changed_schema_summary)} changed
   Enums:   ~{len(enum_changes)} changed ({len(enum_removals(d))} with removed values — breaking)
+  Contracts: {len(d['changed_operation_contracts'])} operations, {len(d['changed_schema_contracts'])} schemas, {len(d['changed_global_contracts'])} global changes
 """)
 
     if not has_changes(d):
@@ -303,6 +584,9 @@ def render_json(d):
             }
             for s, af, rf, cf in d["changed_schema_summary"]
         ],
+        "changed_operation_contracts": d["changed_operation_contracts"],
+        "changed_schema_contracts": d["changed_schema_contracts"],
+        "changed_global_contracts": d["changed_global_contracts"],
         "changed_enums": [
             {"enum": label, "added": added_v, "removed": removed_v}
             for label, added_v, removed_v in d["enum_changes"]
@@ -312,11 +596,13 @@ def render_json(d):
                 "added": len(d["added_paths"]),
                 "removed": len(d["removed_paths"]),
                 "changed": len(d["changed_paths"]),
+                "contract_changed": len(d["changed_operation_contracts"]),
             },
             "schemas": {
                 "added": len(d["added_schemas"]),
                 "removed": len(d["removed_schemas"]),
                 "changed": len(d["changed_schema_summary"]),
+                "contract_changed": len(d["changed_schema_contracts"]),
             },
             "enums": {
                 "changed": len(d["enum_changes"]),

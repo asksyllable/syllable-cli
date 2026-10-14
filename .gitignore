@@ -2,3 +2,6 @@ dist/
 
 # Local build of CLI (use releases or go build)
 scripts/syllable-cli/syllable
+
+# Python spec-diff regression tests
+__pycache__/

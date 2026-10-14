@@ -25,6 +25,9 @@ jobs:
           go-version-file: scripts/syllable-cli/go.mod
           cache-dependency-path: scripts/syllable-cli/go.sum
 
+      - name: Test spec drift detection
+        run: python3 -m unittest discover -s .claude/skills/syllable-sync/scripts -p 'test_*.py'
+
       - name: Format and vet
         working-directory: scripts/syllable-cli
         run: |
