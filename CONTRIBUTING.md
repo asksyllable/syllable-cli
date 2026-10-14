@@ -68,9 +68,23 @@ Inspect individual test results: `SKIP` means the feature was not exercised, eve
 
 Live validation on 2026-10-13 (`cli-test`, production): STT provider and experiment-list integration tests passed; workflow views skipped because the org had no workflows. Twelve additional read-only checks passed for catalog selection queries, lifecycle table columns, directory status/raw-format queries, and experiment list search/sort/date/projection options. The directory returned zero active rows and ten deleted rows on the first page; explicit active status also returned zero rows with `--include-deleted`. A further `--selected-provider "Deepgram Nova 3 (On-Prem)"` query succeeded but did not return that removed provider. Retention of registered retired options, workflow result semantics, experiment routing, and card interactions still need suitable fixtures.
 
-After the complete parity changes, the same integration selection passed again with the same workflow skip. Two further read-only checks passed: agent sorting/projection returned one row, and repeated session search combined with `--include-test` returned zero rows. These verify live request acceptance; populated filtering semantics still need fixtures.
+After the complete parity changes, the same integration selection passed again with the same workflow skip. Two further read-only checks passed: agent sorting/projection returned one row, and repeated session search combined with `--include-test` returned zero rows. These verified live request acceptance.
 
-The mutable test selection is `-run '^(TestExperimentsCRUD|TestAgentCardClick)$'`, with the dedicated fixture variables described above. The experiment test covers CRUD and start/stop transitions. To verify actual traffic routing, start a test experiment and create new sessions through its channel target, then check per-variant result counts and session attribution. `agents send-test-message` targets an agent directly and does not exercise channel-target routing. The card-click test verifies the event endpoint; rendered card behavior needs a test agent/tool that emits a card plus a real client interaction.
+The bounded `TestSDKParityLiveReadOnlySmoke` then passed all five groups with no skips on 2026-10-13 in `cli-test`, production. Its 18 CLI requests verified populated agent paired searches, ascending-ID pagination, preservation of requested identity fields through projection, prompt get/history consistency, test-session search/get/transcript/timeline, deleted-directory raw/normalized identities and status precedence, and structured HTTP 404 errors. It discovers existing fixtures and performs only reads. Projection checks selected field values; it does not require the server to omit every other response key.
+
+Rerun this small live complement to the complete mock contract suite from `scripts/syllable-cli`:
+
+```bash
+env -u SYLLABLE_API_KEY \
+  SYLLABLE_ORG=cli-test SYLLABLE_ENV=prod \
+  SYLLABLE_CLI_BINARY=/tmp/syllable-sdk-catch-up \
+  go test -tags integration -count=1 -v ./integration \
+    -run '^TestSDKParityLiveReadOnlySmoke$'
+```
+
+Full live behavior validation is outside this catch-up's scope; deeper routing, workflow, and card-interaction checks remain optional tests with dedicated fixtures.
+
+The optional mutable test selection is `-run '^(TestExperimentsCRUD|TestAgentCardClick)$'`, with the dedicated fixture variables described above. The experiment test covers CRUD and start/stop transitions. To verify actual traffic routing, start a test experiment and create new sessions through its channel target, then check per-variant result counts and session attribution. `agents send-test-message` targets an agent directly and does not exercise channel-target routing. The card-click test verifies the event endpoint; rendered card behavior needs a test agent/tool that emits a card plus a real client interaction.
 
 Release readiness also needs the `ai-specialist` companion documentation and read-only-hook update described under the cross-repo contract below. Its installed CLI executable is upgraded separately from its skill docs. Keep the published docs-version marker until a CLI release exists; prerelease notes should identify the SDK source commit without inventing a CLI release version.
 
