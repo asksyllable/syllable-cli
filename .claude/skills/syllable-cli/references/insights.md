@@ -54,7 +54,7 @@ syllable insights folders files <folder_id>          # List files in folder
 Read-only templates that define what a tool does and what parameters it accepts.
 
 ```bash
-syllable insights tool-definitions list
+syllable insights tool-definitions
 ```
 
 Each definition has:
@@ -80,7 +80,7 @@ Instances of a tool definition with specific argument values.
 syllable insights tool-configs list
 syllable insights tool-configs get <config_id>
 syllable insights tool-configs create --file config.json
-syllable insights tool-configs update --file config.json
+syllable insights tool-configs update <tool-id> --file config.json
 syllable insights tool-configs delete <config_id>
 ```
 
@@ -110,7 +110,7 @@ Pipelines that chain tool configs and trigger on conditions.
 syllable insights workflows list
 syllable insights workflows get <workflow_id>
 syllable insights workflows create --file workflow.json
-syllable insights workflows update --file workflow.json
+syllable insights workflows update <workflow-id> --file workflow.json
 syllable insights workflows delete <workflow_id>
 syllable insights workflows activate <workflow_id>
 syllable insights workflows inactivate <workflow_id>

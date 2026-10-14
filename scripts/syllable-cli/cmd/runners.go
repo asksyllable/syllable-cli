@@ -40,7 +40,8 @@ func listQuery(base string, page, limit int, searchField, search string) string 
 }
 
 // runList GETs a paginated collection and prints JSON (with -o json) or a table
-// followed by a "Total: N" footer. row maps one decoded item to its cells.
+// followed by the collection total when known, or the displayed page count
+// when total_count is missing/null. row maps one decoded item to its cells.
 func runList[T any](path string, headers []string, row func(T) []string) error {
 	data, _, err := apiClient.Get(path)
 	if err != nil {
@@ -51,8 +52,8 @@ func runList[T any](path string, headers []string, row func(T) []string) error {
 		return nil
 	}
 	var result struct {
-		Items      []T `json:"items"`
-		TotalCount int `json:"total_count"`
+		Items      []T  `json:"items"`
+		TotalCount *int `json:"total_count"`
 	}
 	if err := json.Unmarshal(data, &result); err != nil {
 		output.PrintJSON(data)
@@ -63,7 +64,11 @@ func runList[T any](path string, headers []string, row func(T) []string) error {
 		rows[i] = row(it)
 	}
 	printTable(headers, rows)
-	fmt.Printf("\nTotal: %d\n", result.TotalCount)
+	if result.TotalCount != nil {
+		fmt.Printf("\nTotal: %d\n", *result.TotalCount)
+	} else {
+		fmt.Printf("\nShowing %d item(s)\n", len(result.Items))
+	}
 	return nil
 }
 

@@ -4,6 +4,8 @@ A command-line interface for managing the [Syllable AI platform](https://syllabl
 
 For deeper platform reference, see [docs.syllable.ai](https://docs.syllable.ai).
 
+The embedded API spec is synced to [Syllable SDK 1.0.68](https://github.com/asksyllable/syllable-sdk-typescript/tree/6c6fc6f906f103b763dcffa65ccc6ea2403883d4).
+
 ## Contents
 
 - [Installation](#installation)
@@ -284,7 +286,7 @@ When using `--output json`, errors are machine-readable:
 
 ### Agents
 
-Agents are the AI systems that communicate with users. Each agent is configured with a prompt, a timezone, an optional opening message, session variables for personalization, and optional tool headers. An agent maps one-to-one to a channel target — one phone number or chat ID, one agent. A test channel is auto-generated for every agent for pre-production testing.
+Agents are the AI systems that communicate with users. Each agent is configured with a prompt, a timezone, an optional opening message, session variables for personalization, and optional tool headers. Each channel target has one assigned agent; experiments can split its traffic across agent variants. A test channel is auto-generated for every agent for pre-production testing.
 
 ```bash
 syllable agents list [--search TEXT]
@@ -294,11 +296,48 @@ syllable agents create --file agent.json
 syllable agents update <id> --file agent.json
 syllable agents delete <id>
 syllable agents labels
+syllable agents voices [--selected-voice VOICE]  # repeat to include multiple saved voices
+syllable agents stt-providers [--selected-provider PROVIDER]
+syllable agents card-click <test-id> --action-id ID --action-type cta|action
 ```
+
+Voice, STT, and LLM catalogs report lifecycle status, sunset dates, and fallbacks. Selection flags include a saved retired option in the response. The SDK removed `Deepgram Nova 3 (On-Prem)` from `AgentSttProvider`; inspect `agents stt-providers` before selecting a replacement.
+
+### Experiments
+
+Experiments split one channel target's traffic across agent variants. Use two or more different agents, weights totaling 100, and exactly one control. Only draft experiments can be updated or started; stop a running experiment before deleting it.
+
+```bash
+syllable experiments list [--search TEXT] [--search-field FIELD]
+syllable experiments get <id>
+syllable experiments create --file experiment.json
+syllable experiments update <id> --file experiment-update.json
+syllable experiments start <id>
+syllable experiments results <id>
+syllable experiments stop <id>
+syllable experiments delete <id>
+```
+
+Example create body:
+
+```json
+{
+  "name": "Shorter greeting",
+  "target_id": 7,
+  "variants": [
+    {"name": "Control", "agent_id": 10, "weight": 50, "is_control": true},
+    {"name": "Short greeting", "agent_id": 11, "weight": 50}
+  ]
+}
+```
+
+Updates use `ExperimentUpdateRequest`: include `name` and the complete `variants` set when changing variants. The target is set on creation. `start` returns the experiment and any warnings; `results` reports session counts per variant. Session JSON includes experiment and variant attribution.
+
+`experiments list` supports `--page`, `--limit`, `--order-by`, `--order-by-direction`, `--start-date`, and `--end-date`. Use `--api-fields id,name,status` to select API response fields; `--fields` selects table columns. Create/update accept `--file -` for stdin.
 
 ### Channels
 
-Channels define how users reach agents — voice, SMS, or chat. A target is the specific phone number or chat ID where an agent is active. One agent per target — you cannot assign two agents to the same target. Twilio voice channels can be fully configured via the CLI; other channel types should be configured through the SDK or platform UI.
+Channels define how users reach agents — voice, SMS, or chat. A target is the specific phone number or chat ID where an agent is active. Each target has one assigned agent; a running experiment can split its traffic across agent variants. Twilio voice channels can be fully configured via the CLI; other channel types should be configured through the SDK or platform UI.
 
 ```bash
 syllable channels list [--search TEXT]
@@ -339,7 +378,7 @@ syllable prompts create --file prompt.json
 syllable prompts update <id> --file prompt.json
 syllable prompts delete <id>
 syllable prompts history <id>
-syllable prompts supported-llms
+syllable prompts supported-llms [--selected-model MODEL]
 ```
 
 ### Tools
@@ -412,12 +451,14 @@ syllable users send-email <email>
 The directory is a member/contact list used for call routing and agent-initiated transfers. It stores names, numbers, and metadata that agents can look up at runtime.
 
 ```bash
-syllable directory list [--search TEXT]
+syllable directory list [--search TEXT] [--include-deleted] [--status active|deleted|all] [--format normalized|raw]
 syllable directory get <id>
 syllable directory create --name NAME --type TYPE
 syllable directory update <id> --file member.json
 syllable directory delete <id>
 ```
+
+`--status` overrides `--include-deleted`. The default excludes soft-deleted members and returns normalized directory values; `--format raw` returns stored values.
 
 ### Insights
 
@@ -429,6 +470,10 @@ syllable insights workflows get <id>
 syllable insights workflows create --file workflow.json
 syllable insights workflows activate <id>
 syllable insights workflows inactivate <id>
+syllable insights workflows executions <id> [--search STATUS]
+syllable insights workflows executions-summary <id> [--start-date DATE] [--end-date DATE]
+syllable insights workflows sessions <id> [--search SESSION_ID] [--search-field session_id|status]
+syllable insights workflows files <id> [--search TEXT] [--search-field filename|status]
 
 syllable insights folders list
 syllable insights folders get <id>
@@ -437,8 +482,14 @@ syllable insights folders files <id>
 syllable insights tool-configs list
 syllable insights tool-configs get <id>
 
-syllable insights tool-definitions list
+syllable insights tool-definitions
 ```
+
+Workflow execution/session/file lists support pagination, sorting, and date filters. The summary counts pending, processing, completed, and failed executions, filtered on `created_at` with an inclusive start and exclusive end. Use JSON output for session/file results grouped by tool and insight key. Execution lists also accept `--api-fields`.
+
+### New configuration and response fields
+
+Use `--file` and the schema explorer for nested configuration fields: campaign `outreach_override_rules` (`days` and `dates` schedule overrides), custom-message rule `holidays`, directory extension `sip_transfer_mode`, tool-definition `response_display`, and voicemail `voicemail_detection_v2_pre_speech_timeout`. `sessions transcript` JSON now exposes `transcript_complete` and per-turn `stt_confidence`. Resource JSON includes lifecycle `validation_issues` where supported.
 
 ### Custom Messages
 

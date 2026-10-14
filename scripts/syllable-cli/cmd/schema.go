@@ -81,7 +81,10 @@ func schemaListCmd() *cobra.Command {
 // the unqualified name had always described the conversation-config shape,
 // and the cortex variant it points at is field-for-field identical to it.
 var schemaAliases = map[string]string{
-	"BridgePhraseMessages": "schemas__cortex__v1__bridge_phrases__BridgePhraseMessages",
+	"BridgePhraseMessages":                "schemas__cortex__v1__bridge_phrases__BridgePhraseMessages",
+	"PromptHistory":                       "PromptHistoryResponse",
+	"ListResponse_InsightToolOutput_":     "ListResponse_InsightToolResponse_",
+	"ListResponse_InsightWorkflowOutput_": "ListResponse_InsightWorkflowResponse_",
 }
 
 func schemaGetCmd() *cobra.Command {

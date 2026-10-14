@@ -42,7 +42,7 @@ var rootCmd = &cobra.Command{
 	SilenceUsage: true,
 	Long: `syllable is a CLI tool for managing your Syllable AI platform resources.
 
-It supports agents, channels, conversations, prompts, tools, sessions,
+It supports agents, experiments, channels, conversations, prompts, tools, sessions,
 outbound campaigns, users, directory, insights, custom messages, language groups, and organizations.
 
 Feedback: https://github.com/asksyllable/syllable-cli/issues`,
@@ -269,6 +269,7 @@ func init() {
 	rootCmd.AddCommand(statusCmd())
 	rootCmd.AddCommand(envsCmd())
 	rootCmd.AddCommand(agentsCmd())
+	rootCmd.AddCommand(experimentsCmd())
 	rootCmd.AddCommand(channelsCmd())
 	rootCmd.AddCommand(conversationsCmd())
 	rootCmd.AddCommand(promptsCmd())

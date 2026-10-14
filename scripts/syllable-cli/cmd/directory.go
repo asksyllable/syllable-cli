@@ -67,12 +67,29 @@ func directoryCmd() *cobra.Command {
 func directoryListCmd() *cobra.Command {
 	var page, limit int
 	var search, searchField string
+	var includeDeleted bool
+	var status, responseFormat string
 
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List directory members",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if status != "" && status != "active" && status != "deleted" && status != "all" {
+				return fmt.Errorf("--status must be active, deleted, or all")
+			}
+			if responseFormat != "normalized" && responseFormat != "raw" {
+				return fmt.Errorf("--format must be normalized or raw")
+			}
 			path := fmt.Sprintf("/api/v1/directory_members/?page=%d&limit=%d", page, limit)
+			if cmd.Flags().Changed("include-deleted") {
+				path += fmt.Sprintf("&include_deleted=%t", includeDeleted)
+			}
+			if status != "" {
+				path += "&status=" + url.QueryEscape(status)
+			}
+			if cmd.Flags().Changed("format") {
+				path += "&response_format=" + url.QueryEscape(responseFormat)
+			}
 			if search != "" {
 				path += fmt.Sprintf("&search_fields=%s&search_field_values=%s", searchField, url.QueryEscape(search))
 			}
@@ -117,6 +134,9 @@ func directoryListCmd() *cobra.Command {
 	cmd.Flags().IntVar(&limit, "limit", 25, "Max items to return")
 	cmd.Flags().StringVar(&search, "search", "", "Search by name")
 	cmd.Flags().StringVar(&searchField, "search-field", "name", "Field to search on (see API docs for valid values)")
+	cmd.Flags().BoolVar(&includeDeleted, "include-deleted", false, "Include soft-deleted members (overridden by --status)")
+	cmd.Flags().StringVar(&status, "status", "", "Deletion status: active, deleted, or all (overrides --include-deleted)")
+	cmd.Flags().StringVar(&responseFormat, "format", "normalized", "Directory response format: normalized or raw")
 
 	return cmd
 }
