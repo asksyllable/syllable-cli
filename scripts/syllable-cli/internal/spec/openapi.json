@@ -480,29 +480,177 @@
           "agents"
         ],
         "summary": "Get Available Agent Voices",
-        "description": "Get available agent voices.",
+        "description": "Get available agent voices.\n\nEach voice's `status` is resolved against the current date. Retired voices are omitted unless\ntheir display name is passed in `selected_voice`, so a saved config still referencing a retired\nvoice can render it as a locked field. A voice group holds one voice per language, so the\nparameter is repeatable.",
         "operationId": "agent_get_available_voices",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "selected_voice",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Selected Voice"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
+                  "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/AgentVoice"
                   },
-                  "type": "array",
                   "title": "Response Agent Get Available Voices"
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
-        },
+        }
+      }
+    },
+    "/api/v1/agents/stt/available": {
+      "get": {
+        "tags": [
+          "agents"
+        ],
+        "summary": "Get Available Agent Stt Providers",
+        "description": "Get the speech-to-text providers available to agents.\n\nEach provider's `status` is resolved against the current date. Retired providers are omitted\nunless they match `selected_provider`, so an agent still saved on a retired provider can render\nit as a locked field.",
+        "operationId": "agent_get_available_stt_providers",
         "security": [
           {
             "APIKeyHeader": []
           }
-        ]
+        ],
+        "parameters": [
+          {
+            "name": "selected_provider",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Selected Provider"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SupportedSttProvider"
+                  },
+                  "title": "Response Agent Get Available Stt Providers"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/test/{test_id}/card-click": {
+      "post": {
+        "tags": [
+          "agents"
+        ],
+        "summary": "Create Card Click Event",
+        "description": "Log an EventLog for a client-side card click interaction.",
+        "operationId": "post_card_click_event",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "test_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Test Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CardClickRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardClickResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/bridge_phrases/": {
@@ -2619,6 +2767,611 @@
         }
       }
     },
+    "/api/v1/experiments/": {
+      "get": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Experiments List",
+        "description": "List the existing experiments",
+        "operationId": "experiments_list",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The page number from which to start (0-based)",
+              "examples": [
+                0
+              ],
+              "default": 0,
+              "title": "Page"
+            },
+            "description": "The page number from which to start (0-based)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "The maximum number of items to return",
+              "examples": [
+                25
+              ],
+              "default": 25,
+              "title": "Limit"
+            },
+            "description": "The maximum number of items to return"
+          },
+          {
+            "name": "search_fields",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/ExperimentProperties"
+              },
+              "description": "String names of fields to search. Correspond by index to search field values",
+              "examples": [
+                "name"
+              ],
+              "default": [],
+              "title": "Search Fields"
+            },
+            "description": "String names of fields to search. Correspond by index to search field values"
+          },
+          {
+            "name": "search_field_values",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Values of fields to search. Correspond by index to search fields. Unless field name contains \"list\", an individual search field value cannot be a list",
+              "examples": [
+                "Some Object Name"
+              ],
+              "default": [],
+              "title": "Search Field Values"
+            },
+            "description": "Values of fields to search. Correspond by index to search fields. Unless field name contains \"list\", an individual search field value cannot be a list"
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ExperimentProperties"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The field whose value should be used to order the results",
+              "examples": [
+                "name"
+              ],
+              "title": "Order By"
+            },
+            "description": "The field whose value should be used to order the results"
+          },
+          {
+            "name": "order_by_direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/OrderByDirection"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The direction in which to order the results",
+              "title": "Order By Direction"
+            },
+            "description": "The direction in which to order the results"
+          },
+          {
+            "name": "fields",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExperimentProperties"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The fields to include in the response",
+              "default": [],
+              "title": "Fields"
+            },
+            "description": "The fields to include in the response"
+          },
+          {
+            "name": "start_datetime",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The start datetime for filtering results",
+              "examples": [
+                "2023-01-01T00:00:00Z"
+              ],
+              "title": "Start Datetime"
+            },
+            "description": "The start datetime for filtering results"
+          },
+          {
+            "name": "end_datetime",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The end datetime for filtering results",
+              "examples": [
+                "2024-01-01T00:00:00Z"
+              ],
+              "title": "End Datetime"
+            },
+            "description": "The end datetime for filtering results"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_ExperimentResponse_"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Create Experiment",
+        "description": "Create a new experiment.",
+        "operationId": "experiments_create",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExperimentCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperimentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "409": {
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/experiments/{experiment_id}": {
+      "get": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Get Experiment By Id",
+        "description": "Get an experiment by its ID",
+        "operationId": "experiments_get_by_id",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperimentResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Update Experiment",
+        "description": "Update an experiment. Only an experiment in 'draft' status can be updated.",
+        "operationId": "experiments_update",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExperimentUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperimentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "409": {
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Delete Experiment",
+        "description": "Delete a (non-running) experiment.",
+        "operationId": "experiments_delete",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/experiments/{experiment_id}/results": {
+      "get": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Get Experiment Results",
+        "description": "Get the number of sessions each variant of an experiment has handled.",
+        "operationId": "experiments_results",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperimentResultsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/experiments/{experiment_id}/start": {
+      "post": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Start Experiment",
+        "description": "Start an experiment. (Only an experiment in 'draft' status can be started.)",
+        "operationId": "experiments_start",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperimentStartResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "409": {
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/experiments/{experiment_id}/stop": {
+      "post": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Stop Experiment",
+        "description": "Stop a running experiment.",
+        "operationId": "experiments_stop",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperimentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/incidents/": {
       "get": {
         "tags": [
@@ -4351,7 +5104,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ListResponse_InsightWorkflowOutput_"
+                  "$ref": "#/components/schemas/ListResponse_InsightWorkflowResponse_"
                 }
               }
             }
@@ -4444,7 +5197,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/InsightWorkflowOutput"
+                  "$ref": "#/components/schemas/InsightWorkflowResponse"
                 }
               }
             }
@@ -4569,6 +5322,771 @@
           },
           "500": {
             "description": "Internal Server Error"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insights/workflows/{workflow_id}/executions": {
+      "get": {
+        "tags": [
+          "insights.workflows"
+        ],
+        "summary": "List Insight Workflow Executions",
+        "description": "List a workflow's execution rows.",
+        "operationId": "insights_workflow_executions",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workflow_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Workflow Id"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The page number from which to start (0-based)",
+              "examples": [
+                0
+              ],
+              "default": 0,
+              "title": "Page"
+            },
+            "description": "The page number from which to start (0-based)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "The maximum number of items to return",
+              "examples": [
+                25
+              ],
+              "default": 25,
+              "title": "Limit"
+            },
+            "description": "The maximum number of items to return"
+          },
+          {
+            "name": "search_fields",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "const": "status",
+                "type": "string"
+              },
+              "description": "String names of fields to search. Correspond by index to search field values",
+              "examples": [
+                "status"
+              ],
+              "default": [],
+              "title": "Search Fields"
+            },
+            "description": "String names of fields to search. Correspond by index to search field values"
+          },
+          {
+            "name": "search_field_values",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Values of fields to search. Correspond by index to search fields. Unless field name contains \"list\", an individual search field value cannot be a list",
+              "examples": [
+                "Some Object Name"
+              ],
+              "default": [],
+              "title": "Search Field Values"
+            },
+            "description": "Values of fields to search. Correspond by index to search fields. Unless field name contains \"list\", an individual search field value cannot be a list"
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "id",
+                    "status",
+                    "created_at",
+                    "started_at",
+                    "priority",
+                    "session_id",
+                    "upload_file_id",
+                    "event_type"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The field whose value should be used to order the results",
+              "examples": [
+                "created_at"
+              ],
+              "title": "Order By"
+            },
+            "description": "The field whose value should be used to order the results"
+          },
+          {
+            "name": "order_by_direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/OrderByDirection"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The direction in which to order the results",
+              "title": "Order By Direction"
+            },
+            "description": "The direction in which to order the results"
+          },
+          {
+            "name": "fields",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "enum": [
+                      "id",
+                      "status",
+                      "created_at",
+                      "started_at",
+                      "priority",
+                      "session_id",
+                      "upload_file_id",
+                      "event_type"
+                    ],
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The fields to include in the response",
+              "default": [],
+              "title": "Fields"
+            },
+            "description": "The fields to include in the response"
+          },
+          {
+            "name": "start_datetime",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The start datetime for filtering results",
+              "examples": [
+                "2023-01-01T00:00:00Z"
+              ],
+              "title": "Start Datetime"
+            },
+            "description": "The start datetime for filtering results"
+          },
+          {
+            "name": "end_datetime",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The end datetime for filtering results",
+              "examples": [
+                "2024-01-01T00:00:00Z"
+              ],
+              "title": "End Datetime"
+            },
+            "description": "The end datetime for filtering results"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_InsightWorkflowExecutionOutput_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insights/workflows/{workflow_id}/sessions": {
+      "get": {
+        "tags": [
+          "insights.workflows"
+        ],
+        "summary": "List Insight Workflow Sessions",
+        "description": "List the sessions under a workflow, one row per session, with each tool's\nresults grouped into a ``results`` dict keyed by tool name.\n\nSessions come from the workflow's execution queue, so pending, processing and\nfailed sessions show up too, not just completed ones. A session that was\nqueued more than once appears only once. Insights reused from another\nworkflow still show up here.",
+        "operationId": "insights_workflow_sessions",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workflow_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Workflow Id"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The page number from which to start (0-based)",
+              "examples": [
+                0
+              ],
+              "default": 0,
+              "title": "Page"
+            },
+            "description": "The page number from which to start (0-based)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "The maximum number of items to return",
+              "examples": [
+                25
+              ],
+              "default": 25,
+              "title": "Limit"
+            },
+            "description": "The maximum number of items to return"
+          },
+          {
+            "name": "search_fields",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "session_id",
+                  "status"
+                ],
+                "type": "string"
+              },
+              "description": "String names of fields to search. Correspond by index to search field values",
+              "examples": [
+                "session_id"
+              ],
+              "default": [],
+              "title": "Search Fields"
+            },
+            "description": "String names of fields to search. Correspond by index to search field values"
+          },
+          {
+            "name": "search_field_values",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Values of fields to search. Correspond by index to search fields. Unless field name contains \"list\", an individual search field value cannot be a list",
+              "examples": [
+                "Some Object Name"
+              ],
+              "default": [],
+              "title": "Search Field Values"
+            },
+            "description": "Values of fields to search. Correspond by index to search fields. Unless field name contains \"list\", an individual search field value cannot be a list"
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "session_id",
+                    "status",
+                    "started_at",
+                    "created_at"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The field whose value should be used to order the results",
+              "examples": [
+                "session_id"
+              ],
+              "title": "Order By"
+            },
+            "description": "The field whose value should be used to order the results"
+          },
+          {
+            "name": "order_by_direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/OrderByDirection"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The direction in which to order the results",
+              "title": "Order By Direction"
+            },
+            "description": "The direction in which to order the results"
+          },
+          {
+            "name": "start_datetime",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The start datetime for filtering results",
+              "examples": [
+                "2023-01-01T00:00:00Z"
+              ],
+              "title": "Start Datetime"
+            },
+            "description": "The start datetime for filtering results"
+          },
+          {
+            "name": "end_datetime",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The end datetime for filtering results",
+              "examples": [
+                "2024-01-01T00:00:00Z"
+              ],
+              "title": "End Datetime"
+            },
+            "description": "The end datetime for filtering results"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_WorkflowSessionRow_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insights/workflows/{workflow_id}/files": {
+      "get": {
+        "tags": [
+          "insights.workflows"
+        ],
+        "summary": "List Insight Workflow Files",
+        "description": "List the uploaded files under a workflow, one row per file, with each\ntool's results grouped into a ``results`` dict keyed by tool name.\n\nFiles come from the workflow's execution queue, so pending, processing and\nfailed files show up too, not just completed ones. A file that was queued\nmore than once appears only once. Insights reused from another workflow\nstill show up here.",
+        "operationId": "insights_workflow_files",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workflow_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Workflow Id"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The page number from which to start (0-based)",
+              "examples": [
+                0
+              ],
+              "default": 0,
+              "title": "Page"
+            },
+            "description": "The page number from which to start (0-based)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "The maximum number of items to return",
+              "examples": [
+                25
+              ],
+              "default": 25,
+              "title": "Limit"
+            },
+            "description": "The maximum number of items to return"
+          },
+          {
+            "name": "search_fields",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "status",
+                  "filename"
+                ],
+                "type": "string"
+              },
+              "description": "String names of fields to search. Correspond by index to search field values",
+              "examples": [
+                "filename"
+              ],
+              "default": [],
+              "title": "Search Fields"
+            },
+            "description": "String names of fields to search. Correspond by index to search field values"
+          },
+          {
+            "name": "search_field_values",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Values of fields to search. Correspond by index to search fields. Unless field name contains \"list\", an individual search field value cannot be a list",
+              "examples": [
+                "Some Object Name"
+              ],
+              "default": [],
+              "title": "Search Field Values"
+            },
+            "description": "Values of fields to search. Correspond by index to search fields. Unless field name contains \"list\", an individual search field value cannot be a list"
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "upload_file_id",
+                    "status",
+                    "started_at",
+                    "created_at"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The field whose value should be used to order the results",
+              "examples": [
+                "upload_file_id"
+              ],
+              "title": "Order By"
+            },
+            "description": "The field whose value should be used to order the results"
+          },
+          {
+            "name": "order_by_direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/OrderByDirection"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The direction in which to order the results",
+              "title": "Order By Direction"
+            },
+            "description": "The direction in which to order the results"
+          },
+          {
+            "name": "start_datetime",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The start datetime for filtering results",
+              "examples": [
+                "2023-01-01T00:00:00Z"
+              ],
+              "title": "Start Datetime"
+            },
+            "description": "The start datetime for filtering results"
+          },
+          {
+            "name": "end_datetime",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The end datetime for filtering results",
+              "examples": [
+                "2024-01-01T00:00:00Z"
+              ],
+              "title": "End Datetime"
+            },
+            "description": "The end datetime for filtering results"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_WorkflowFileRow_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insights/workflows/{workflow_id}/executions/summary": {
+      "get": {
+        "tags": [
+          "insights.workflows"
+        ],
+        "summary": "Insight Workflow Executions Summary",
+        "description": "Return how many of a workflow's executions are in each status, optionally\nwithin a created_at range (for example, since the workflow's `updated_at`\npassed as `start_datetime`).",
+        "operationId": "insights_workflow_executions_summary",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workflow_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Workflow Id"
+            }
+          },
+          {
+            "name": "start_datetime",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "ISO 8601 start datetime (inclusive) for created_at filtering",
+              "examples": [
+                "2026-08-27T13:57:00.123456+00:00"
+              ],
+              "title": "Start Datetime"
+            },
+            "description": "ISO 8601 start datetime (inclusive) for created_at filtering"
+          },
+          {
+            "name": "end_datetime",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "ISO 8601 end datetime (exclusive) for created_at filtering",
+              "examples": [
+                "2026-08-28T00:00:00Z"
+              ],
+              "title": "End Datetime"
+            },
+            "description": "ISO 8601 end datetime (exclusive) for created_at filtering"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InsightWorkflowExecutionSummary"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -4954,7 +6472,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ListResponse_InsightToolOutput_"
+                  "$ref": "#/components/schemas/ListResponse_InsightToolResponse_"
                 }
               }
             }
@@ -4999,7 +6517,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/InsightToolOutput"
+                  "$ref": "#/components/schemas/InsightToolResponse"
                 }
               }
             }
@@ -5053,7 +6571,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/InsightToolOutput"
+                  "$ref": "#/components/schemas/InsightToolResponse"
                 }
               }
             }
@@ -5165,7 +6683,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/InsightToolOutput"
+                  "$ref": "#/components/schemas/InsightToolResponse"
                 }
               }
             }
@@ -6159,7 +7677,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/PromptHistory"
+                    "$ref": "#/components/schemas/PromptHistoryResponse"
                   },
                   "title": "Response Prompts History"
                 }
@@ -6185,29 +7703,57 @@
           "prompts"
         ],
         "summary": "Get Supported Llm Configs",
-        "description": "Get supported LLM configs.",
+        "description": "Get supported LLM configs.\n\nEach config's `status` is resolved against the current date. Retired models are omitted unless\nthey match `selected_model`, so a saved config still referencing a retired model can render it\nas a locked field.",
         "operationId": "prompt_get_supported_llms",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "selected_model",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Selected Model"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
+                  "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/SupportedLlm"
                   },
-                  "type": "array",
                   "title": "Response Prompt Get Supported Llms"
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
-        },
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/pronunciations": {
@@ -7484,6 +9030,28 @@
               }
             }
           },
+          "400": {
+            "description": "Bad request, including malformed datetime query parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "detail"
+                  ],
+                  "properties": {
+                    "detail": {
+                      "type": "string",
+                      "description": "A message describing the invalid request"
+                    }
+                  }
+                },
+                "example": {
+                  "detail": "start_datetime: Input should be a valid ISO 8601 datetime"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -7700,6 +9268,62 @@
               }
             }
           },
+          "400": {
+            "description": "Bad request, including malformed datetime query parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "detail"
+                  ],
+                  "properties": {
+                    "detail": {
+                      "description": "An invalid request message or a legacy transcript link redirect",
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "required": [
+                            "code",
+                            "session_id",
+                            "redirect_to",
+                            "message"
+                          ],
+                          "properties": {
+                            "code": {
+                              "type": "string",
+                              "enum": [
+                                "legacy_session_link"
+                              ],
+                              "description": "Identifies a legacy session link"
+                            },
+                            "session_id": {
+                              "type": "string",
+                              "description": "The requested transcript ID"
+                            },
+                            "redirect_to": {
+                              "type": "string",
+                              "description": "The transcript path to open"
+                            },
+                            "message": {
+                              "type": "string",
+                              "description": "Why this request was rejected"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "example": {
+                  "detail": "start_datetime: Input should be a valid ISO 8601 datetime"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -7862,6 +9486,7 @@
           "sessions.transcript"
         ],
         "summary": "Get Session Transcript By Id",
+        "description": "Return a session's transcript, and whether it is complete.\n\nTranscript records reach the logs database through an asynchronous pipeline, so a read taken\nimmediately after a session ends can return a short record. `transcript_complete` is true only\nwhen everything the session reported writing is present, across both the spoken transcript and\nthe tool activity in `actions`. A caller that needs the whole record should re-request with\nexponential backoff until it is true, or until its own time limit passes, keeping the last\nresponse either way.\n\nA time limit is required rather than optional. `transcript_complete` never turns true for a\nsession still in progress, for a session on a channel that reports no expected count (only\nvoice reports one today), or for a session that ended before the field was introduced - so a\ncaller polling without a limit would never stop.",
         "operationId": "session_transcript_get_by_id",
         "security": [
           {
@@ -7889,6 +9514,9 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "No such session in this organization"
           },
           "422": {
             "description": "Validation Error",
@@ -8031,6 +9659,9 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "No such session in this organization"
           },
           "422": {
             "description": "Validation Error",
@@ -9371,7 +11002,7 @@
           "directory"
         ],
         "summary": "Directory Member List",
-        "description": "List the directory_members",
+        "description": "List directory members.\n\nFilter by contact tags with `tags.<key>=<value>`. Repeat a key to match any of its\nvalues; filters for different keys must all match. Unknown keys return no matches.",
         "operationId": "directory_member_list",
         "security": [
           {
@@ -9385,11 +11016,29 @@
             "required": false,
             "schema": {
               "type": "boolean",
-              "description": "If true, include soft-deleted members in the list. Default excludes them.",
+              "description": "If true, include soft-deleted members in the list. Default excludes them. Ignored when status is explicitly supplied.",
               "default": false,
               "title": "Include Deleted"
             },
-            "description": "If true, include soft-deleted members in the list. Default excludes them."
+            "description": "If true, include soft-deleted members in the list. Default excludes them. Ignored when status is explicitly supplied."
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/DirectoryMemberStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter contacts by deletion status: all includes active and deleted contacts; active excludes deleted contacts; deleted includes only deleted contacts. When supplied, overrides include_deleted. When omitted, include_deleted controls inclusion.",
+              "title": "Status"
+            },
+            "description": "Filter contacts by deletion status: all includes active and deleted contacts; active excludes deleted contacts; deleted includes only deleted contacts. When supplied, overrides include_deleted. When omitted, include_deleted controls inclusion."
           },
           {
             "name": "response_format",
@@ -9567,6 +11216,28 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListResponse_DirectoryMember_"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request, including malformed datetime query parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "detail"
+                  ],
+                  "properties": {
+                    "detail": {
+                      "type": "string",
+                      "description": "A message describing the invalid request"
+                    }
+                  }
+                },
+                "example": {
+                  "detail": "start_datetime: Input should be a valid ISO 8601 datetime"
                 }
               }
             }
@@ -10102,7 +11773,7 @@
           "directory"
         ],
         "summary": "Bulk Load Directory Members",
-        "description": "Update Directory Members in chunks of 100.",
+        "description": "Load Directory Members: records with an id update that member, records without create.\n\nUpdates only touch fields the record carries: omitting extensions, contact_tags, or\ncomments leaves the stored values unchanged, while an explicit empty value clears them.\nThe whole payload is applied in one transaction. A record whose id matches no existing\nmember in the caller's organization, or an id appearing twice in the payload, fails the\nupload with a 400 naming the offending record(s); nothing is written.",
         "operationId": "directory_member_bulk_load",
         "requestBody": {
           "content": {
@@ -11637,6 +13308,28 @@
                     }
                   ],
                   "title": "Response Outbound Campaign List"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request, including malformed datetime query parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "detail"
+                  ],
+                  "properties": {
+                    "detail": {
+                      "type": "string",
+                      "description": "A message describing the invalid request"
+                    }
+                  }
+                },
+                "example": {
+                  "detail": "start_datetime: Input should be a valid ISO 8601 datetime"
                 }
               }
             }
@@ -13834,7 +15527,6 @@
             "description": "Speech-to-text provider for the agent.",
             "examples": [
               "Google STT V2 (Chirp 2)",
-              "Deepgram Nova 3 (On-Prem)",
               "Deepgram Nova 3",
               "Google STT V2",
               "Google STT V1",
@@ -13926,7 +15618,8 @@
           "prompt_tool_defaults",
           "tool_headers",
           "updated_at",
-          "last_updated_by"
+          "last_updated_by",
+          "lifecycle_status"
         ],
         "title": "AgentProperties",
         "description": "Names of agent fields supported for filtering/sorting on list endpoint."
@@ -14169,7 +15862,6 @@
             "description": "Speech-to-text provider for the agent.",
             "examples": [
               "Google STT V2 (Chirp 2)",
-              "Deepgram Nova 3 (On-Prem)",
               "Deepgram Nova 3",
               "Google STT V2",
               "Google STT V1",
@@ -14302,6 +15994,21 @@
             ],
             "description": "The language group associated with the agent",
             "examples": []
+          },
+          "validation_issues": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ValidationIssue"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validation Issues",
+            "description": "Non-blocking findings for the saved agent (e.g. a deprecated STT provider warning). Warnings and infos are informational; errors block the save."
           }
         },
         "type": "object",
@@ -14323,7 +16030,6 @@
         "type": "string",
         "enum": [
           "Google STT V2 (Chirp 2)",
-          "Deepgram Nova 3 (On-Prem)",
           "Deepgram Nova 3",
           "Google STT V2",
           "Google STT V1",
@@ -14630,7 +16336,6 @@
             "description": "Speech-to-text provider for the agent.",
             "examples": [
               "Google STT V2 (Chirp 2)",
-              "Deepgram Nova 3 (On-Prem)",
               "Deepgram Nova 3",
               "Google STT V2",
               "Google STT V1",
@@ -14740,9 +16445,63 @@
           "deprecated": {
             "type": "boolean",
             "title": "Deprecated",
-            "description": "Whether the voice is deprecated and should not be used",
+            "description": "Whether the voice is in the deprecation warning window",
             "examples": [
               false
+            ]
+          },
+          "sunset_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sunset Date",
+            "description": "Date the voice becomes retired and can no longer be saved or selected",
+            "examples": [
+              null
+            ]
+          },
+          "removed": {
+            "type": "boolean",
+            "title": "Removed",
+            "description": "Whether the voice is force-retired regardless of sunset_date",
+            "default": false,
+            "examples": [
+              false
+            ]
+          },
+          "fallback": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fallback",
+            "description": "Voice substituted at runtime for critical features once this one is retired",
+            "examples": [
+              null
+            ]
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LifecycleStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Effective lifecycle status, resolved server-side against the current date. Populated on API responses; unset in the static catalog.",
+            "examples": [
+              "active"
             ]
           }
         },
@@ -15270,7 +17029,7 @@
             "title": "Batch Id",
             "description": "Unique ID for conversation batch",
             "examples": [
-              "20260817.9"
+              "20261013.9"
             ]
           },
           "campaign_id": {
@@ -15294,7 +17053,7 @@
             "title": "Expires On",
             "description": "Timestamp of batch expiration",
             "examples": [
-              "2026-08-18T00:00:00Z"
+              "2026-10-14T00:00:00Z"
             ]
           },
           "paused": {
@@ -15404,7 +17163,7 @@
             "title": "Created At",
             "description": "Timestamp of batch creation",
             "examples": [
-              "2026-08-17T00:00:00Z"
+              "2026-10-13T00:00:00Z"
             ]
           },
           "deleted_at": {
@@ -15420,7 +17179,7 @@
             "title": "Deleted At",
             "description": "Timestamp of batch deletion",
             "examples": [
-              "2026-08-17T00:00:00Z"
+              "2026-10-13T00:00:00Z"
             ]
           },
           "deleted_reason": {
@@ -15451,7 +17210,7 @@
             "title": "Last Updated At",
             "description": "Timestamp of last change to batch",
             "examples": [
-              "2026-08-17T00:00:00Z"
+              "2026-10-13T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -15951,7 +17710,7 @@
         },
         "type": "object",
         "title": "BridgePhrasesConfigPayload",
-        "description": "The `config` JSONB payload stored on a bridge_phrases row.\n\nHolds the default phrases plus an inline list of per-tool overrides, each with\noptional per-language (`localized`) overrides. Mirrors the shape documented in\ndocs/bridge-phrases-table-migration.md §5.2."
+        "description": "The `config` JSONB payload stored on a bridge_phrases row.\n\nHolds the default phrases plus an inline list of per-tool overrides, each with\noptional per-language (`localized`) overrides. Mirrors the shape documented in\ndocs/lib/database/bridge-phrases-table-migration.md §5.2."
       },
       "BridgePhrasesCreateRequest": {
         "properties": {
@@ -16372,6 +18131,47 @@
         ],
         "title": "CampaignProperties"
       },
+      "CardClickRequest": {
+        "properties": {
+          "action_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9_-]*$",
+            "title": "Action Id",
+            "description": "Human-readable identifier for the card action."
+          },
+          "action_type": {
+            "type": "string",
+            "enum": [
+              "action",
+              "cta"
+            ],
+            "title": "Action Type",
+            "description": "The type of action triggers, either \"action\", or \"cta\"."
+          }
+        },
+        "type": "object",
+        "required": [
+          "action_id",
+          "action_type"
+        ],
+        "title": "CardClickRequest"
+      },
+      "CardClickResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "The outcome of the request"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "CardClickResponse"
+      },
       "CaseExpression": {
         "properties": {
           "case": {
@@ -16474,6 +18274,7 @@
             "examples": [
               {
                 "telephony": {
+                  "async_enabled": true,
                   "interruptibility": "dtmf_only",
                   "overall_input_timeout": 20.0,
                   "passive_input_start": 0.5,
@@ -16506,6 +18307,7 @@
             "description": "Telephony configurations to be applied to targets belonging to the channel.       Only applies to voice supported channels.",
             "examples": [
               {
+                "async_enabled": true,
                 "interruptibility": "dtmf_only",
                 "overall_input_timeout": 20.0,
                 "passive_input_start": 0.5,
@@ -16943,7 +18745,7 @@
             "title": "Batch Id",
             "description": "Unique ID for conversation batch",
             "examples": [
-              "20260817.9"
+              "20261013.9"
             ]
           },
           "campaign_id": {
@@ -16967,7 +18769,7 @@
             "title": "Expires On",
             "description": "Timestamp of batch expiration",
             "examples": [
-              "2026-08-18T00:00:00Z"
+              "2026-10-14T00:00:00Z"
             ]
           },
           "paused": {
@@ -17077,7 +18879,7 @@
             "title": "Created At",
             "description": "Timestamp of batch creation",
             "examples": [
-              "2026-08-17T00:00:00Z"
+              "2026-10-13T00:00:00Z"
             ]
           },
           "deleted_at": {
@@ -17093,7 +18895,7 @@
             "title": "Deleted At",
             "description": "Timestamp of batch deletion",
             "examples": [
-              "2026-08-17T00:00:00Z"
+              "2026-10-13T00:00:00Z"
             ]
           },
           "deleted_reason": {
@@ -17124,7 +18926,7 @@
             "title": "Last Updated At",
             "description": "Timestamp of last change to batch",
             "examples": [
-              "2026-08-17T00:00:00Z"
+              "2026-10-13T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -17167,7 +18969,7 @@
             "title": "Batch Id",
             "description": "Unique ID for conversation batch",
             "examples": [
-              "20260817.9"
+              "20261013.9"
             ]
           },
           "campaign_id": {
@@ -17191,7 +18993,7 @@
             "title": "Expires On",
             "description": "Timestamp of batch expiration",
             "examples": [
-              "2026-08-18T00:00:00Z"
+              "2026-10-14T00:00:00Z"
             ]
           },
           "paused": {
@@ -17400,7 +19202,7 @@
             "title": "Created At",
             "description": "Timestamp of request creation",
             "examples": [
-              "2026-08-16T00:00:00Z"
+              "2026-10-12T00:00:00Z"
             ]
           },
           "sent_at": {
@@ -17416,7 +19218,7 @@
             "title": "Sent At",
             "description": "Timestamp at which request was sent",
             "examples": [
-              "2026-08-17T00:00:00Z"
+              "2026-10-13T00:00:00Z"
             ]
           },
           "attempt_count": {
@@ -17551,11 +19353,12 @@
               }
             ],
             "title": "Line Type",
-            "description": "Line type of the target number from Twilio Lookup (e.g. 'mobile', 'landline', 'voip'); resolved at ingestion.",
+            "description": "Raw Twilio Lookup v2 line type of the target number (e.g. 'mobile', 'landline', 'fixedVoip', 'tollFree'); resolved at ingestion. 'unknown' means Twilio answered but could not determine the line type; None means no lookup data at all. See ALL_LINE_TYPES in lib/twilio/line_type_lookup.py for the full vocabulary.",
             "examples": [
               "mobile",
               "landline",
-              "voip"
+              "fixedVoip",
+              "tollFree"
             ]
           },
           "enrichment": {
@@ -18411,7 +20214,7 @@
             "anyOf": [
               {
                 "type": "string",
-                "pattern": "\\b(19|20)\\d{2}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])\\b"
+                "pattern": "^(19|20)\\d{2}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
               },
               {
                 "type": "null"
@@ -18421,6 +20224,28 @@
             "description": "The date for the rule in YYYY-MM-DD format",
             "examples": [
               "2025-01-01"
+            ]
+          },
+          "holidays": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Holiday"
+                },
+                "type": "array",
+                "minItems": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holidays",
+            "description": "Named holidays for the rule. Matches if the current date is any of them, resolved in the assigned agent timezone, so no per-year rule is needed. Accepts the same names the @hours rule engine accepts and stores them canonically.",
+            "examples": [
+              [
+                "christmas-day",
+                "christmas-day-observed"
+              ]
             ]
           },
           "days_of_week": {
@@ -18614,6 +20439,158 @@
         ],
         "title": "CustomMessageUpdateRequest",
         "description": "Request model to update an existing custom message."
+      },
+      "DaoExperimentTargetSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "The internal ID of the channel target",
+            "examples": [
+              1
+            ]
+          },
+          "target": {
+            "type": "string",
+            "title": "Target",
+            "description": "The target itself, such as a phone number",
+            "examples": [
+              "+19995551234"
+            ]
+          },
+          "target_mode": {
+            "$ref": "#/components/schemas/TargetModes",
+            "description": "The mode of the channel target"
+          },
+          "channel_id": {
+            "type": "integer",
+            "title": "Channel Id",
+            "description": "The channel the target belongs to",
+            "examples": [
+              1
+            ]
+          },
+          "channel_name": {
+            "type": "string",
+            "title": "Channel Name",
+            "description": "The name of that channel",
+            "examples": [
+              "Main line"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "target",
+          "target_mode",
+          "channel_id",
+          "channel_name"
+        ],
+        "title": "DaoExperimentTargetSummary",
+        "description": "The channel target an experiment splits, resolved for display.\n\nEnough to name the target on the experiment card without a second read: the Console shows the\ntarget itself and the channel it belongs to, and links to neither by ID."
+      },
+      "DaoExperimentVariantDetail": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "The internal ID of the variant",
+            "examples": [
+              1
+            ]
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the variant, which is the grouping key in reports",
+            "examples": [
+              "b"
+            ]
+          },
+          "weight": {
+            "type": "integer",
+            "title": "Weight",
+            "description": "The percentage of the channel target's traffic this variant answers. The weights of an experiment's variants must add up to 100. (E.g., two variants with a weight of 50 each split the traffic evenly.)",
+            "examples": [
+              50
+            ]
+          },
+          "is_control": {
+            "type": "boolean",
+            "title": "Is Control",
+            "description": "Whether this is the reference variant the others are measured against"
+          },
+          "agent_id": {
+            "type": "integer",
+            "title": "Agent Id",
+            "description": "The agent this variant runs",
+            "examples": [
+              1
+            ]
+          },
+          "agent_name": {
+            "type": "string",
+            "title": "Agent Name",
+            "description": "The name of that agent",
+            "examples": [
+              "Front desk"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "weight",
+          "is_control",
+          "agent_id",
+          "agent_name"
+        ],
+        "title": "DaoExperimentVariantDetail",
+        "description": "A variant, with the name of the agent it runs resolved for display."
+      },
+      "DaoExperimentVariantWrite": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the variant, unique within the experiment",
+            "examples": [
+              "b"
+            ]
+          },
+          "weight": {
+            "type": "integer",
+            "title": "Weight",
+            "description": "The percentage of the channel target's traffic this variant answers. The weights of an experiment's variants must add up to 100. (E.g., two variants with a weight of 50 each split the traffic evenly.)",
+            "examples": [
+              50
+            ]
+          },
+          "is_control": {
+            "type": "boolean",
+            "title": "Is Control",
+            "description": "Whether this is the reference variant the others are measured against",
+            "default": false
+          },
+          "agent_id": {
+            "type": "integer",
+            "title": "Agent Id",
+            "description": "The agent this variant runs",
+            "examples": [
+              1
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "weight",
+          "agent_id"
+        ],
+        "title": "DaoExperimentVariantWrite",
+        "description": "One variant of an experiment as it is written.\n\nVariants are always written as a complete set, because a weight only means anything next to the\nother weights, so there is no model for writing one on its own. The fields are checked by\n`ExperimentsDao._validate_variants` and not by the model, so that every rule about a variant\nreads in one place."
       },
       "DaoToolResponse": {
         "properties": {
@@ -19550,6 +21527,16 @@
               }
             ]
           },
+          "display_result": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Result",
+            "description": "Display-only presentation data for this tool result"
+          },
           "timestamp": {
             "type": "string",
             "format": "date-time",
@@ -19661,6 +21648,21 @@
                   "language": "en"
                 }
               ]
+            ]
+          },
+          "sip_transfer_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SipTransferMode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How to perform the SIP transfer, INVITE or REFER.",
+            "examples": [
+              "invite",
+              "refer"
             ]
           }
         },
@@ -20107,6 +22109,15 @@
         "title": "DirectoryMemberRestore",
         "description": "Request model to restore directory member."
       },
+      "DirectoryMemberStatus": {
+        "type": "string",
+        "enum": [
+          "all",
+          "active",
+          "deleted"
+        ],
+        "title": "DirectoryMemberStatus"
+      },
       "DirectoryMemberTestResponse": {
         "properties": {
           "extension": {
@@ -20132,6 +22143,18 @@
             ],
             "title": "Status",
             "description": "Status message if no rules match"
+          },
+          "sip_transfer_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sip Transfer Mode",
+            "description": "SIP transfer mode."
           }
         },
         "type": "object",
@@ -20256,6 +22279,657 @@
         ],
         "title": "DirectoryResponseFormat",
         "description": "Response shape selector for directory member APIs."
+      },
+      "DisplayActionMapping": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "text",
+              "link",
+              "button",
+              "message"
+            ],
+            "title": "Type"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "$ref": "#/components/schemas/DisplayValueSource"
+              }
+            ],
+            "title": "Text",
+            "default": ""
+          },
+          "icon": {
+            "type": "string",
+            "enum": [
+              "phone",
+              "email",
+              "chat",
+              "calendar",
+              "arrow"
+            ],
+            "title": "Icon",
+            "default": "arrow"
+          },
+          "link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "$ref": "#/components/schemas/DisplayValueSource"
+              }
+            ],
+            "title": "Link",
+            "default": ""
+          },
+          "actionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "$ref": "#/components/schemas/DisplayValueSource"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actionid"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "$ref": "#/components/schemas/DisplayValueSource"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "DisplayActionMapping"
+      },
+      "DisplayCardMapping": {
+        "properties": {
+          "media.imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "$ref": "#/components/schemas/DisplayValueSource"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Media.Imageurl"
+          },
+          "media.originalImageWidth": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "$ref": "#/components/schemas/DisplayValueSource"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Media.Originalimagewidth"
+          },
+          "media.originalImageHeight": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "$ref": "#/components/schemas/DisplayValueSource"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Media.Originalimageheight"
+          },
+          "media.maxHeight": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "$ref": "#/components/schemas/DisplayValueSource"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Media.Maxheight"
+          },
+          "content.header": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "$ref": "#/components/schemas/DisplayValueSource"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content.Header"
+          },
+          "content.subheader": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "$ref": "#/components/schemas/DisplayValueSource"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content.Subheader"
+          },
+          "content.description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "$ref": "#/components/schemas/DisplayValueSource"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content.Description"
+          },
+          "content.avatarImageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "$ref": "#/components/schemas/DisplayValueSource"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content.Avatarimageurl"
+          },
+          "content.contentAlwaysLeft": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "$ref": "#/components/schemas/DisplayValueSource"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content.Contentalwaysleft"
+          },
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/DisplayActionMapping"
+            },
+            "type": "array",
+            "title": "Actions"
+          },
+          "cta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DisplayCtaMapping"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "i18n": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/DisplayPhraseMapping"
+            },
+            "type": "object",
+            "title": "I18N",
+            "description": "Localized phrase metadata keyed by output card field path."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "DisplayCardMapping",
+        "description": "Supported mappings from one result item to the existing card shape."
+      },
+      "DisplayCtaMapping": {
+        "properties": {
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "$ref": "#/components/schemas/DisplayValueSource"
+              }
+            ],
+            "title": "Text",
+            "default": ""
+          },
+          "icon": {
+            "type": "string",
+            "enum": [
+              "phone",
+              "email",
+              "chat",
+              "calendar",
+              "arrow"
+            ],
+            "title": "Icon",
+            "default": "arrow"
+          },
+          "link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "$ref": "#/components/schemas/DisplayValueSource"
+              }
+            ],
+            "title": "Link",
+            "default": ""
+          },
+          "actionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "$ref": "#/components/schemas/DisplayValueSource"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actionid"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "$ref": "#/components/schemas/DisplayValueSource"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "DisplayCtaMapping"
+      },
+      "DisplayDateMapping": {
+        "properties": {
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "$ref": "#/components/schemas/DisplayValueSource"
+              }
+            ],
+            "title": "Value"
+          },
+          "skeleton": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skeleton"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "date",
+                  "time",
+                  "datetime"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "style": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "short",
+                  "medium",
+                  "long",
+                  "full"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Style"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "value"
+        ],
+        "title": "DisplayDateMapping",
+        "description": "A date value resolved from one result item before localization."
+      },
+      "DisplayPhraseMapping": {
+        "properties": {
+          "template": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Template"
+          },
+          "params": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "$ref": "#/components/schemas/DisplayValueSource"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Params"
+          },
+          "prose": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "$ref": "#/components/schemas/DisplayValueSource"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Prose"
+          },
+          "dates": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/DisplayDateMapping"
+            },
+            "type": "object",
+            "title": "Dates"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "template"
+        ],
+        "title": "DisplayPhraseMapping",
+        "description": "A producer-owned localized phrase with per-item dynamic values."
+      },
+      "DisplayValueSource": {
+        "properties": {
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "template": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template"
+          },
+          "default": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "DisplayValueSource",
+        "description": "Select or interpolate a value from one item in a tool result."
       },
       "EmailConfigurations": {
         "properties": {
@@ -20555,6 +23229,320 @@
         "type": "object",
         "title": "EventTaskEvents"
       },
+      "ExperimentCreateRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the experiment",
+            "examples": [
+              "Shorter greeting"
+            ]
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "The hypothesis under test"
+          },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/DaoExperimentVariantWrite"
+            },
+            "type": "array",
+            "title": "Variants",
+            "description": "The variants of the experiment, as a complete set. Two or more, each on a different agent, exactly one of them the control."
+          },
+          "target_id": {
+            "type": "integer",
+            "title": "Target Id",
+            "description": "The channel target being split",
+            "examples": [
+              1
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "target_id"
+        ],
+        "title": "ExperimentCreateRequest",
+        "description": "Request model to create an experiment."
+      },
+      "ExperimentProperties": {
+        "type": "string",
+        "enum": [
+          "id",
+          "name",
+          "name_exact",
+          "description",
+          "status",
+          "target_id",
+          "agent_id",
+          "created_at",
+          "updated_at",
+          "started_at",
+          "stopped_at"
+        ],
+        "title": "ExperimentProperties"
+      },
+      "ExperimentResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "The internal ID of the experiment",
+            "examples": [
+              1
+            ]
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the experiment",
+            "examples": [
+              "Shorter greeting"
+            ]
+          },
+          "target_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Id",
+            "description": "The channel target being split, or null if that target has since been deleted. A running experiment always has one.",
+            "examples": [
+              1
+            ]
+          },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/DaoExperimentVariantDetail"
+            },
+            "type": "array",
+            "title": "Variants",
+            "description": "The variants of the experiment, in a stable order"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "The hypothesis under test"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ExperimentStatus",
+            "description": "draft, running, or stopped"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At",
+            "description": "When the experiment started"
+          },
+          "stopped_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stopped At",
+            "description": "When the experiment stopped"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "When the experiment was created"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "When the experiment was last written"
+          },
+          "last_updated_by": {
+            "type": "string",
+            "title": "Last Updated By",
+            "description": "Who last wrote it"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DaoExperimentTargetSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The channel target being split, resolved for display. Null when the target has since been deleted, and when the read did not load it."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "target_id",
+          "variants",
+          "status",
+          "created_at",
+          "updated_at",
+          "last_updated_by"
+        ],
+        "title": "ExperimentResponse",
+        "description": "Response model for experiment operations.\n\nAn experiment splits the traffic of one channel target between two or more agents, so that the\nagents can be compared on the same population. One variant is the control the others are\nmeasured against. Each variant points at the agent that variant runs and carries the\npercentage of traffic it answers; the weights of an experiment add up to 100."
+      },
+      "ExperimentResultsResponse": {
+        "properties": {
+          "experiment_id": {
+            "type": "integer",
+            "title": "Experiment Id",
+            "description": "The internal ID of the experiment",
+            "examples": [
+              1
+            ]
+          },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/ExperimentVariantResult"
+            },
+            "type": "array",
+            "title": "Variants",
+            "description": "The variants of the experiment, in the same order as the experiment lists them"
+          }
+        },
+        "type": "object",
+        "required": [
+          "experiment_id",
+          "variants"
+        ],
+        "title": "ExperimentResultsResponse",
+        "description": "What an experiment has collected so far."
+      },
+      "ExperimentStartResponse": {
+        "properties": {
+          "experiment": {
+            "$ref": "#/components/schemas/ExperimentResponse",
+            "description": "The experiment, now running"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings",
+            "description": "Things that weaken the result without invalidating it, such as a variant whose agent does not pin a prompt version, so that the prompt can be edited while the experiment runs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "experiment"
+        ],
+        "title": "ExperimentStartResponse",
+        "description": "A started experiment."
+      },
+      "ExperimentStatus": {
+        "type": "string",
+        "enum": [
+          "draft",
+          "running",
+          "stopped"
+        ],
+        "title": "ExperimentStatus",
+        "description": "Status of an experiment.\n\nThe column is a varchar and not a database enum, so a new value here does not need a migration."
+      },
+      "ExperimentUpdateRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the experiment",
+            "examples": [
+              "Shorter greeting"
+            ]
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "The hypothesis under test"
+          },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/DaoExperimentVariantWrite"
+            },
+            "type": "array",
+            "title": "Variants",
+            "description": "The variants of the experiment, as a complete set. Two or more, each on a different agent, exactly one of them the control."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "ExperimentUpdateRequest",
+        "description": "Request model to update an experiment."
+      },
+      "ExperimentVariantResult": {
+        "properties": {
+          "variant_id": {
+            "type": "integer",
+            "title": "Variant Id",
+            "description": "The internal ID of the variant",
+            "examples": [
+              1
+            ]
+          },
+          "session_count": {
+            "type": "integer",
+            "title": "Session Count",
+            "description": "How many sessions this variant answered",
+            "examples": [
+              1050
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "variant_id",
+          "session_count"
+        ],
+        "title": "ExperimentVariantResult",
+        "description": "How much traffic one variant of an experiment handled."
+      },
       "ExpressionTask": {
         "properties": {
           "id": {
@@ -20850,7 +23838,7 @@
             "title": "Created At",
             "description": "Timestamp at which insight upload folder was created",
             "examples": [
-              "2026-08-16T00:00:00Z"
+              "2026-10-12T00:00:00Z"
             ]
           },
           "updated_at": {
@@ -20859,7 +23847,7 @@
             "title": "Updated At",
             "description": "Timestamp at which insight upload folder was last updated",
             "examples": [
-              "2026-08-17T00:00:00Z"
+              "2026-10-13T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -21054,6 +24042,35 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "Holiday": {
+        "type": "string",
+        "enum": [
+          "christmas-day",
+          "christmas-day-observed",
+          "christmas-eve",
+          "independence-day",
+          "independence-day-observed",
+          "indigenous-peoples-day",
+          "columbus-day",
+          "juneteenth",
+          "juneteenth-observed",
+          "labor-day",
+          "memorial-day",
+          "mlk-day",
+          "new-years-day",
+          "new-years-day-observed",
+          "new-years-eve",
+          "presidents-day",
+          "thanksgiving-day",
+          "thanksgiving-day-after",
+          "thanksgiving-day-before",
+          "veterans-day",
+          "veterans-day-observed",
+          "good-friday"
+        ],
+        "title": "Holiday",
+        "description": "All available named holidays"
       },
       "IncidentCreateRequest": {
         "properties": {
@@ -21862,7 +24879,7 @@
             "title": "Created At",
             "description": "Timestamp of at which insight tool configuration was created",
             "examples": [
-              "2026-08-16T00:00:00Z"
+              "2026-10-12T00:00:00Z"
             ]
           },
           "updated_at": {
@@ -21871,7 +24888,7 @@
             "title": "Updated At",
             "description": "Timestamp at which insight tool configuration was last updated",
             "examples": [
-              "2026-08-17T00:00:00Z"
+              "2026-10-13T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -21905,9 +24922,127 @@
           "description",
           "tool_arguments",
           "insight_tool_definition_id",
-          "updated_at"
+          "updated_at",
+          "lifecycle_status"
         ],
         "title": "InsightToolProperties"
+      },
+      "InsightToolResponse": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Human readable name of insight tool",
+            "examples": [
+              "summary-tool"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "description": "Text description of insight tool configuration",
+            "examples": [
+              "This tool uses GPT4.1 to generate a summary of the call"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version",
+            "description": "Version of insight tool",
+            "examples": [
+              1
+            ]
+          },
+          "tool_arguments": {
+            "title": "Tool Arguments",
+            "description": "Arguments for calling the insight tool",
+            "examples": [
+              {
+                "prompt": "Provide a concise, accurate summary of the conversation's key points, focusing on the user's goal and how the agent responded"
+              }
+            ]
+          },
+          "insight_tool_definition_id": {
+            "type": "integer",
+            "title": "Insight Tool Definition Id",
+            "description": "Unique ID for insight tool definition used by this tool configuration",
+            "examples": [
+              1
+            ]
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "Unique ID for insight tool",
+            "examples": [
+              1
+            ]
+          },
+          "insight_tool_definition": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InsightToolDefinition"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Insight Tool Definition"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Timestamp of at which insight tool configuration was created",
+            "examples": [
+              "2026-10-12T00:00:00Z"
+            ]
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "Timestamp at which insight tool configuration was last updated",
+            "examples": [
+              "2026-10-13T00:00:00Z"
+            ]
+          },
+          "last_updated_by": {
+            "type": "string",
+            "title": "Last Updated By",
+            "description": "Email of user who last updated insight tool configuration",
+            "examples": [
+              "user@email.com"
+            ]
+          },
+          "validation_issues": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ValidationIssue"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validation Issues",
+            "description": "Non-blocking findings for the saved insight tool (e.g. a deprecated model warning). Warnings and infos are informational; errors block the save."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "description",
+          "version",
+          "tool_arguments",
+          "insight_tool_definition_id",
+          "id",
+          "last_updated_by"
+        ],
+        "title": "InsightToolResponse",
+        "description": "Response model for insight tool saves, carrying any non-blocking findings."
       },
       "InsightToolTestInput": {
         "properties": {
@@ -22116,7 +25251,7 @@
               }
             ],
             "title": "Sheet Info",
-            "description": "Information about the sheet to be used for the workflow",
+            "description": "Legacy sheet metadata, retained for viewing retired workflows",
             "examples": [
               {
                 "sheet_id": "1AGOCYz05AZYYOMzow2EYlgdDXSXaWIhyA3-zCxBm4go",
@@ -22192,6 +25327,216 @@
         "title": "InsightWorkflowEstimate",
         "description": "Response model for an insight workflow."
       },
+      "InsightWorkflowExecutionOutput": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "Unique ID of the workflow execution row",
+            "examples": [
+              1
+            ]
+          },
+          "workflow_id": {
+            "type": "integer",
+            "title": "Workflow Id",
+            "description": "ID of the workflow this execution belongs to",
+            "examples": [
+              42
+            ]
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Status of the workflow execution",
+            "examples": [
+              "PENDING",
+              "PROCESSING",
+              "COMPLETED",
+              "FAILED"
+            ]
+          },
+          "priority": {
+            "type": "integer",
+            "title": "Priority",
+            "description": "Priority of the workflow execution",
+            "examples": [
+              0
+            ]
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id",
+            "description": "Session ID processed by this execution, if applicable",
+            "examples": [
+              12341
+            ]
+          },
+          "upload_file_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Upload File Id",
+            "description": "Upload file ID processed by this execution, if applicable",
+            "examples": [
+              12535
+            ]
+          },
+          "retry_count": {
+            "type": "integer",
+            "title": "Retry Count",
+            "description": "Number of times this execution has been retried",
+            "examples": [
+              0
+            ]
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message",
+            "description": "Error message from the last processing attempt, if any",
+            "examples": [
+              "LLM timeout"
+            ]
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At",
+            "description": "Timestamp at which the most recent processing attempt started",
+            "examples": [
+              "2026-10-13T00:00:00Z"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Timestamp at which the execution row was created (i.e. when the work was queued)",
+            "examples": [
+              "2026-10-12T00:00:00Z"
+            ]
+          },
+          "event_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Type",
+            "description": "Event type that triggered the execution, if applicable",
+            "examples": [
+              "BACKFILL"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "workflow_id",
+          "status",
+          "priority",
+          "retry_count",
+          "created_at"
+        ],
+        "title": "InsightWorkflowExecutionOutput",
+        "description": "Response model for a row in the insight_workflow_execution table."
+      },
+      "InsightWorkflowExecutionProperties": {
+        "type": "string",
+        "enum": [
+          "id",
+          "status",
+          "created_at",
+          "started_at",
+          "priority",
+          "session_id",
+          "upload_file_id",
+          "event_type",
+          "filename"
+        ],
+        "title": "InsightWorkflowExecutionProperties"
+      },
+      "InsightWorkflowExecutionSummary": {
+        "properties": {
+          "pending": {
+            "type": "integer",
+            "title": "Pending",
+            "description": "Rows in PENDING status",
+            "default": 0,
+            "examples": [
+              5
+            ]
+          },
+          "processing": {
+            "type": "integer",
+            "title": "Processing",
+            "description": "Rows in PROCESSING status",
+            "default": 0,
+            "examples": [
+              2
+            ]
+          },
+          "completed": {
+            "type": "integer",
+            "title": "Completed",
+            "description": "Rows in COMPLETED status",
+            "default": 0,
+            "examples": [
+              100
+            ]
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed",
+            "description": "Rows in FAILED status",
+            "default": 0,
+            "examples": [
+              3
+            ]
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Total rows across all statuses",
+            "default": 0,
+            "examples": [
+              110
+            ]
+          }
+        },
+        "type": "object",
+        "title": "InsightWorkflowExecutionSummary",
+        "description": "How many of a workflow's executions are in each status, optionally within a\ncreated_at date range. Counts cover all matching rows, not just one page."
+      },
       "InsightWorkflowInput": {
         "properties": {
           "name": {
@@ -22210,7 +25555,6 @@
               "agent",
               "transfer",
               "upload",
-              "sheet",
               "manual"
             ]
           },
@@ -22252,7 +25596,7 @@
             "title": "Start Datetime",
             "description": "Target session timestamp the workflow (backfill) should start. An empty value indicates start on activation - live sessions only",
             "examples": [
-              "2026-08-16T00:00:00Z"
+              "2026-10-12T00:00:00Z"
             ]
           },
           "end_datetime": {
@@ -22268,7 +25612,7 @@
             "title": "End Datetime",
             "description": "Target session timestamp the workflow (backfill) should end. An empty value indicates no end, i.e., include live sessions until deactivation",
             "examples": [
-              "2026-08-17T00:00:00Z"
+              "2026-10-13T00:00:00Z"
             ]
           }
         },
@@ -22301,7 +25645,6 @@
               "agent",
               "transfer",
               "upload",
-              "sheet",
               "manual"
             ]
           },
@@ -22343,7 +25686,7 @@
             "title": "Start Datetime",
             "description": "Target session timestamp the workflow (backfill) should start. An empty value indicates start on activation - live sessions only",
             "examples": [
-              "2026-08-16T00:00:00Z"
+              "2026-10-12T00:00:00Z"
             ]
           },
           "end_datetime": {
@@ -22359,7 +25702,7 @@
             "title": "End Datetime",
             "description": "Target session timestamp the workflow (backfill) should end. An empty value indicates no end, i.e., include live sessions until deactivation",
             "examples": [
-              "2026-08-17T00:00:00Z"
+              "2026-10-13T00:00:00Z"
             ]
           },
           "id": {
@@ -22427,7 +25770,7 @@
             "title": "Created At",
             "description": "Timestamp at which the insight workflow was created",
             "examples": [
-              "2026-08-16T00:00:00Z"
+              "2026-10-12T00:00:00Z"
             ]
           },
           "updated_at": {
@@ -22436,7 +25779,7 @@
             "title": "Updated At",
             "description": "Timestamp of most recent update to the insight workflow",
             "examples": [
-              "2026-08-17T00:00:00Z"
+              "2026-10-13T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -22445,6 +25788,22 @@
             "description": "Email of user who last updated Insight Workflow",
             "examples": [
               "user@email.com"
+            ]
+          },
+          "last_folder_upload_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Folder Upload At",
+            "description": "Timestamp of the most recent file upload to any folder associated with this workflow (null for non-upload workflows or until a file has been uploaded)",
+            "examples": [
+              "2026-10-13T00:00:00Z"
             ]
           }
         },
@@ -22474,9 +25833,206 @@
           "status",
           "conditions",
           "insight_tool_ids",
-          "updated_at"
+          "updated_at",
+          "lifecycle_status"
         ],
         "title": "InsightWorkflowProperties"
+      },
+      "InsightWorkflowResponse": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Human-readable name of insight workflow",
+            "examples": [
+              "summary-workflow"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "description": "Source of the workflow",
+            "examples": [
+              "agent",
+              "transfer",
+              "upload",
+              "manual"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "description": "Text description of workflow",
+            "examples": [
+              "Default workflow - generates a summary of the call"
+            ]
+          },
+          "insight_tool_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Insight Tool Ids",
+            "description": "Ordered list of IDs of tool configurations to be executed in the workflow",
+            "examples": [
+              [
+                1
+              ]
+            ]
+          },
+          "conditions": {
+            "$ref": "#/components/schemas/InsightWorkflowCondition",
+            "description": "Conditions (filters) on which a workflow should be triggered."
+          },
+          "start_datetime": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Datetime",
+            "description": "Target session timestamp the workflow (backfill) should start. An empty value indicates start on activation - live sessions only",
+            "examples": [
+              "2026-10-12T00:00:00Z"
+            ]
+          },
+          "end_datetime": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Datetime",
+            "description": "Target session timestamp the workflow (backfill) should end. An empty value indicates no end, i.e., include live sessions until deactivation",
+            "examples": [
+              "2026-10-13T00:00:00Z"
+            ]
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "Internal ID of the insight workflow",
+            "examples": [
+              1
+            ]
+          },
+          "insight_tools": {
+            "items": {
+              "$ref": "#/components/schemas/InsightToolResponse"
+            },
+            "type": "array",
+            "title": "Insight Tools",
+            "description": "Ordered tool configurations, including model lifecycle findings"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Status of the insight workflow",
+            "examples": [
+              "ACTIVE",
+              "INACTIVE"
+            ]
+          },
+          "estimate": {
+            "$ref": "#/components/schemas/InsightWorkflowEstimate",
+            "description": "Estimate of the number of calls that will be processed by the workflow and their cost"
+          },
+          "queue_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queue Count",
+            "description": "Number of calls in the workflow queue (pending or processing)",
+            "examples": [
+              10
+            ]
+          },
+          "failed_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failed Count",
+            "description": "Number of workflow executions currently in FAILED status",
+            "examples": [
+              2
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Timestamp at which the insight workflow was created",
+            "examples": [
+              "2026-10-12T00:00:00Z"
+            ]
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "Timestamp of most recent update to the insight workflow",
+            "examples": [
+              "2026-10-13T00:00:00Z"
+            ]
+          },
+          "last_updated_by": {
+            "type": "string",
+            "title": "Last Updated By",
+            "description": "Email of user who last updated Insight Workflow",
+            "examples": [
+              "user@email.com"
+            ]
+          },
+          "last_folder_upload_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Folder Upload At",
+            "description": "Timestamp of the most recent file upload to any folder associated with this workflow (null for non-upload workflows or until a file has been uploaded)",
+            "examples": [
+              "2026-10-13T00:00:00Z"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "source",
+          "description",
+          "insight_tool_ids",
+          "conditions",
+          "id",
+          "insight_tools",
+          "status",
+          "estimate",
+          "last_updated_by"
+        ],
+        "title": "InsightWorkflowResponse",
+        "description": "Workflow read response with lifecycle findings on every configured tool."
       },
       "InsightsFolder": {
         "properties": {
@@ -22532,7 +26088,7 @@
             "title": "Created At",
             "description": "Timestamp at which insight upload folder was created",
             "examples": [
-              "2026-08-16T00:00:00Z"
+              "2026-10-12T00:00:00Z"
             ]
           },
           "updated_at": {
@@ -22541,7 +26097,7 @@
             "title": "Updated At",
             "description": "Timestamp at which insight upload folder was last updated",
             "examples": [
-              "2026-08-17T00:00:00Z"
+              "2026-10-13T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -22791,7 +26347,7 @@
             "title": "Created At",
             "description": "Timestamp at which insight tool result was created",
             "examples": [
-              "2026-08-16T00:00:00Z"
+              "2026-10-12T00:00:00Z"
             ]
           },
           "updated_at": {
@@ -22800,7 +26356,7 @@
             "title": "Updated At",
             "description": "Timestamp at which insight tool result was last updated",
             "examples": [
-              "2026-08-17T00:00:00Z"
+              "2026-10-13T00:00:00Z"
             ]
           },
           "upload_file_metadata": {
@@ -22945,7 +26501,7 @@
             "title": "Start Time",
             "description": "Start time of the uploaded file",
             "examples": [
-              "2026-08-16T00:00:00Z"
+              "2026-10-12T00:00:00Z"
             ]
           },
           "end_time": {
@@ -22961,7 +26517,7 @@
             "title": "End Time",
             "description": "End time of the uploaded file",
             "examples": [
-              "2026-08-17T00:00:00Z"
+              "2026-10-13T00:00:00Z"
             ]
           },
           "error_message": {
@@ -23016,7 +26572,7 @@
             "title": "Created At",
             "description": "Timestamp at which insight upload file was created",
             "examples": [
-              "2026-08-16T00:00:00Z"
+              "2026-10-12T00:00:00Z"
             ]
           }
         },
@@ -23379,7 +26935,8 @@
           "description",
           "skip_current_language_in_message",
           "updated_at",
-          "last_updated_by"
+          "last_updated_by",
+          "lifecycle_status"
         ],
         "title": "LanguageGroupProperties",
         "description": "Deprecated enum mirroring `VoiceGroupProperties` values."
@@ -23503,6 +27060,21 @@
             "examples": [
               "user@mail.com"
             ]
+          },
+          "validation_issues": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ValidationIssue"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validation Issues",
+            "description": "Non-blocking findings for the saved voice group (e.g. a deprecated voice warning). Warnings and infos are informational; errors block the save."
           }
         },
         "type": "object",
@@ -23767,6 +27339,16 @@
           "nanoseconds"
         ],
         "title": "LatencyUnitType"
+      },
+      "LifecycleStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "deprecated",
+          "retired"
+        ],
+        "title": "LifecycleStatus",
+        "description": "Effective deprecation state of a model, resolved against a reference date."
       },
       "LineTypeBucket": {
         "type": "string",
@@ -24636,6 +28218,72 @@
         ],
         "title": "ListResponse[Event]"
       },
+      "ListResponse_ExperimentResponse_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ExperimentResponse"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "List of items returned from the query",
+            "examples": []
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page",
+            "description": "The page number of the results (0-based)",
+            "examples": [
+              0
+            ]
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size",
+            "description": "The number of items returned per page",
+            "examples": [
+              25
+            ]
+          },
+          "total_pages": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Pages",
+            "description": "The total number of pages of results given the indicated page size",
+            "examples": [
+              4
+            ]
+          },
+          "total_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Count",
+            "description": "The total number of items returned from the query",
+            "examples": [
+              100
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "page",
+          "page_size"
+        ],
+        "title": "ListResponse[ExperimentResponse]"
+      },
       "ListResponse_IncidentResponse_": {
         "properties": {
           "items": {
@@ -24702,11 +28350,11 @@
         ],
         "title": "ListResponse[IncidentResponse]"
       },
-      "ListResponse_InsightToolOutput_": {
+      "ListResponse_InsightToolResponse_": {
         "properties": {
           "items": {
             "items": {
-              "$ref": "#/components/schemas/InsightToolOutput"
+              "$ref": "#/components/schemas/InsightToolResponse"
             },
             "type": "array",
             "title": "Items",
@@ -24766,13 +28414,13 @@
           "page",
           "page_size"
         ],
-        "title": "ListResponse[InsightToolOutput]"
+        "title": "ListResponse[InsightToolResponse]"
       },
-      "ListResponse_InsightWorkflowOutput_": {
+      "ListResponse_InsightWorkflowExecutionOutput_": {
         "properties": {
           "items": {
             "items": {
-              "$ref": "#/components/schemas/InsightWorkflowOutput"
+              "$ref": "#/components/schemas/InsightWorkflowExecutionOutput"
             },
             "type": "array",
             "title": "Items",
@@ -24832,7 +28480,73 @@
           "page",
           "page_size"
         ],
-        "title": "ListResponse[InsightWorkflowOutput]"
+        "title": "ListResponse[InsightWorkflowExecutionOutput]"
+      },
+      "ListResponse_InsightWorkflowResponse_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/InsightWorkflowResponse"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "List of items returned from the query",
+            "examples": []
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page",
+            "description": "The page number of the results (0-based)",
+            "examples": [
+              0
+            ]
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size",
+            "description": "The number of items returned per page",
+            "examples": [
+              25
+            ]
+          },
+          "total_pages": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Pages",
+            "description": "The total number of pages of results given the indicated page size",
+            "examples": [
+              4
+            ]
+          },
+          "total_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Count",
+            "description": "The total number of items returned from the query",
+            "examples": [
+              100
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "page",
+          "page_size"
+        ],
+        "title": "ListResponse[InsightWorkflowResponse]"
       },
       "ListResponse_InsightsFolder_": {
         "properties": {
@@ -25758,6 +29472,138 @@
         ],
         "title": "ListResponse[VoiceGroupResponse]"
       },
+      "ListResponse_WorkflowFileRow_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowFileRow"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "List of items returned from the query",
+            "examples": []
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page",
+            "description": "The page number of the results (0-based)",
+            "examples": [
+              0
+            ]
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size",
+            "description": "The number of items returned per page",
+            "examples": [
+              25
+            ]
+          },
+          "total_pages": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Pages",
+            "description": "The total number of pages of results given the indicated page size",
+            "examples": [
+              4
+            ]
+          },
+          "total_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Count",
+            "description": "The total number of items returned from the query",
+            "examples": [
+              100
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "page",
+          "page_size"
+        ],
+        "title": "ListResponse[WorkflowFileRow]"
+      },
+      "ListResponse_WorkflowSessionRow_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowSessionRow"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "List of items returned from the query",
+            "examples": []
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page",
+            "description": "The page number of the results (0-based)",
+            "examples": [
+              0
+            ]
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size",
+            "description": "The number of items returned per page",
+            "examples": [
+              25
+            ]
+          },
+          "total_pages": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Pages",
+            "description": "The total number of pages of results given the indicated page size",
+            "examples": [
+              4
+            ]
+          },
+          "total_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Count",
+            "description": "The total number of items returned from the query",
+            "examples": [
+              100
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "page",
+          "page_size"
+        ],
+        "title": "ListResponse[WorkflowSessionRow]"
+      },
       "LoadToolFromFileTask": {
         "properties": {
           "id": {
@@ -26041,6 +29887,7 @@
             "description": "Telephony configurations to be applied to the targets under the channel",
             "examples": [
               {
+                "async_enabled": true,
                 "interruptibility": "dtmf_only",
                 "overall_input_timeout": 20.0,
                 "passive_input_start": 0.5,
@@ -26048,6 +29895,7 @@
                 "pre_input_timeout": 1.2
               },
               {
+                "async_enabled": true,
                 "sip_configuration": {
                   "call_info_placement": "sip_header:P-Asserted-Identity",
                   "sip_endpoints": [
@@ -26066,6 +29914,7 @@
                 }
               },
               {
+                "async_enabled": true,
                 "sip_configuration": {
                   "call_info_placement": "uri_parameters",
                   "sip_endpoints": [
@@ -26078,6 +29927,7 @@
                 }
               },
               {
+                "async_enabled": true,
                 "sip_configuration": {
                   "call_info_placement": "to_parameters",
                   "sip_transfer_mode": "refer"
@@ -26155,6 +30005,7 @@
                 "account_sid": "AC123",
                 "auth_token": "sometoken",
                 "telephony": {
+                  "async_enabled": true,
                   "interruptibility": "dtmf_only",
                   "passive_input_start": 0.5,
                   "passive_speech_input_enabled": true,
@@ -26167,6 +30018,7 @@
                   "username": "test_username"
                 },
                 "telephony": {
+                  "async_enabled": true,
                   "interruptibility": "dtmf_only",
                   "passive_input_start": 0.5,
                   "passive_speech_input_enabled": true,
@@ -26234,6 +30086,7 @@
                 "account_sid": "AC123",
                 "auth_token": "sometoken",
                 "telephony": {
+                  "async_enabled": true,
                   "interruptibility": "dtmf_only",
                   "passive_input_start": 0.5,
                   "passive_speech_input_enabled": true,
@@ -26246,6 +30099,7 @@
                   "username": "test_username"
                 },
                 "telephony": {
+                  "async_enabled": true,
                   "interruptibility": "dtmf_only",
                   "passive_input_start": 0.5,
                   "passive_speech_input_enabled": true,
@@ -26827,6 +30681,38 @@
               "[\"mon\", \"tue\", \"wed\", \"thu\", \"fri\"]"
             ]
           },
+          "outreach_override_rules": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OutreachOverrideRules"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Weekday- and date-specific outreach windows and daily maximums. The most specific rule wins: date, then weekday, then the campaign defaults above. Omitted or null means the campaign defaults apply to every active day.",
+            "examples": [
+              {
+                "dates": {
+                  "2026-11-26": {
+                    "active": false
+                  }
+                },
+                "days": {
+                  "fri": {
+                    "daily_end_time": "15:00:00",
+                    "max_daily_calls": 1300
+                  },
+                  "sat": {
+                    "max_daily_calls": 0
+                  },
+                  "thu": {
+                    "max_daily_calls": 1300
+                  }
+                }
+              }
+            ]
+          },
           "voicemail_detection": {
             "anyOf": [
               {
@@ -26884,7 +30770,7 @@
                 "type": "null"
               }
             ],
-            "description": "Generic target filter (a flat rule list over request enrichment attributes such as line_type, carrier_name, mcc, mnc). When set, takes precedence over allowed_line_types / include_unknown_line_types. Omitted or null means those legacy fields are used instead.",
+            "description": "Generic target filter (a flat rule list over request enrichment attributes such as line_type, caller_type, caller_name, carrier_name, mcc, mnc). When set, takes precedence over allowed_line_types / include_unknown_line_types. Omitted or null means those legacy fields are used instead. Rules on caller_type / caller_name are resolved by Twilio's separately billed caller_name (CNAM) lookup, which only returns data for US numbers.",
             "examples": [
               {
                 "match": "any",
@@ -26939,7 +30825,7 @@
             "title": "Created At",
             "description": "Timestamp of campaign creation",
             "examples": [
-              "2026-08-17T00:00:00Z"
+              "2026-10-13T00:00:00Z"
             ]
           },
           "updated_at": {
@@ -26948,7 +30834,7 @@
             "title": "Updated At",
             "description": "Timestamp of campaign update",
             "examples": [
-              "2026-08-17T00:00:00Z"
+              "2026-10-13T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -27229,6 +31115,38 @@
               "[\"mon\", \"tue\", \"wed\", \"thu\", \"fri\"]"
             ]
           },
+          "outreach_override_rules": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OutreachOverrideRules"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Weekday- and date-specific outreach windows and daily maximums. The most specific rule wins: date, then weekday, then the campaign defaults above. Omitted or null means the campaign defaults apply to every active day.",
+            "examples": [
+              {
+                "dates": {
+                  "2026-11-26": {
+                    "active": false
+                  }
+                },
+                "days": {
+                  "fri": {
+                    "daily_end_time": "15:00:00",
+                    "max_daily_calls": 1300
+                  },
+                  "sat": {
+                    "max_daily_calls": 0
+                  },
+                  "thu": {
+                    "max_daily_calls": 1300
+                  }
+                }
+              }
+            ]
+          },
           "voicemail_detection": {
             "anyOf": [
               {
@@ -27286,7 +31204,7 @@
                 "type": "null"
               }
             ],
-            "description": "Generic target filter (a flat rule list over request enrichment attributes such as line_type, carrier_name, mcc, mnc). When set, takes precedence over allowed_line_types / include_unknown_line_types. Omitted or null means those legacy fields are used instead.",
+            "description": "Generic target filter (a flat rule list over request enrichment attributes such as line_type, caller_type, caller_name, carrier_name, mcc, mnc). When set, takes precedence over allowed_line_types / include_unknown_line_types. Omitted or null means those legacy fields are used instead. Rules on caller_type / caller_name are resolved by Twilio's separately billed caller_name (CNAM) lookup, which only returns data for US numbers.",
             "examples": [
               {
                 "match": "any",
@@ -27486,6 +31404,49 @@
           "id"
         ],
         "title": "OutboundCampaignWebhookResponse"
+      },
+      "OutreachOverrideRules": {
+        "properties": {
+          "days": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ScheduleOverride"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/DaysOfWeek"
+            },
+            "type": "object",
+            "title": "Days",
+            "description": "Rules by weekday. Full names (monday) and short names (mon) are both accepted; they are stored as short names. Days that are absent use the campaign defaults.",
+            "examples": [
+              {
+                "sat": {
+                  "max_daily_calls": 0
+                },
+                "thu": {
+                  "max_daily_calls": 1300
+                }
+              }
+            ]
+          },
+          "dates": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ScheduleOverride"
+            },
+            "type": "object",
+            "title": "Dates",
+            "description": "Rules by calendar date, keyed YYYY-MM-DD. A date rule wins over the weekday rule for that date.",
+            "examples": [
+              {
+                "2026-11-26": {
+                  "active": false
+                }
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "OutreachOverrideRules",
+        "description": "Weekday- and date-specific outreach rules for a campaign.\n\nThe most specific rule wins: a rule for the calendar date, then a rule for the weekday, then the\ncampaign defaults (``daily_start_time`` / ``daily_end_time`` / ``max_daily_calls`` /\n``active_days``). Resolution is per field, so a date rule that only moves the end time still uses\nthe weekday cap. All days, dates and times are in the time zone of the agent the campaign dials\nfrom -- see ``lib.outbound.schedule``."
       },
       "PermissionGroupResponse": {
         "properties": {
@@ -27694,7 +31655,52 @@
         "title": "PromptCreateRequest",
         "description": "Request model to create a prompt."
       },
-      "PromptHistory": {
+      "PromptHistoryLinkedTool": {
+        "properties": {
+          "tool_id": {
+            "type": "integer",
+            "title": "Tool Id",
+            "description": "ID of the tool",
+            "examples": [
+              1
+            ]
+          },
+          "current_tool_name": {
+            "type": "string",
+            "title": "Current Tool Name",
+            "description": "Current name of the tool (may have been different at the time the given version of the prompt was created)",
+            "examples": [
+              "hangup"
+            ]
+          },
+          "out_of_date": {
+            "type": "boolean",
+            "title": "Out Of Date",
+            "description": "Whether the tool has changed (not including being deleted) since the given version of the prompt was created",
+            "examples": [
+              false
+            ]
+          },
+          "deleted": {
+            "type": "boolean",
+            "title": "Deleted",
+            "description": "Whether the tool has been deleted since the given version of the prompt was created",
+            "examples": [
+              false
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "tool_id",
+          "current_tool_name",
+          "out_of_date",
+          "deleted"
+        ],
+        "title": "PromptHistoryLinkedTool",
+        "description": "Record of a tool linked to a previous prompt version in the prompt history."
+      },
+      "PromptHistoryResponse": {
         "properties": {
           "timestamp": {
             "type": "string",
@@ -27813,6 +31819,21 @@
             "examples": [
               true
             ]
+          },
+          "validation_issues": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ValidationIssue"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validation Issues",
+            "description": "Lifecycle findings for the model this version was saved on."
           }
         },
         "type": "object",
@@ -27825,53 +31846,8 @@
           "user_email",
           "is_pre_enhancements"
         ],
-        "title": "PromptHistory",
-        "description": "Record of a specific version of a prompt."
-      },
-      "PromptHistoryLinkedTool": {
-        "properties": {
-          "tool_id": {
-            "type": "integer",
-            "title": "Tool Id",
-            "description": "ID of the tool",
-            "examples": [
-              1
-            ]
-          },
-          "current_tool_name": {
-            "type": "string",
-            "title": "Current Tool Name",
-            "description": "Current name of the tool (may have been different at the time the given version of the prompt was created)",
-            "examples": [
-              "hangup"
-            ]
-          },
-          "out_of_date": {
-            "type": "boolean",
-            "title": "Out Of Date",
-            "description": "Whether the tool has changed (not including being deleted) since the given version of the prompt was created",
-            "examples": [
-              false
-            ]
-          },
-          "deleted": {
-            "type": "boolean",
-            "title": "Deleted",
-            "description": "Whether the tool has been deleted since the given version of the prompt was created",
-            "examples": [
-              false
-            ]
-          }
-        },
-        "type": "object",
-        "required": [
-          "tool_id",
-          "current_tool_name",
-          "out_of_date",
-          "deleted"
-        ],
-        "title": "PromptHistoryLinkedTool",
-        "description": "Record of a tool linked to a previous prompt version in the prompt history."
+        "title": "PromptHistoryResponse",
+        "description": "A historical prompt version, with the lifecycle of the model it was pinned to.\n\nAgents pinned to an old version run that version's model, so a retired model in the history is\nas much of a problem as one on the current version."
       },
       "PromptLlmConfig": {
         "properties": {
@@ -27986,7 +31962,8 @@
           "last_updated",
           "last_updated_by",
           "agent_count",
-          "session_end_enabled"
+          "session_end_enabled",
+          "lifecycle_status"
         ],
         "title": "PromptProperties",
         "description": "Names of prompt fields supported for filtering/sorting on list endpoint."
@@ -28198,6 +32175,21 @@
             "title": "Tools Full",
             "description": "Full definitions of tools to which the prompt has access",
             "examples": []
+          },
+          "validation_issues": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ValidationIssue"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validation Issues",
+            "description": "Non-blocking findings for the saved prompt (e.g. a deprecated model warning). Warnings and infos are informational; errors block the save."
           }
         },
         "type": "object",
@@ -28530,6 +32522,37 @@
         ],
         "title": "RequestStatusBreakdown",
         "description": "Per-request_status breakdown with total count and optional channel_manager_status counts."
+      },
+      "ResponseDisplayConfig": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Version",
+            "default": 1
+          },
+          "type": {
+            "type": "string",
+            "const": "card-list",
+            "title": "Type"
+          },
+          "items_path": {
+            "type": "string",
+            "title": "Items Path"
+          },
+          "mapping": {
+            "$ref": "#/components/schemas/DisplayCardMapping"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "items_path",
+          "mapping"
+        ],
+        "title": "ResponseDisplayConfig",
+        "description": "Declarative presentation metadata stored with a tool definition."
       },
       "RoleCreateRequest": {
         "properties": {
@@ -28918,6 +32941,74 @@
           "text"
         ],
         "title": "SayAction"
+      },
+      "ScheduleOverride": {
+        "properties": {
+          "active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active",
+            "description": "Whether the campaign does outreach on this day. Omitted inherits: a weekday rule inherits from active_days, a date rule inherits from the weekday rule. Set it to false to close one date, for example a holiday, without a change to active_days.",
+            "examples": [
+              false
+            ]
+          },
+          "daily_start_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Start Time",
+            "description": "Start time on this day. Omitted keeps the campaign start time.",
+            "examples": [
+              "08:00:00"
+            ]
+          },
+          "daily_end_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily End Time",
+            "description": "End time on this day. Omitted keeps the campaign end time.",
+            "examples": [
+              "20:00:00"
+            ]
+          },
+          "max_daily_calls": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Daily Calls",
+            "description": "Maximum number of unique reference IDs that get outreach on this day. Omitted keeps the campaign maximum. Retries do not count towards it and keep dialing once it is reached. 0 is different: it closes the day for all outreach, retries included.",
+            "examples": [
+              1300
+            ]
+          }
+        },
+        "type": "object",
+        "title": "ScheduleOverride",
+        "description": "Outreach window and/or daily cap for one weekday or one calendar date.\n\nEvery field may be omitted, and an omitted field inherits the campaign default: an override that\nonly sets ``max_daily_calls`` keeps the campaign window, and one that only sets the times keeps\nthe campaign cap. ``max_daily_calls: 0`` is not inheritance -- it is an explicit \"no outreach on\nthis day\", which is the shape the Outbound Scheduler daily_limit config already uses. It closes\nthe day for retries as well as for first attempts, the same way ``active: false`` does; a\nnon-zero maximum bounds first attempts only and lets retries run on."
       },
       "ServiceCreateRequest": {
         "properties": {
@@ -29361,6 +33452,54 @@
             ],
             "title": "Prompt Version Number",
             "description": "Prompt version number used by the agent with which the session occurred (new system)"
+          },
+          "experiment_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Experiment Id",
+            "description": "ID of the agent experiment that was running on the channel target when the session started. Null when no experiment was running, which is the usual case."
+          },
+          "experiment_variant_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Experiment Variant Id",
+            "description": "ID of the experiment variant that answered the session"
+          },
+          "experiment_variant": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Experiment Variant",
+            "description": "Name of the experiment variant that answered the session."
+          },
+          "experiment_variant_is_control": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Experiment Variant Is Control",
+            "description": "Whether the experiment variant that answered the session is the control"
           },
           "duration": {
             "anyOf": [
@@ -29878,6 +34017,8 @@
           "agent_name",
           "prompt_id",
           "prompt_name",
+          "experiment_id",
+          "experiment_variant_id",
           "source",
           "target",
           "duration",
@@ -30020,6 +34161,17 @@
             ],
             "title": "Text",
             "description": "Content of the message"
+          },
+          "stt_confidence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TranscriptConfidence"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The STT provider's confidence for a user utterance. Absent on agent turns, and on user turns whose backend reported nothing -- absence means \"not captured\", never \"the provider was certain this was wrong\". NOT one comparable quantity: read `provider` and `utterance_source` before interpreting a value, and do not aggregate across providers. Deepgram reports a genuine acoustic confidence and a per-word breakdown; Google reports an utterance score its own documentation disclaims and no words; on Deepgram Flux the utterance score is the weakest word, computed by us rather than reported."
           }
         },
         "type": "object",
@@ -30088,6 +34240,15 @@
             "type": "array",
             "title": "Actions",
             "description": "Tool invocations that occurred during the session"
+          },
+          "transcript_complete": {
+            "type": "boolean",
+            "title": "Transcript Complete",
+            "description": "True when every record the session reported writing is present, across both the spoken transcript and the tool activity in `actions`. False means the record cannot be confirmed complete. Callers should re-request until this is true, or until their own time limit passes. A limit is required rather than advisable, because three of the cases behind a False never turn true: a session still in progress, a session whose channel reports no expected count - only voice does today, so this is every web chat, SMS and email session - and any session that ended before this field was introduced.",
+            "default": false,
+            "examples": [
+              true
+            ]
           }
         },
         "type": "object",
@@ -30910,9 +35071,78 @@
           "deprecated": {
             "type": "boolean",
             "title": "Deprecated",
-            "description": "Whether the LLM config is deprecated and should not be used.",
+            "description": "Whether the model is in the deprecation warning window.",
             "examples": [
               false
+            ]
+          },
+          "sunset_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sunset Date",
+            "description": "Date the model becomes retired and can no longer be saved or selected.",
+            "examples": [
+              null
+            ]
+          },
+          "removed": {
+            "type": "boolean",
+            "title": "Removed",
+            "description": "Whether the model is force-retired regardless of sunset_date.",
+            "default": false,
+            "examples": [
+              false
+            ]
+          },
+          "fallback": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fallback",
+            "description": "Model substituted at runtime for critical features once this one is retired.",
+            "examples": [
+              null
+            ]
+          },
+          "replacement": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replacement",
+            "description": "Provider-recommended replacement for this model version; no automatic substitution.",
+            "examples": [
+              null
+            ]
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LifecycleStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Effective lifecycle status, resolved server-side against the current date. Populated on API responses; unset in the static catalog.",
+            "examples": [
+              "active"
             ]
           }
         },
@@ -30923,6 +35153,96 @@
         ],
         "title": "SupportedLlm",
         "description": "LLM config option that can be used on a prompt."
+      },
+      "SupportedSttProvider": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "description": "Speech-to-text provider value, as stored on the agent.",
+            "examples": [
+              "Google STT V2"
+            ]
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name",
+            "description": "Human-readable name of the provider.",
+            "examples": [
+              "Google STT V2"
+            ]
+          },
+          "deprecated": {
+            "type": "boolean",
+            "title": "Deprecated",
+            "description": "Whether the provider is in the deprecation warning window.",
+            "default": false,
+            "examples": [
+              false
+            ]
+          },
+          "sunset_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sunset Date",
+            "description": "Date the provider becomes retired and can no longer be saved or selected.",
+            "examples": [
+              null
+            ]
+          },
+          "removed": {
+            "type": "boolean",
+            "title": "Removed",
+            "description": "Whether the provider is force-retired regardless of sunset_date.",
+            "default": false,
+            "examples": [
+              false
+            ]
+          },
+          "fallback": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fallback",
+            "description": "Provider substituted at runtime for critical features once this one is retired.",
+            "examples": [
+              null
+            ]
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LifecycleStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Effective lifecycle status, resolved server-side against the current date.",
+            "examples": [
+              "active"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider",
+          "display_name"
+        ],
+        "title": "SupportedSttProvider",
+        "description": "An STT provider offered to agents, with its resolved deprecation lifecycle."
       },
       "TakeoutRequestStatus": {
         "type": "string",
@@ -30981,6 +35301,7 @@
             "description": "Enrichment attribute to match on (a key in the request enrichment payload).",
             "examples": [
               "line_type",
+              "caller_type",
               "carrier_name",
               "mnc"
             ]
@@ -31015,7 +35336,7 @@
           "op"
         ],
         "title": "TargetFilterRule",
-        "description": "A single predicate over one enrichment attribute of an outbound request.\n\n``field`` names a key in the request's enrichment payload (e.g. ``line_type``, ``carrier_name``,\n``mcc``, ``mnc``). Any attribute captured at lookup time can be filtered on with no code change."
+        "description": "A single predicate over one enrichment attribute of an outbound request.\n\n``field`` names a key in the request's enrichment payload (e.g. ``line_type``, ``caller_type``,\n``caller_name``, ``carrier_name``, ``mcc``, ``mnc``). Any attribute captured at lookup time can be\nfiltered on with no code change.\n\nWhich Twilio Lookup data packages get requested (and billed) for a campaign is derived from the\nfields its rules reference, so a rule on ``caller_type`` / ``caller_name`` is what turns on the\nseparately billed ``caller_name`` package."
       },
       "TargetFilters": {
         "properties": {
@@ -31040,7 +35361,7 @@
               "exclude"
             ],
             "title": "On Unknown",
-            "description": "Whether to dial requests whose enrichment is unresolved (no lookup data).",
+            "description": "Whether to dial requests whose enrichment is unresolved (no lookup data). Applied per rule: it decides what a rule contributes when *that rule's* attribute is unresolved, and never overrides a rule the request definitively failed -- so a request that fails one rule is still skipped even if a different rule's attribute is missing. \"Unresolved\" covers a missing value and also the value Twilio returns to mean \"looked up, could not answer\": for line_type that is 'unknown' (a valid number whose line type it could not determine), and for caller_type both no CNAM data at all (non-US numbers) and 'UNDETERMINED' (a US number it looked up but could not classify).",
             "default": "include",
             "examples": [
               "include",
@@ -31066,10 +35387,10 @@
                   ]
                 },
                 {
-                  "field": "carrier_name",
+                  "field": "caller_type",
                   "op": "in",
                   "values": [
-                    "Onvoy, LLC - Sinch"
+                    "BUSINESS"
                   ]
                 }
               ]
@@ -31212,7 +35533,8 @@
               }
             ],
             "title": "Async Enabled",
-            "description": "Whether asynchronous mode is enabled for the conversation"
+            "description": "Whether asynchronous mode is enabled for the conversation",
+            "default": true
           },
           "transfer_leg_voicemail_detection_enabled": {
             "anyOf": [
@@ -31278,6 +35600,7 @@
           },
           "agent_id": {
             "type": "string",
+            "pattern": "^[1-9][0-9]*$",
             "title": "Agent Id",
             "description": "ID of the agent with which the chat is taking place"
           },
@@ -31818,6 +36141,17 @@
             ],
             "description": "The options for the tool. Ie allows to propagate the tool result to the caller via propagate_tool_result flag.",
             "examples": []
+          },
+          "response_display": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResponseDisplayConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional mapping used to format propagated results in live chat responses."
           }
         },
         "type": "object",
@@ -32796,6 +37130,129 @@
         ],
         "title": "ToolUpdateRequest",
         "description": "Request model to update an existing tool."
+      },
+      "TranscriptConfidence": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "utterance": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Utterance"
+          },
+          "utterance_source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "provider",
+                  "derived_min"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Utterance Source"
+          },
+          "words": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/TranscriptWordConfidence"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Words"
+          },
+          "words_truncated": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Words Truncated"
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider"
+        ],
+        "title": "TranscriptConfidence",
+        "description": "The STT provider's confidence for one user utterance.\n\nProvenance travels with the score because confidence is NOT comparable across providers:\nDeepgram publishes a genuine acoustic confidence, while Google's proto disclaims the field and\nChirp 2's documentation states the value \"isn't truly a confidence score\". A bare float read\nwithout knowing which backend produced it cannot be interpreted.\n\n`utterance_source` distinguishes a number the provider reported for exactly this text from one\nwe computed -- the weakest word, or the weakest across a merged turn. Absent entirely when the\nbackend reports nothing, so the transcript flow is unaffected. See ZOO-8595."
+      },
+      "TranscriptWordConfidence": {
+        "properties": {
+          "word": {
+            "type": "string",
+            "title": "Word"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start"
+          },
+          "end": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End"
+          }
+        },
+        "type": "object",
+        "required": [
+          "word"
+        ],
+        "title": "TranscriptWordConfidence",
+        "description": "Per-word STT confidence. `word` prefers the provider's punctuated form so the stored words\nread the same way as the transcript they came from."
       },
       "TtsProvider": {
         "type": "string",
@@ -33810,7 +38267,8 @@
           "description",
           "skip_current_language_in_message",
           "updated_at",
-          "last_updated_by"
+          "last_updated_by",
+          "lifecycle_status"
         ],
         "title": "VoiceGroupProperties",
         "description": "Names of voice group fields supported for filtering/sorting on list endpoint."
@@ -33934,6 +38392,21 @@
             "examples": [
               "user@mail.com"
             ]
+          },
+          "validation_issues": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ValidationIssue"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validation Issues",
+            "description": "Non-blocking findings for the saved voice group (e.g. a deprecated voice warning). Warnings and infos are informational; errors block the save."
           }
         },
         "type": "object",
@@ -34179,12 +38652,234 @@
               }
             ],
             "title": "Voicemail Detection Speech Threshold"
+          },
+          "voicemail_detection_v2_pre_speech_timeout": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voicemail Detection V2 Pre Speech Timeout"
           }
         },
         "additionalProperties": true,
         "type": "object",
         "title": "VoicemailDetectionConfig",
         "description": "Voicemail detection config stored on outbound_campaign.voicemail_detection.\n\n`mode` selects the (mutually-exclusive) strategy; the remaining fields are detection timeouts.\nUnknown keys are preserved (`extra='allow'`) so the schema stays backwards compatible with blobs\nwritten before fields were added. See ZOO-7818."
+      },
+      "WorkflowFileRow": {
+        "properties": {
+          "upload_file_id": {
+            "type": "integer",
+            "title": "Upload File Id",
+            "description": "Upload file ID",
+            "examples": [
+              88
+            ]
+          },
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename",
+            "description": "Name of the uploaded file; null only when the file is entirely deleted",
+            "examples": [
+              "customer-complaints.wav"
+            ]
+          },
+          "analyzed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Analyzed At",
+            "description": "When the workflow execution started processing this file; null while the row is still PENDING",
+            "examples": [
+              "2026-10-13T00:00:00Z"
+            ]
+          },
+          "queued_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Queued At",
+            "description": "When the file was queued for this workflow",
+            "examples": [
+              "2026-10-13T00:00:00Z"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Execution status of this file under the workflow",
+            "examples": [
+              "PENDING",
+              "PROCESSING",
+              "COMPLETED",
+              "FAILED"
+            ]
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message",
+            "description": "Error message from the last processing attempt, if any",
+            "examples": [
+              "LLM timeout"
+            ]
+          },
+          "results": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "items": {},
+                "type": "array"
+              },
+              "type": "object"
+            },
+            "type": "object",
+            "title": "Results",
+            "description": "Results per tool, keyed by tool name then insight_key. Each insight_key holds a list of values: a single value comes back as a one-item list.",
+            "examples": [
+              {
+                "intent-v2": {
+                  "intents": [
+                    "Pharmacy/Refill",
+                    "Billing"
+                  ]
+                },
+                "summarizer-v1": {
+                  "summary": [
+                    "Caller left a voicemail about a prescription refill."
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "upload_file_id",
+          "queued_at",
+          "status"
+        ],
+        "title": "WorkflowFileRow",
+        "description": "One uploaded file under a workflow: its execution status plus the insight\nresults, grouped by tool name and then by ``insight_key`` in the ``results``\ndict.\n\nA file that is still pending, processing, or failed has an empty ``results``\ndict; ``status`` and ``error_message`` say why."
+      },
+      "WorkflowSessionRow": {
+        "properties": {
+          "session_id": {
+            "type": "integer",
+            "title": "Session Id",
+            "description": "Session ID",
+            "examples": [
+              15702
+            ]
+          },
+          "analyzed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Analyzed At",
+            "description": "When the workflow execution started processing this session; null while the row is still PENDING",
+            "examples": [
+              "2026-10-13T00:00:00Z"
+            ]
+          },
+          "queued_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Queued At",
+            "description": "When the session was queued for this workflow",
+            "examples": [
+              "2026-10-13T00:00:00Z"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Execution status of this session under the workflow",
+            "examples": [
+              "PENDING",
+              "PROCESSING",
+              "COMPLETED",
+              "FAILED"
+            ]
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message",
+            "description": "Error message from the last processing attempt, if any",
+            "examples": [
+              "LLM timeout"
+            ]
+          },
+          "results": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "items": {},
+                "type": "array"
+              },
+              "type": "object"
+            },
+            "type": "object",
+            "title": "Results",
+            "description": "Results per tool, keyed by tool name then insight_key. Each insight_key holds a list of values: a single value comes back as a one-item list.",
+            "examples": [
+              {
+                "intent-v2": {
+                  "intents": [
+                    "Pharmacy/Refill",
+                    "Billing"
+                  ]
+                },
+                "summarizer-v1": {
+                  "summary": [
+                    "Caller returned a call about lab results."
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "queued_at",
+          "status"
+        ],
+        "title": "WorkflowSessionRow",
+        "description": "One session under a workflow: its execution status plus the insight results,\ngrouped by tool name and then by ``insight_key`` in the ``results`` dict.\n\nA session that is still pending, processing, or failed has an empty\n``results`` dict; ``status`` and ``error_message`` say why."
       },
       "lib__database__dao__organization__bridge_phrases_dao__BridgePhraseMessages": {
         "properties": {
@@ -34459,6 +39154,18 @@
     {
       "operationId": ".*_upload_file$",
       "methodNameOverride": "upload_file"
+    },
+    {
+      "operationId": ".*_executions$",
+      "methodNameOverride": "list_executions"
+    },
+    {
+      "operationId": ".*_sessions$",
+      "methodNameOverride": "list_sessions"
+    },
+    {
+      "operationId": ".*_executions_summary$",
+      "methodNameOverride": "executions_summary"
     }
   ]
 }
