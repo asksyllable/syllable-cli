@@ -1,0 +1,12 @@
+{
+  "name": "syllable-cli-sdk-parity",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "test": "node parity.cjs",
+    "refresh-manifest": "node generate-manifest.cjs"
+  },
+  "dependencies": {
+    "syllable-sdk": "1.0.68"
+  }
+}
