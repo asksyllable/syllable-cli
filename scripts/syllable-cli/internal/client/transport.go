@@ -55,18 +55,45 @@ func (c *Client) execute(req *http.Request, operationTimeout *time.Duration) (*h
 	current := req.Clone(req.Context())
 	var previousResponse *http.Response
 	var previousError error
+	var retire io.Closer
 	for attempt := 0; ; attempt++ {
 		// The initial attempt is governed only by the request timeout. Retry
 		// preparation, backoff, and cleanup must leave time for a new attempt.
 		if attempt > 0 && req.Context().Err() != nil {
 			closeRequestBody(current)
+			closeResponseBody(previousResponse)
 			return nil, req.Context().Err()
 		}
 		if attempt > 0 && !retryBudgetAvailable(retryDeadline, 0) {
 			closeRequestBody(current)
 			return previousResponse, previousError
 		}
-		resp, err := httpClient.Do(current)
+		attemptClient := httpClient
+		var gate *retryAttemptTransport
+		if attempt > 0 {
+			base := httpClient.Transport
+			if base == nil {
+				base = http.DefaultTransport
+			}
+			gate = &retryAttemptTransport{base: base, deadline: retryDeadline, retire: retire}
+			copy := *httpClient
+			copy.Transport = gate
+			attemptClient = &copy
+		}
+		resp, err := attemptClient.Do(current)
+		if gate != nil {
+			gate.join()
+			if errors.Is(err, errRetryBeforeStart) {
+				if contextErr := req.Context().Err(); contextErr != nil {
+					closeResponseBody(previousResponse)
+					return nil, contextErr
+				}
+				return previousResponse, previousError
+			}
+			if !gate.started {
+				closeResponseBody(previousResponse)
+			}
+		}
 		if contextErr := req.Context().Err(); contextErr != nil {
 			if resp != nil && resp.Body != nil {
 				_ = resp.Body.Close()
@@ -130,10 +157,22 @@ func (c *Client) execute(req *http.Request, operationTimeout *time.Duration) (*h
 				}
 				return resp, err
 			}
-			_ = body.Close()
+			if body.complete {
+				// EOF/error leaves a complete snapshot, so even a slow Close can
+				// exhaust the budget without losing the last response's bytes.
+				_ = body.Close()
+				retire = nil
+			} else {
+				// Closing a capped body loses its unread tail. Defer retirement
+				// until the next attempt commits at its first RoundTrip entry.
+				retire = body
+			}
+		} else {
+			retire = nil
 		}
 		if contextErr := req.Context().Err(); contextErr != nil {
 			closeRequestBody(next)
+			closeResponseBody(resp)
 			return nil, contextErr
 		}
 		if !retryBudgetAvailable(retryDeadline, 0) {
@@ -141,6 +180,61 @@ func (c *Client) execute(req *http.Request, operationTimeout *time.Duration) (*h
 			return resp, err
 		}
 		previousResponse, previousError, current = resp, err, next
+	}
+}
+
+var errRetryBeforeStart = errors.New("retry budget expired before attempt started")
+
+// Only the first RoundTrip starts an attempt; redirects belong to that same
+// attempt. Retiring an incomplete response concurrently frees a connection
+// even when MaxConnsPerHost is one. A committed attempt always returns its own
+// result, never the retired response whose unread bytes are no longer valid.
+type retryAttemptTransport struct {
+	base     http.RoundTripper
+	deadline time.Time
+	retire   io.Closer
+	once     sync.Once
+	started  bool
+	startErr error
+	retired  chan struct{}
+}
+
+func (t *retryAttemptTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	t.once.Do(func() {
+		if err := req.Context().Err(); err != nil {
+			t.startErr = err
+			return
+		}
+		if !retryBudgetAvailable(t.deadline, 0) {
+			t.startErr = errRetryBeforeStart
+			return
+		}
+		t.started = true
+		if t.retire != nil {
+			t.retired = make(chan struct{})
+			go func() {
+				_ = t.retire.Close()
+				close(t.retired)
+			}()
+		}
+	})
+	if t.startErr != nil {
+		closeRequestBody(req)
+		return nil, t.startErr
+	}
+	return t.base.RoundTrip(req)
+}
+
+func (t *retryAttemptTransport) join() {
+	if t.retired != nil {
+		<-t.retired
+	}
+}
+
+// Preserve cancellation for legacy custom transports that use CancelRequest.
+func (t *retryAttemptTransport) CancelRequest(req *http.Request) {
+	if base, ok := t.base.(interface{ CancelRequest(*http.Request) }); ok {
+		base.CancelRequest(req)
 	}
 }
 
@@ -160,16 +254,19 @@ func closeResponseBody(resp *http.Response) {
 	}
 }
 
-// retryResponseBody drains in one worker and serializes any subsequent reads
-// behind its completion. Budget expiry returns this body without cancelling
-// the original response: its bytes and read errors remain intact. Close must
-// unblock Read, as required by http.Response.Body, and joins the worker.
+const retryDrainLimit = 64 * 1024
+
+// retryResponseBody owns one capped read worker. Subsequent reads join it and
+// replay the prefix before reading the original remainder. Budget expiry keeps
+// the original response open. Close must unblock Read, as required by
+// http.Response.Body, and joins the worker.
 type retryResponseBody struct {
 	original  io.ReadCloser
 	done      chan struct{}
 	data      []byte
 	readErr   error
-	reader    *bytes.Reader
+	complete  bool
+	reader    io.Reader
 	readOnce  sync.Once
 	closeOnce sync.Once
 	closeErr  error
@@ -178,7 +275,29 @@ type retryResponseBody struct {
 func newRetryResponseBody(original io.ReadCloser) *retryResponseBody {
 	body := &retryResponseBody{original: original, done: make(chan struct{})}
 	go func() {
-		body.data, body.readErr = io.ReadAll(original)
+		buffer := make([]byte, retryDrainLimit)
+		used, emptyReads := 0, 0
+		for used < len(buffer) {
+			n, err := original.Read(buffer[used:])
+			used += n
+			if err != nil {
+				body.complete = true
+				if err != io.EOF {
+					body.readErr = err
+				}
+				break
+			}
+			if n == 0 {
+				emptyReads++
+				if emptyReads >= 100 {
+					body.complete, body.readErr = true, io.ErrNoProgress
+					break
+				}
+			} else {
+				emptyReads = 0
+			}
+		}
+		body.data = buffer[:used]
 		close(body.done)
 	}()
 	return body
@@ -203,7 +322,12 @@ func (b *retryResponseBody) drain(ctx context.Context, deadline time.Time) error
 
 func (b *retryResponseBody) Read(p []byte) (int, error) {
 	<-b.done
-	b.readOnce.Do(func() { b.reader = bytes.NewReader(b.data) })
+	b.readOnce.Do(func() {
+		b.reader = bytes.NewReader(b.data)
+		if !b.complete {
+			b.reader = io.MultiReader(b.reader, b.original)
+		}
+	})
 	n, err := b.reader.Read(p)
 	if err == io.EOF && b.readErr != nil {
 		err = b.readErr

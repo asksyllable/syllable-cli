@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -275,40 +276,92 @@ func TestRetryBudgetRecheckedAfterBodyReplay(t *testing.T) {
 
 type delayedCloseRetryBody struct {
 	io.Reader
-	delay time.Duration
-	calls int
+	delay     time.Duration
+	calls     atomic.Int64
+	readBytes atomic.Int64
+	closed    atomic.Bool
+	closeDone chan struct{}
+}
+
+func (b *delayedCloseRetryBody) Read(p []byte) (int, error) {
+	if b.closed.Load() {
+		return 0, io.ErrClosedPipe
+	}
+	n, err := b.Reader.Read(p)
+	b.readBytes.Add(int64(n))
+	return n, err
 }
 
 func (b *delayedCloseRetryBody) Close() error {
-	b.calls++
+	b.calls.Add(1)
+	b.closed.Store(true)
 	time.Sleep(b.delay)
+	if b.closeDone != nil {
+		close(b.closeDone)
+	}
 	return nil
 }
 
-func TestRetryBudgetIncludesCleanupCloseAndPreservesLargeBody(t *testing.T) {
+func TestRetryCommitsBeforeRetiringIncompleteSlowCloseBody(t *testing.T) {
 	failure := strings.Repeat("original failure data\n", 8*1024)
-	first := &delayedCloseRetryBody{Reader: strings.NewReader(failure), delay: 80 * time.Millisecond}
+	first := &delayedCloseRetryBody{Reader: strings.NewReader(failure), delay: 80 * time.Millisecond, closeDone: make(chan struct{})}
 	c := New("https://api.example.invalid", "unit-test")
 	c.Retries, c.RetryDelay, c.RetryMaxElapsedTime = 1, 0, 20*time.Millisecond
 	calls := 0
+	started := time.Now()
 	c.HTTPClient.Transport = queryPathTransport(func(r *http.Request) (*http.Response, error) {
 		calls++
 		if calls == 1 {
 			return &http.Response{StatusCode: 503, Header: http.Header{}, Body: first}, nil
 		}
-		return &http.Response{StatusCode: 200, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(`{}`))}, nil
+		if elapsed := time.Since(started); elapsed >= c.RetryMaxElapsedTime {
+			t.Errorf("retry committed after budget expired: %s", elapsed)
+		}
+		if first.readBytes.Load() != retryDrainLimit {
+			t.Errorf("cleanup exceeded cap: bytes=%d", first.readBytes.Load())
+		}
+		return &http.Response{StatusCode: 200, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(`{"ok":true}`))}, nil
 	})
 	req, _ := http.NewRequest("GET", "https://api.example.invalid/resource", nil)
 	resp, err := c.execute(req, nil)
 	if resp != nil {
 		defer resp.Body.Close()
 	}
-	if calls != 1 || err != nil || resp == nil || resp.StatusCode != 503 || first.calls != 1 {
-		t.Fatalf("cleanup close spent the budget but a retry started: calls=%d closes=%d response=%v err=%v", calls, first.calls, resp, err)
+	if calls != 2 || err != nil || resp == nil || resp.StatusCode != 200 || first.calls.Load() != 1 {
+		t.Fatalf("committed retry returned retired failure: calls=%d closes=%d response=%v err=%v", calls, first.calls.Load(), resp, err)
+	}
+	select {
+	case <-first.closeDone:
+	default:
+		t.Fatal("response retirement was not joined")
+	}
+	data, err := io.ReadAll(resp.Body)
+	if err != nil || string(data) != `{"ok":true}` {
+		t.Fatalf("retry result changed: body=%q err=%v", data, err)
+	}
+}
+
+func TestRetryBudgetCompleteEOFSlowClosePreservesFailure(t *testing.T) {
+	const failure = `{"detail":"complete original failure"}`
+	first := &delayedCloseRetryBody{Reader: strings.NewReader(failure), delay: 80 * time.Millisecond}
+	c := New("https://api.example.invalid", "unit-test")
+	c.Retries, c.RetryDelay, c.RetryMaxElapsedTime = 1, 0, 20*time.Millisecond
+	calls := 0
+	c.HTTPClient.Transport = queryPathTransport(func(r *http.Request) (*http.Response, error) {
+		calls++
+		return &http.Response{StatusCode: 503, Header: http.Header{}, Body: first}, nil
+	})
+	req, _ := http.NewRequest("GET", "https://api.example.invalid/resource", nil)
+	resp, err := c.execute(req, nil)
+	if resp != nil {
+		defer resp.Body.Close()
+	}
+	if calls != 1 || err != nil || resp == nil || resp.StatusCode != 503 || first.calls.Load() != 1 {
+		t.Fatalf("EOF close exhausted budget but retry began: calls=%d closes=%d response=%v err=%v", calls, first.calls.Load(), resp, err)
 	}
 	data, err := io.ReadAll(resp.Body)
 	if err != nil || string(data) != failure {
-		t.Fatalf("large final error body changed: len=%d want=%d err=%v", len(data), len(failure), err)
+		t.Fatalf("complete cached error body changed: body=%q err=%v", data, err)
 	}
 }
 
@@ -447,6 +500,264 @@ func TestRetryBudgetWithSlowHTTPErrorBody(t *testing.T) {
 	data, err := io.ReadAll(resp.Body)
 	if err != nil || string(data) != failure {
 		t.Fatalf("real HTTP error body was cut short: body=%q err=%v", data, err)
+	}
+}
+
+func TestRetryCleanupStopsAtByteLimitBeforeStreamingBodyStalls(t *testing.T) {
+	var calls atomic.Int64
+	release := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if calls.Add(1) == 1 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			_, _ = w.Write(bytes.Repeat([]byte("x"), 128*1024))
+			w.(http.Flusher).Flush()
+			select {
+			case <-r.Context().Done():
+			case <-release:
+			}
+			return
+		}
+		_, _ = io.WriteString(w, `{"ok":true}`)
+	}))
+	defer server.Close()
+	defer close(release)
+	c := New(server.URL, "unit-test")
+	c.Retries, c.RetryDelay, c.RetryMaxElapsedTime = 1, 0, 100*time.Millisecond
+	c.HTTPClient.Timeout = 500 * time.Millisecond
+	body, status, err := c.Get("/resource")
+	if err != nil || status != http.StatusOK || string(body) != `{"ok":true}` || calls.Load() != 2 {
+		t.Fatalf("bounded cleanup should retry without awaiting EOF: calls=%d status=%d body bytes=%d err=%v", calls.Load(), status, len(body), err)
+	}
+}
+
+func TestRetryCappedFallbackReplaysPrefixAndUnbufferedRemainder(t *testing.T) {
+	failure := strings.Repeat("original body with unread tail\n", 8*1024)
+	counter := &delayedCloseRetryBody{Reader: strings.NewReader(failure)}
+	first := newDelayedRetryBody("", 80*time.Millisecond)
+	first.reader = counter
+	c := New("https://api.example.invalid", "unit-test")
+	c.Retries, c.RetryDelay, c.RetryMaxElapsedTime = 1, 0, 20*time.Millisecond
+	calls := 0
+	c.HTTPClient.Transport = queryPathTransport(func(r *http.Request) (*http.Response, error) {
+		calls++
+		return &http.Response{StatusCode: 503, Header: http.Header{}, Body: first}, nil
+	})
+	req, _ := http.NewRequest("GET", "https://api.example.invalid/resource", nil)
+	resp, err := c.execute(req, nil)
+	if resp != nil {
+		defer resp.Body.Close()
+	}
+	if calls != 1 || err != nil || resp == nil || resp.StatusCode != 503 {
+		t.Fatalf("original failure not retained: calls=%d response=%v err=%v", calls, resp, err)
+	}
+	body, ok := resp.Body.(*retryResponseBody)
+	if !ok {
+		t.Fatalf("missing prefix replay body: %T", resp.Body)
+	}
+	select {
+	case <-body.done:
+	case <-time.After(time.Second):
+		t.Fatal("capped reader did not finish")
+	}
+	if len(body.data) != retryDrainLimit || cap(body.data) != retryDrainLimit || body.complete || counter.readBytes.Load() != retryDrainLimit {
+		t.Fatalf("cleanup read/buffer exceeded cap: len=%d cap=%d complete=%v reads=%d", len(body.data), cap(body.data), body.complete, counter.readBytes.Load())
+	}
+	data, err := io.ReadAll(body)
+	if err != nil || string(data) != failure || counter.readBytes.Load() != int64(len(failure)) || cap(body.data) != retryDrainLimit {
+		t.Fatalf("prefix/tail replay changed bytes or buffered tail: len=%d reads=%d cap=%d err=%v", len(data), counter.readBytes.Load(), cap(body.data), err)
+	}
+}
+
+type terminalRetryReadError struct {
+	data []byte
+	err  error
+}
+
+func (r *terminalRetryReadError) Read(p []byte) (int, error) {
+	n := copy(p, r.data)
+	r.data = r.data[n:]
+	if len(r.data) == 0 {
+		return n, r.err
+	}
+	return n, nil
+}
+
+func TestRetryFallbackPreservesActualUnexpectedEOF(t *testing.T) {
+	const failure = `{"detail":"valid-looking error prefix"}`
+	first := newDelayedRetryBody("", 80*time.Millisecond)
+	first.reader = &terminalRetryReadError{data: []byte(failure), err: io.ErrUnexpectedEOF}
+	c := New("https://api.example.invalid", "unit-test")
+	c.Retries, c.RetryDelay, c.RetryMaxElapsedTime = 1, 0, 20*time.Millisecond
+	c.HTTPClient.Transport = queryPathTransport(func(r *http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: 503, Header: http.Header{}, Body: first}, nil
+	})
+	req, _ := http.NewRequest("GET", "https://api.example.invalid/resource", nil)
+	resp, err := c.execute(req, nil)
+	if resp != nil {
+		defer resp.Body.Close()
+	}
+	if err != nil || resp == nil || resp.StatusCode != 503 {
+		t.Fatalf("original response not retained: response=%v err=%v", resp, err)
+	}
+	data, err := io.ReadAll(resp.Body)
+	if !errors.Is(err, io.ErrUnexpectedEOF) || string(data) != failure {
+		t.Fatalf("transport read error was suppressed: body=%q err=%v", data, err)
+	}
+}
+
+type retryPreparationJar struct {
+	calls atomic.Int64
+	delay time.Duration
+}
+
+func (j *retryPreparationJar) Cookies(*url.URL) []*http.Cookie {
+	if j.calls.Add(1) == 2 {
+		time.Sleep(j.delay)
+	}
+	return nil
+}
+
+func (*retryPreparationJar) SetCookies(*url.URL, []*http.Cookie) {}
+
+func TestRetryGateExpirationPreservesOpenCappedFailure(t *testing.T) {
+	failure := strings.Repeat("original incomplete failure\n", 8*1024)
+	first := &delayedCloseRetryBody{Reader: strings.NewReader(failure)}
+	c := New("https://api.example.invalid", "unit-test")
+	c.Retries, c.RetryDelay, c.RetryMaxElapsedTime = 1, 0, 20*time.Millisecond
+	jar := &retryPreparationJar{delay: 80 * time.Millisecond}
+	c.HTTPClient.Jar = jar
+	calls := 0
+	c.HTTPClient.Transport = queryPathTransport(func(r *http.Request) (*http.Response, error) {
+		calls++
+		return &http.Response{StatusCode: 503, Header: http.Header{}, Body: first}, nil
+	})
+	req, _ := http.NewRequest("GET", "https://api.example.invalid/resource", nil)
+	resp, err := c.execute(req, nil)
+	if resp != nil {
+		defer resp.Body.Close()
+	}
+	if calls != 1 || err != nil || resp == nil || resp.StatusCode != 503 || jar.calls.Load() != 2 || first.calls.Load() != 0 {
+		t.Fatalf("pre-start expiry retired original response: calls=%d cookie calls=%d closes=%d response=%v err=%v", calls, jar.calls.Load(), first.calls.Load(), resp, err)
+	}
+	if first.readBytes.Load() != retryDrainLimit {
+		t.Fatalf("unexpected cleanup read size: %d", first.readBytes.Load())
+	}
+	data, err := io.ReadAll(resp.Body)
+	if err != nil || string(data) != failure {
+		t.Fatalf("pre-start expiry lost unread tail: body bytes=%d err=%v", len(data), err)
+	}
+}
+
+func TestRetryAttemptRedirectKeepsTransportJarAndPolicy(t *testing.T) {
+	first := &delayedCloseRetryBody{Reader: strings.NewReader(strings.Repeat("failure", 32*1024))}
+	c := New("https://api.example.invalid", "unit-test")
+	c.Retries, c.RetryDelay, c.RetryMaxElapsedTime = 1, 0, 20*time.Millisecond
+	jar, _ := cookiejar.New(nil)
+	c.HTTPClient.Jar = jar
+	redirects, calls := 0, 0
+	c.HTTPClient.CheckRedirect = func(r *http.Request, via []*http.Request) error {
+		redirects++
+		return nil
+	}
+	transport := queryPathTransport(func(r *http.Request) (*http.Response, error) {
+		calls++
+		switch calls {
+		case 1:
+			return &http.Response{StatusCode: 503, Header: http.Header{"Set-Cookie": {"initial=kept"}}, Body: first}, nil
+		case 2:
+			if cookie, err := r.Cookie("initial"); err != nil || cookie.Value != "kept" {
+				t.Errorf("retry discarded cookie jar: cookie=%v err=%v", cookie, err)
+			}
+			time.Sleep(80 * time.Millisecond)
+			return &http.Response{StatusCode: 302, Header: http.Header{"Location": {"/final"}, "Set-Cookie": {"redirect=kept"}}, Body: io.NopCloser(strings.NewReader("redirect"))}, nil
+		case 3:
+			if cookie, err := r.Cookie("redirect"); err != nil || cookie.Value != "kept" {
+				t.Errorf("redirect discarded cookie jar: cookie=%v err=%v", cookie, err)
+			}
+			return &http.Response{StatusCode: 200, Header: http.Header{}, Body: io.NopCloser(strings.NewReader("complete"))}, nil
+		default:
+			t.Errorf("unexpected request %d", calls)
+			return nil, errors.New("unexpected request")
+		}
+	})
+	c.HTTPClient.Transport = transport
+	body, status, err := c.Get("/resource")
+	if err != nil || status != 200 || string(body) != "complete" || calls != 3 || redirects != 1 || first.calls.Load() != 1 || c.HTTPClient.Jar != jar || reflect.ValueOf(c.HTTPClient.Transport).Pointer() != reflect.ValueOf(transport).Pointer() {
+		t.Fatalf("redirect re-gated or lost client options: calls=%d redirects=%d status=%d body=%q err=%v", calls, redirects, status, body, err)
+	}
+}
+
+func TestRetryCappedRetirementWithSingleConnection(t *testing.T) {
+	var calls atomic.Int64
+	release := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if calls.Add(1) == 1 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			_, _ = w.Write(bytes.Repeat([]byte("x"), 128*1024))
+			w.(http.Flusher).Flush()
+			select {
+			case <-r.Context().Done():
+			case <-release:
+			}
+			return
+		}
+		_, _ = io.WriteString(w, `{"ok":true}`)
+	}))
+	defer server.Close()
+	defer close(release)
+	c := New(server.URL, "unit-test")
+	c.Retries, c.RetryDelay, c.RetryMaxElapsedTime = 1, 0, 100*time.Millisecond
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.MaxConnsPerHost = 1
+	defer transport.CloseIdleConnections()
+	c.HTTPClient.Transport, c.HTTPClient.Timeout = transport, time.Second
+	body, status, err := c.Get("/resource")
+	if err != nil || status != 200 || string(body) != `{"ok":true}` || calls.Load() != 2 || c.HTTPClient.Transport != transport {
+		t.Fatalf("retirement deadlocked connection acquisition: calls=%d status=%d body bytes=%d err=%v", calls.Load(), status, len(body), err)
+	}
+}
+
+type legacyRetryTransport struct {
+	first   io.ReadCloser
+	calls   atomic.Int64
+	second  atomic.Pointer[http.Request]
+	cancel  chan struct{}
+	cancels atomic.Int64
+	once    sync.Once
+}
+
+func (t *legacyRetryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if t.calls.Add(1) == 1 {
+		return &http.Response{StatusCode: 503, Header: http.Header{}, Body: t.first}, nil
+	}
+	t.second.Store(req)
+	// This legacy transport requires CancelRequest instead of using Context.
+	select {
+	case <-t.cancel:
+		return nil, context.DeadlineExceeded
+	case <-time.After(time.Second):
+		return nil, errors.New("legacy transport cancellation was not forwarded")
+	}
+}
+
+func (t *legacyRetryTransport) CancelRequest(req *http.Request) {
+	if req == t.second.Load() {
+		t.once.Do(func() {
+			t.cancels.Add(1)
+			close(t.cancel)
+		})
+	}
+}
+
+func TestRetryGateForwardsLegacyTransportCancellation(t *testing.T) {
+	first := &delayedCloseRetryBody{Reader: strings.NewReader(strings.Repeat("failure", 32*1024))}
+	transport := &legacyRetryTransport{first: first, cancel: make(chan struct{})}
+	c := New("https://api.example.invalid", "unit-test")
+	c.Retries, c.RetryDelay = 1, 0
+	c.HTTPClient.Transport, c.HTTPClient.Timeout = transport, 20*time.Millisecond
+	_, _, err := c.Get("/resource")
+	if !errors.Is(err, context.DeadlineExceeded) || transport.calls.Load() != 2 || transport.cancels.Load() != 1 || first.calls.Load() != 1 {
+		t.Fatalf("retry lost legacy cancellation: calls=%d cancellations=%d closes=%d err=%v", transport.calls.Load(), transport.cancels.Load(), first.calls.Load(), err)
 	}
 }
 
