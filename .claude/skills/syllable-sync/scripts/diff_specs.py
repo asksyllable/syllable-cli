@@ -32,7 +32,48 @@ Exit codes:
 import json
 import sys
 
-METHODS = ("get", "post", "put", "patch", "delete")
+METHODS = ("get", "post", "put", "patch", "delete", "head", "options", "trace")
+
+# These annotate a contract without changing accepted input or returned data.
+# Defaults, deprecated flags, constraints, and $refs deliberately remain.
+ANNOTATIONS = {"description", "summary", "title", "example", "examples", "externalDocs", "x-codeSamples"}
+UNORDERED_ARRAYS = {"required", "enum", "anyOf", "oneOf", "allOf", "parameters", "type", "security"}
+NAMED_MAPS = {"properties", "schemas", "paths", "responses", "content", "headers", "$defs", "definitions", "parameters", "requestBodies", "securitySchemes", "webhooks"}
+
+
+def contract(node, key=""):
+    """Normalize structural API data, ignoring prose and irrelevant ordering."""
+    # Default/const/enum values are data, not schema annotations. An object
+    # value may itself have a key called "description" that must be preserved.
+    if key in {"default", "const", "enum"}:
+        return sorted(node, key=lambda v: json.dumps(v, sort_keys=True)) if key == "enum" and isinstance(node, list) else node
+    if isinstance(node, dict):
+        named = key in NAMED_MAPS
+        return {k: contract(v, "" if named else k) for k, v in node.items() if named or k not in ANNOTATIONS}
+    if isinstance(node, list):
+        values = [contract(v) for v in node]
+        if key in UNORDERED_ARRAYS:
+            values = sorted(values, key=lambda v: json.dumps(v, sort_keys=True))
+        return values
+    return node
+
+
+def contract_changes(old, new, path=""):
+    """Describe deep differences, including constraints inside union/array types."""
+    if old == new:
+        return []
+    if isinstance(old, dict) and isinstance(new, dict):
+        changes = []
+        for key in sorted(old.keys() | new.keys()):
+            location = path + "/" + key.replace("~", "~0").replace("/", "~1")
+            if key not in old:
+                changes.append({"path": location, "kind": "added", "new": new[key]})
+            elif key not in new:
+                changes.append({"path": location, "kind": "removed", "old": old[key]})
+            else:
+                changes.extend(contract_changes(old[key], new[key], location))
+        return changes
+    return [{"path": path or "/", "kind": "changed", "old": old, "new": new}]
 
 
 def load(path):
@@ -97,7 +138,10 @@ def enum_members(spec):
                 walk(v, f"{path}/{k}")
         elif isinstance(node, list):
             for i, v in enumerate(node):
-                walk(v, f"{path}/{i}")
+                # Parameter indices shift when an unrelated query is inserted.
+                # Identify them by name/location so that doesn't invent enum removals.
+                part = f"{v['in']}:{v['name']}" if path.endswith("/parameters") and isinstance(v, dict) and "name" in v and "in" in v else str(i)
+                walk(v, f"{path}/{part}")
 
     walk(spec, "")
     return out
@@ -127,11 +171,19 @@ def compute_diff(old, new):
     old_schemas = old.get("components", {}).get("schemas", {})
     new_schemas = new.get("components", {}).get("schemas", {})
 
+    def global_contract(spec):
+        value = {k: spec.get(k) for k in ("openapi", "jsonSchemaDialect", "security", "servers", "webhooks")}
+        value["components"] = {k: v for k, v in spec.get("components", {}).items() if k != "schemas"}
+        return contract(value)
+
+    changed_global_contracts = contract_changes(global_contract(old), global_contract(new))
+
     added_paths = sorted(set(new_paths) - set(old_paths))
     removed_paths = sorted(set(old_paths) - set(new_paths))
     common_paths = sorted(set(old_paths) & set(new_paths))
 
     changed_paths = []
+    changed_operation_contracts = []
     for p in common_paths:
         old_methods = {m for m in old_paths[p] if m in METHODS}
         new_methods = {m for m in new_paths[p] if m in METHODS}
@@ -139,22 +191,38 @@ def compute_diff(old, new):
         removed_m = old_methods - new_methods
         if added_m or removed_m:
             changed_paths.append((p, added_m, removed_m))
+        for method in sorted(old_methods & new_methods):
+            # Include inherited path parameters, not just operation parameters.
+            before = {k: old_paths[p][method].get(k) for k in
+                      ("parameters", "requestBody", "responses", "security", "servers", "deprecated")}
+            after = {k: new_paths[p][method].get(k) for k in before}
+            before["path_parameters"] = old_paths[p].get("parameters")
+            after["path_parameters"] = new_paths[p].get("parameters")
+            before["path_servers"] = old_paths[p].get("servers")
+            after["path_servers"] = new_paths[p].get("servers")
+            changes = contract_changes(contract(before), contract(after))
+            if changes:
+                changed_operation_contracts.append({"path": p, "method": method, "changes": changes})
 
     added_schemas = sorted(set(new_schemas) - set(old_schemas))
     removed_schemas = sorted(set(old_schemas) - set(new_schemas))
 
     changed_schema_summary = []
+    changed_schema_contracts = []
     for s in sorted(set(old_schemas) & set(new_schemas)):
         added_f, removed_f, changed_f = diff_schemas(
             old_schemas[s], new_schemas[s], old_schemas, new_schemas
         )
         if added_f or removed_f or changed_f:
             changed_schema_summary.append((s, added_f, removed_f, changed_f))
+        changes = contract_changes(contract(old_schemas[s]), contract(new_schemas[s]))
+        if changes:
+            changed_schema_contracts.append({"schema": s, "changes": changes})
 
     # Enum-member diff (walks the whole spec). Removed values are breaking and
     # are invisible to the field-level schema diff above.
-    old_enums = enum_members(old)
-    new_enums = enum_members(new)
+    old_enums = enum_members(contract(old))
+    new_enums = enum_members(contract(new))
     enum_changes = []  # (label, added_values, removed_values)
     for p in sorted(set(old_enums) | set(new_enums)):
         a = old_enums.get(p, set())
@@ -169,10 +237,13 @@ def compute_diff(old, new):
         "added_paths": added_paths,
         "removed_paths": removed_paths,
         "changed_paths": changed_paths,
+        "changed_operation_contracts": changed_operation_contracts,
         "added_schemas": added_schemas,
         "removed_schemas": removed_schemas,
         "changed_schema_summary": changed_schema_summary,
+        "changed_schema_contracts": changed_schema_contracts,
         "enum_changes": enum_changes,
+        "changed_global_contracts": changed_global_contracts,
     }
 
 
@@ -187,9 +258,12 @@ def has_changes(d):
             d["added_paths"],
             d["removed_paths"],
             d["changed_paths"],
+            d["changed_operation_contracts"],
             d["added_schemas"],
             d["removed_schemas"],
             d["changed_schema_summary"],
+            d["changed_schema_contracts"],
+            d["changed_global_contracts"],
             d["enum_changes"],
         ]
     )
@@ -206,6 +280,11 @@ def render_text(d):
     new_paths = d["new_paths"]
     old_paths = d["old_paths"]
     new_schemas = d["new_schemas"]
+
+    if d["changed_global_contracts"]:
+        print("\n## CHANGED GLOBAL CONTRACT — servers, security, shared components")
+        for change in d["changed_global_contracts"]:
+            print("  " + json.dumps(change, sort_keys=True))
 
     if added_paths:
         print(f"\n## NEW PATHS ({len(added_paths)})")
@@ -273,11 +352,29 @@ def render_text(d):
                 f"relying on them; do not treat as additive."
             )
 
+    for label, entries, identifier in (
+        ("OPERATION CONTRACTS", d["changed_operation_contracts"], "path"),
+        ("SCHEMA CONTRACTS", d["changed_schema_contracts"], "schema"),
+    ):
+        if not entries:
+            continue
+        print(f"\n## CHANGED {label} — deep structural diffs ({len(entries)})")
+        for entry in entries:
+            prefix = entry.get("method", "").upper()
+            print(f"\n~ {prefix} {entry[identifier]}".rstrip())
+            for change in entry["changes"]:
+                values = {k: v for k, v in change.items() if k in ("old", "new")}
+                detail = json.dumps(values, sort_keys=True)
+                if len(detail) > 240:
+                    detail = detail[:237] + "..."
+                print(f"  {change['kind']} {change['path']}: {detail}")
+
     print(f"""
 ## SUMMARY
   Paths:   +{len(added_paths)} added, -{len(removed_paths)} removed, ~{len(changed_paths)} changed
   Schemas: +{len(added_schemas)} added, -{len(removed_schemas)} removed, ~{len(changed_schema_summary)} changed
   Enums:   ~{len(enum_changes)} changed ({len(enum_removals(d))} with removed values — breaking)
+  Contracts: {len(d['changed_operation_contracts'])} operations, {len(d['changed_schema_contracts'])} schemas, {len(d['changed_global_contracts'])} global changes
 """)
 
     if not has_changes(d):
@@ -303,6 +400,9 @@ def render_json(d):
             }
             for s, af, rf, cf in d["changed_schema_summary"]
         ],
+        "changed_operation_contracts": d["changed_operation_contracts"],
+        "changed_schema_contracts": d["changed_schema_contracts"],
+        "changed_global_contracts": d["changed_global_contracts"],
         "changed_enums": [
             {"enum": label, "added": added_v, "removed": removed_v}
             for label, added_v, removed_v in d["enum_changes"]
@@ -312,11 +412,13 @@ def render_json(d):
                 "added": len(d["added_paths"]),
                 "removed": len(d["removed_paths"]),
                 "changed": len(d["changed_paths"]),
+                "contract_changed": len(d["changed_operation_contracts"]),
             },
             "schemas": {
                 "added": len(d["added_schemas"]),
                 "removed": len(d["removed_schemas"]),
                 "changed": len(d["changed_schema_summary"]),
+                "contract_changed": len(d["changed_schema_contracts"]),
             },
             "enums": {
                 "changed": len(d["enum_changes"]),
