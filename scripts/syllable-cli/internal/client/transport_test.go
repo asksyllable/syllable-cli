@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/cookiejar"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -167,6 +168,285 @@ func TestRetryAfterAndBackoff(t *testing.T) {
 	})
 	if _, _, err := c.Get("/resource"); err == nil || calls != 1 {
 		t.Fatalf("elapsed budget should prevent another attempt: calls=%d err=%v", calls, err)
+	}
+}
+
+type delayedRetryBody struct {
+	reader    io.Reader
+	delay     time.Duration
+	started   chan struct{}
+	finished  chan struct{}
+	closed    chan struct{}
+	readOnce  sync.Once
+	closeOnce sync.Once
+}
+
+func newDelayedRetryBody(body string, delay time.Duration) *delayedRetryBody {
+	return &delayedRetryBody{reader: strings.NewReader(body), delay: delay, started: make(chan struct{}), finished: make(chan struct{}), closed: make(chan struct{})}
+}
+
+func (b *delayedRetryBody) Read(p []byte) (int, error) {
+	var stopped bool
+	b.readOnce.Do(func() {
+		close(b.started)
+		defer close(b.finished)
+		timer := time.NewTimer(b.delay)
+		defer timer.Stop()
+		select {
+		case <-timer.C:
+		case <-b.closed:
+			stopped = true
+		}
+	})
+	if stopped {
+		return 0, io.ErrClosedPipe
+	}
+	return b.reader.Read(p)
+}
+
+func (b *delayedRetryBody) Close() error {
+	b.closeOnce.Do(func() { close(b.closed) })
+	return nil
+}
+
+func TestRetryBudgetIncludesFailedResponseDrain(t *testing.T) {
+	const failure = `{"detail":"original failure"}`
+	first := newDelayedRetryBody(failure, 80*time.Millisecond)
+	c := New("https://api.example.invalid", "unit-test")
+	c.Retries, c.RetryDelay, c.RetryMaxElapsedTime = 1, 0, 20*time.Millisecond
+	calls := 0
+	c.HTTPClient.Transport = queryPathTransport(func(r *http.Request) (*http.Response, error) {
+		calls++
+		if calls == 1 {
+			return &http.Response{StatusCode: 503, Header: http.Header{}, Body: first}, nil
+		}
+		return &http.Response{StatusCode: 200, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(`{}`))}, nil
+	})
+	req, _ := http.NewRequest("GET", "https://api.example.invalid/resource", nil)
+	started := time.Now()
+	resp, err := c.execute(req, nil)
+	if resp != nil {
+		defer resp.Body.Close()
+	}
+	if calls != 1 || err != nil || resp == nil || resp.StatusCode != 503 {
+		t.Fatalf("retry started after cleanup exhausted budget: calls=%d elapsed=%s response=%v err=%v", calls, time.Since(started), resp, err)
+	}
+	if elapsed := time.Since(started); elapsed >= 60*time.Millisecond {
+		t.Fatalf("retry cleanup was not bounded: elapsed=%s", elapsed)
+	}
+	data, err := io.ReadAll(resp.Body)
+	if err != nil || string(data) != failure {
+		t.Fatalf("final error response body was corrupted: body=%q err=%v", data, err)
+	}
+}
+
+func TestRetryBudgetRecheckedAfterBodyReplay(t *testing.T) {
+	const failure = `{"detail":"preserve this failure"}`
+	c := New("https://api.example.invalid", "unit-test")
+	c.Retries, c.RetryWrites, c.RetryDelay, c.RetryMaxElapsedTime = 1, true, 0, 20*time.Millisecond
+	calls := 0
+	c.HTTPClient.Transport = queryPathTransport(func(r *http.Request) (*http.Response, error) {
+		calls++
+		_ = r.Body.Close()
+		status, body := 503, failure
+		if calls > 1 {
+			status, body = 200, `{}`
+		}
+		return &http.Response{StatusCode: status, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(body))}, nil
+	})
+	req, _ := http.NewRequest("POST", "https://api.example.invalid/resource", strings.NewReader(`{}`))
+	replayed := &closeTrackingBody{Reader: strings.NewReader(`{}`)}
+	req.GetBody = func() (io.ReadCloser, error) {
+		time.Sleep(80 * time.Millisecond)
+		return replayed, nil
+	}
+	resp, err := c.execute(req, nil)
+	if resp != nil {
+		defer resp.Body.Close()
+	}
+	if calls != 1 || err != nil || resp == nil || resp.StatusCode != 503 || !replayed.closed {
+		t.Fatalf("retry started after replay exhausted budget: calls=%d replay closed=%v response=%v err=%v", calls, replayed.closed, resp, err)
+	}
+	data, err := io.ReadAll(resp.Body)
+	if err != nil || string(data) != failure {
+		t.Fatalf("final error response body was corrupted: body=%q err=%v", data, err)
+	}
+}
+
+type delayedCloseRetryBody struct {
+	io.Reader
+	delay time.Duration
+	calls int
+}
+
+func (b *delayedCloseRetryBody) Close() error {
+	b.calls++
+	time.Sleep(b.delay)
+	return nil
+}
+
+func TestRetryBudgetIncludesCleanupCloseAndPreservesLargeBody(t *testing.T) {
+	failure := strings.Repeat("original failure data\n", 8*1024)
+	first := &delayedCloseRetryBody{Reader: strings.NewReader(failure), delay: 80 * time.Millisecond}
+	c := New("https://api.example.invalid", "unit-test")
+	c.Retries, c.RetryDelay, c.RetryMaxElapsedTime = 1, 0, 20*time.Millisecond
+	calls := 0
+	c.HTTPClient.Transport = queryPathTransport(func(r *http.Request) (*http.Response, error) {
+		calls++
+		if calls == 1 {
+			return &http.Response{StatusCode: 503, Header: http.Header{}, Body: first}, nil
+		}
+		return &http.Response{StatusCode: 200, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(`{}`))}, nil
+	})
+	req, _ := http.NewRequest("GET", "https://api.example.invalid/resource", nil)
+	resp, err := c.execute(req, nil)
+	if resp != nil {
+		defer resp.Body.Close()
+	}
+	if calls != 1 || err != nil || resp == nil || resp.StatusCode != 503 || first.calls != 1 {
+		t.Fatalf("cleanup close spent the budget but a retry started: calls=%d closes=%d response=%v err=%v", calls, first.calls, resp, err)
+	}
+	data, err := io.ReadAll(resp.Body)
+	if err != nil || string(data) != failure {
+		t.Fatalf("large final error body changed: len=%d want=%d err=%v", len(data), len(failure), err)
+	}
+}
+
+func TestRetryBudgetLeavesInitialAndFinalResponseTimeoutsAlone(t *testing.T) {
+	const failure = `{"detail":"slow final failure"}`
+	for _, tc := range []struct {
+		name    string
+		retries int
+		status  int
+	}{
+		{"no-retries", 0, 503},
+		{"successful-initial-response", 1, 200},
+		{"budget-spent-by-initial-response", 1, 503},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := New("https://api.example.invalid", "unit-test")
+			c.Retries, c.RetryDelay, c.RetryMaxElapsedTime = tc.retries, 0, 10*time.Millisecond
+			calls := 0
+			c.HTTPClient.Transport = queryPathTransport(func(r *http.Request) (*http.Response, error) {
+				calls++
+				if deadline, ok := r.Context().Deadline(); !ok || time.Until(deadline) < time.Second {
+					t.Errorf("retry budget changed initial request timeout: deadline=%v", deadline)
+				}
+				time.Sleep(30 * time.Millisecond)
+				return &http.Response{StatusCode: tc.status, Header: http.Header{}, Body: newDelayedRetryBody(failure, 30*time.Millisecond)}, nil
+			})
+			body, status, err := c.Get("/resource")
+			var apiErr *APIError
+			if calls != 1 || status != tc.status || string(body) != failure || tc.status == 200 && err != nil || tc.status == 503 && !errors.As(err, &apiErr) {
+				t.Fatalf("initial/final response was cut short: calls=%d status=%d body=%q err=%v", calls, status, body, err)
+			}
+		})
+	}
+}
+
+func TestRetryCleanupCancellationJoinsBodyReader(t *testing.T) {
+	first := newDelayedRetryBody("failure", time.Hour)
+	c := New("https://api.example.invalid", "unit-test")
+	c.Retries, c.RetryDelay, c.RetryMaxElapsedTime = 1, 0, time.Hour
+	c.HTTPClient.Transport = queryPathTransport(func(r *http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: 503, Header: http.Header{}, Body: first}, nil
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	req, _ := http.NewRequestWithContext(ctx, "GET", "https://api.example.invalid/resource", nil)
+	result := make(chan error, 1)
+	go func() { _, err := c.execute(req, nil); result <- err }()
+	select {
+	case <-first.started:
+	case <-time.After(time.Second):
+		t.Fatal("response cleanup did not begin")
+	}
+	cancel()
+	select {
+	case err := <-result:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("cancellation was lost: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("response cleanup did not stop after cancellation")
+	}
+	select {
+	case <-first.finished:
+	default:
+		t.Fatal("response reader was not joined")
+	}
+	select {
+	case <-first.closed:
+	default:
+		t.Fatal("cancelled response was not closed")
+	}
+}
+
+func TestRetryBudgetReturnedBodyCloseJoinsPendingRead(t *testing.T) {
+	first := newDelayedRetryBody("failure", time.Hour)
+	c := New("https://api.example.invalid", "unit-test")
+	c.Retries, c.RetryDelay, c.RetryMaxElapsedTime = 1, 0, 20*time.Millisecond
+	c.HTTPClient.Transport = queryPathTransport(func(r *http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: 503, Header: http.Header{}, Body: first}, nil
+	})
+	req, _ := http.NewRequest("GET", "https://api.example.invalid/resource", nil)
+	resp, err := c.execute(req, nil)
+	if err != nil || resp == nil || resp.StatusCode != 503 {
+		t.Fatalf("original failure was not returned: response=%v err=%v", resp, err)
+	}
+	defer resp.Body.Close()
+	read := make(chan error, 1)
+	go func() { _, err := io.ReadAll(resp.Body); read <- err }()
+	if err := resp.Body.Close(); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-first.finished:
+	default:
+		t.Fatal("closing returned body left the drain reader running")
+	}
+	select {
+	case err := <-read:
+		if !errors.Is(err, io.ErrClosedPipe) {
+			t.Fatalf("original body read error changed: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("returned body read raced or remained blocked after Close")
+	}
+}
+
+func TestRetryBudgetWithSlowHTTPErrorBody(t *testing.T) {
+	const failure = `{"detail":"server failure"}`
+	release := make(chan struct{})
+	var releaseOnce sync.Once
+	unblock := func() { releaseOnce.Do(func() { close(release) }) }
+	var calls atomic.Int64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		w.WriteHeader(503)
+		w.(http.Flusher).Flush()
+		select {
+		case <-release:
+			_, _ = io.WriteString(w, failure)
+		case <-r.Context().Done():
+		}
+	}))
+	defer server.Close()
+	defer unblock()
+	c := New(server.URL, "unit-test")
+	c.Retries, c.RetryDelay, c.RetryMaxElapsedTime = 1, 0, 30*time.Millisecond
+	req, _ := http.NewRequest("GET", server.URL+"/resource", nil)
+	resp, err := c.execute(req, nil)
+	if resp != nil {
+		defer resp.Body.Close()
+	}
+	if calls.Load() != 1 || err != nil || resp == nil || resp.StatusCode != 503 {
+		t.Fatalf("retry crossed HTTP body cleanup deadline: calls=%d response=%v err=%v", calls.Load(), resp, err)
+	}
+	unblock()
+	data, err := io.ReadAll(resp.Body)
+	if err != nil || string(data) != failure {
+		t.Fatalf("real HTTP error body was cut short: body=%q err=%v", data, err)
 	}
 }
 
