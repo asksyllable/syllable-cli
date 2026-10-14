@@ -309,6 +309,8 @@ syllable language-groups sample --file voice.json > sample.bin
 
 Transport options include `--request-timeout 45s` (explicit `0` disables the timeout), `--retries 3`, `--retry-delay`, `--retry-max-delay`, `--retry-exponent`, `--retry-max-elapsed-time`, `--retry-statuses`, and `--retry-connection-errors`. Existing operation-specific timeouts remain when no override is supplied. Retries default to zero; retrying mutating requests also requires `--retry-writes`. `--user-agent`, `--upload-filename`, and `--upload-content-type` expose request and multipart metadata controls.
 
+The [SDK differential suite](tests/sdk-parity/README.md) compares the real pinned SDK and CLI against one local mock server. It covers all 188 allowed operations and 339 query declarations; organization create/delete remain console-only. This contract coverage is separate from live workflow results, experiment routing, and card interaction tests.
+
 ### Agents
 
 Agents are the AI systems that communicate with users. Each agent is configured with a prompt, a timezone, an optional opening message, session variables for personalization, and optional tool headers. Each channel target has one assigned agent; experiments can split its traffic across agent variants. A test channel is auto-generated for every agent for pre-production testing.
@@ -458,7 +460,7 @@ syllable outbound batches remove-requests <id> --file requests.json
 
 ### Users
 
-Users are platform accounts. `users me` returns the currently authenticated user — useful for verifying that an API key is working.
+Users are platform accounts. `users me` looks up the email configured during setup; it requires that email because the API has no key-identity endpoint.
 
 ```bash
 syllable users list [--search TEXT]

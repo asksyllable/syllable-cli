@@ -1,0 +1,3640 @@
+{
+  "package": "syllable-sdk",
+  "version": "1.0.68",
+  "commit": "6c6fc6f906f103b763dcffa65ccc6ea2403883d4",
+  "operations": {
+    "agent_create": {
+      "module": "agentsCreate",
+      "export": "agentsCreate",
+      "sourceSHA256": "3758e313fcb8f015ea00501ed6165f2a6f97b5d2ef0653fce5c0259a7feab737",
+      "input": "components.AgentCreate",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.AgentResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "agent_delete": {
+      "module": "agentsDelete",
+      "export": "agentsDelete",
+      "sourceSHA256": "7423a8618e39e8ab81bbb68354ff68d787c2c31181e7dc91d06e0be99163331f",
+      "input": "operations.AgentDeleteRequest",
+      "query": [
+        "reason"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.any()",
+        "contentType": "application/json"
+      }
+    },
+    "agent_get_available_stt_providers": {
+      "module": "agentsAgentGetAvailableSttProviders",
+      "export": "agentsAgentGetAvailableSttProviders",
+      "sourceSHA256": "9853f6f26d71edb5f7edf47171fc424c347ea50547e701986276b4c7a83b5410",
+      "input": "operations.AgentGetAvailableSttProvidersRequest",
+      "query": [
+        "selected_provider"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.array(components.SupportedSttProvider$inboundSchema)",
+        "contentType": "application/json"
+      }
+    },
+    "agent_get_available_voices": {
+      "module": "agentsAgentGetAvailableVoices",
+      "export": "agentsAgentGetAvailableVoices",
+      "sourceSHA256": "805ebf0ccecee1ec196d0ae441d6cb30caf0503f840ab19be0b7523e833079a4",
+      "input": "operations.AgentGetAvailableVoicesRequest",
+      "query": [
+        "selected_voice"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.array(components.AgentVoice$inboundSchema)",
+        "contentType": "application/json"
+      }
+    },
+    "agent_get_by_id": {
+      "module": "agentsGetById",
+      "export": "agentsGetById",
+      "sourceSHA256": "0a6ae6aee56a924937bd6ba571ebb0782a9cdf9dac5d450ec3d340c316a18bb5",
+      "input": "operations.AgentGetByIdRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.AgentResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "agent_list": {
+      "module": "agentsList",
+      "export": "agentsList",
+      "sourceSHA256": "d38b28f72b7f639a349954ded1299348910b5c736190e1b2b3c7f465e18bc742",
+      "input": "operations.AgentListRequest",
+      "query": [
+        "end_datetime",
+        "fields",
+        "limit",
+        "order_by",
+        "order_by_direction",
+        "page",
+        "search_field_values",
+        "search_fields",
+        "start_datetime"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponseAgentResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "agent_list_active_labels": {
+      "module": "agentsAgentListActiveLabels",
+      "export": "agentsAgentListActiveLabels",
+      "sourceSHA256": "d75a55f8f4b85a21866df3b43d789280ad0fa0660f60cd64b7c8d3597a9e560c",
+      "input": null,
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.array(z.string())",
+        "contentType": "application/json"
+      }
+    },
+    "agent_update": {
+      "module": "agentsUpdate",
+      "export": "agentsUpdate",
+      "sourceSHA256": "e61f4c392590827cc08b0ee5f684de55d07d2e29a2dafed90f3cbd4b66060222",
+      "input": "components.AgentUpdate",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.AgentResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "available_targets": {
+      "module": "channelsTargetsAvailableTargets",
+      "export": "channelsTargetsAvailableTargets",
+      "sourceSHA256": "97ffd5ef069f4fec89a44783fb38c6e811d59f5e4c670549cd47d224c17e6221",
+      "input": "operations.AvailableTargetsRequest",
+      "query": [
+        "end_datetime",
+        "fields",
+        "limit",
+        "order_by",
+        "order_by_direction",
+        "page",
+        "search_field_values",
+        "search_fields",
+        "start_datetime"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponseAvailableTarget$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "bridge_phrases_create": {
+      "module": "bridgePhrasesCreate",
+      "export": "bridgePhrasesCreate",
+      "sourceSHA256": "00a196fe795d3bd8d9b2faabeaa5b351cdb1183ef0ba9192752981d80dc5d06c",
+      "input": "components.BridgePhrasesCreateRequest",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.BridgePhrasesResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "bridge_phrases_delete": {
+      "module": "bridgePhrasesDelete",
+      "export": "bridgePhrasesDelete",
+      "sourceSHA256": "a6a3f9da473284493b2ce69257d5831caf32caa9eb7fc332bcbe242d27400901",
+      "input": "operations.BridgePhrasesDeleteRequest",
+      "query": [
+        "reason"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.any()",
+        "contentType": "application/json"
+      }
+    },
+    "bridge_phrases_get_by_id": {
+      "module": "bridgePhrasesGetById",
+      "export": "bridgePhrasesGetById",
+      "sourceSHA256": "7a7e91ae082a9af18906a53eb7ad41ca2db876e2c2f4da764d69cf79e2c8b258",
+      "input": "operations.BridgePhrasesGetByIdRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.BridgePhrasesResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "bridge_phrases_list": {
+      "module": "bridgePhrasesList",
+      "export": "bridgePhrasesList",
+      "sourceSHA256": "6a73bf7c751de989319acc6d7ff8e8fa6f0569417c8aac52a289d8ef986dbb25",
+      "input": "operations.BridgePhrasesListRequest",
+      "query": [
+        "end_datetime",
+        "fields",
+        "limit",
+        "order_by",
+        "order_by_direction",
+        "page",
+        "search_field_values",
+        "search_fields",
+        "start_datetime"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponseBridgePhrasesResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "bridge_phrases_update": {
+      "module": "bridgePhrasesUpdate",
+      "export": "bridgePhrasesUpdate",
+      "sourceSHA256": "981c2a566687a5a3565e9851ecf742dda14a2266de191dbaac90331f71cd8533",
+      "input": "components.BridgePhrasesUpdateRequest",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.BridgePhrasesResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "channel_targets_create": {
+      "module": "channelsTargetsCreate",
+      "export": "channelsTargetsCreate",
+      "sourceSHA256": "88a17fa55ca56792071f93c5297e3e23965763e664ab87f9aaadcde8a7637256",
+      "input": "operations.ChannelTargetsCreateRequest",
+      "query": [],
+      "jsonBody": "ChannelTargetCreateRequest",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ChannelTargetResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "channel_targets_delete": {
+      "module": "channelsDelete",
+      "export": "channelsDelete",
+      "sourceSHA256": "12166a5f172a01c3e3626d72bd18753e6e4c675dd7cb53c38b13f5321a05a86b",
+      "input": "operations.ChannelTargetsDeleteRequest",
+      "query": [
+        "target_id"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.any()",
+        "contentType": "application/json"
+      }
+    },
+    "channel_targets_get_by_id": {
+      "module": "channelsTargetsGetById",
+      "export": "channelsTargetsGetById",
+      "sourceSHA256": "815df2b4740ffb573dc042b8c9b61cd13e2a8a5cff0d129397417ca1a29cc1cb",
+      "input": "operations.ChannelTargetsGetByIdRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ChannelTargetResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "channel_targets_list": {
+      "module": "channelsTargetsList",
+      "export": "channelsTargetsList",
+      "sourceSHA256": "d256de1df0b00e9c329619bbe9e26754fe1dccabe8fad82312445a83550396d5",
+      "input": "operations.ChannelTargetsListRequest",
+      "query": [
+        "end_datetime",
+        "fields",
+        "limit",
+        "order_by",
+        "order_by_direction",
+        "page",
+        "search_field_values",
+        "search_fields",
+        "start_datetime"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponseChannelTargetResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "channel_targets_update": {
+      "module": "channelsTargetsUpdate",
+      "export": "channelsTargetsUpdate",
+      "sourceSHA256": "bb4c9d501c7cb7feee15eaadb0a57195a0694be37c5e9fa405541a5fbdc3c6ab",
+      "input": "operations.ChannelTargetsUpdateRequest",
+      "query": [],
+      "jsonBody": "ChannelTargetUpdateRequest",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ChannelTargetResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "channels_create": {
+      "module": "channelsCreate",
+      "export": "channelsCreate",
+      "sourceSHA256": "a6e9cf441e286a3ff312b6980d19b320d81cc683fb94485f5cd7459f53e3f183",
+      "input": "components.OrganizationChannelCreateRequest",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.Channel$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "channels_list": {
+      "module": "channelsList",
+      "export": "channelsList",
+      "sourceSHA256": "6f7392a96dfc01adb8b66dde24fca7f588d42be5b68b0796d9c6e08057febdf2",
+      "input": "operations.ChannelsListRequest",
+      "query": [
+        "end_datetime",
+        "fields",
+        "limit",
+        "order_by",
+        "order_by_direction",
+        "page",
+        "search_field_values",
+        "search_fields",
+        "start_datetime"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponseChannel$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "channels_twilio_create": {
+      "module": "channelsTwilioCreate",
+      "export": "channelsTwilioCreate",
+      "sourceSHA256": "1e5046b53b017a926b8abfe540eef891ff249ad8a4dd67c70009c507ddf290dc",
+      "input": "components.TwilioChannelCreateRequest",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.Channel$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "channels_twilio_get_by_id": {
+      "module": "channelsTwilioGetById",
+      "export": "channelsTwilioGetById",
+      "sourceSHA256": "9887480c3b00539efd2c27757494c4828219c65b26bb1db8874f49c687c33eda",
+      "input": "operations.ChannelsTwilioGetByIdRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.Channel$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "channels_twilio_numbers_a2p_compliance_check": {
+      "module": "channelsTwilioNumbersChannelsTwilioNumbersA2pComplianceCheck",
+      "export": "channelsTwilioNumbersChannelsTwilioNumbersA2pComplianceCheck",
+      "sourceSHA256": "33475c0545c54dde2d25540cf8c69a3308bffea41c7bf8652bf591ce780b9bf8",
+      "input": "operations.ChannelsTwilioNumbersA2pComplianceCheckRequest",
+      "query": [],
+      "jsonBody": "A2pMessagingPathCheckRequest",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.A2pMessagingPathCheckResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "channels_twilio_numbers_add": {
+      "module": "channelsTwilioNumbersAdd",
+      "export": "channelsTwilioNumbersAdd",
+      "sourceSHA256": "4afbd14106c82af286f6a7ee2ef0336967764a61b034cb5a68a1c4d1950a4601",
+      "input": "operations.ChannelsTwilioNumbersAddRequest",
+      "query": [],
+      "jsonBody": "TwilioNumberAddRequest",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.TwilioNumberAddResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "channels_twilio_numbers_list": {
+      "module": "channelsTwilioNumbersList",
+      "export": "channelsTwilioNumbersList",
+      "sourceSHA256": "d00c9ba9042be698d07d5e5b67500c40de4218e8b1a90acf1b176ad9fdd69ef7",
+      "input": "operations.ChannelsTwilioNumbersListRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.TwilioListNumbersResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "channels_twilio_numbers_update": {
+      "module": "channelsTwilioNumbersUpdate",
+      "export": "channelsTwilioNumbersUpdate",
+      "sourceSHA256": "020091be4ce00ddc497b8d3c24efc0197c191b2468e3bbed6531274ee1d82266",
+      "input": "operations.ChannelsTwilioNumbersUpdateRequest",
+      "query": [],
+      "jsonBody": "TwilioNumberUpdateRequest",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.TwilioNumberUpdateResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "channels_twilio_update": {
+      "module": "channelsTwilioUpdate",
+      "export": "channelsTwilioUpdate",
+      "sourceSHA256": "10bee74789c6c68d416b5ae56f2d820a5b7d09ecdbde58b8ba50e24e917744b8",
+      "input": "components.TwilioChannelUpdateRequest",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.Channel$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "channels_update": {
+      "module": "channelsUpdate",
+      "export": "channelsUpdate",
+      "sourceSHA256": "37b44dfd707c7faf2cd239d76b02d0c75f5daf293abd4bdce7b8b88fd4a45978",
+      "input": "components.OrganizationChannelUpdateRequest",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.Channel$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "conversations_list": {
+      "module": "conversationsList",
+      "export": "conversationsList",
+      "sourceSHA256": "70426adbb9548b3276250e9b4981986ef23e0cc7d7fe3c1ac60ff3bb0d4b3bae",
+      "input": "operations.ConversationsListRequest",
+      "query": [
+        "end_datetime",
+        "fields",
+        "limit",
+        "order_by",
+        "order_by_direction",
+        "page",
+        "search_field_values",
+        "search_fields",
+        "start_datetime"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponseConversation$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "custom_message_get_by_id": {
+      "module": "customMessagesGetById",
+      "export": "customMessagesGetById",
+      "sourceSHA256": "11dc3d99aa375cbcfe7a51ff9307bec6e7cdb6730444344f7356546e239ecf67",
+      "input": "operations.CustomMessageGetByIdRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.CustomMessageResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "custom_messages_create": {
+      "module": "customMessagesCreate",
+      "export": "customMessagesCreate",
+      "sourceSHA256": "09683c4259d97083981ed53d2b3a8afc9e9db252c188cea260f23c293b1b476b",
+      "input": "components.CustomMessageCreateRequest",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.CustomMessageResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "custom_messages_delete": {
+      "module": "customMessagesDelete",
+      "export": "customMessagesDelete",
+      "sourceSHA256": "1c76a1af4472e4f90eab8660a2bbe095611f4e1cfdf9aca67b9cbbfa64d13f2c",
+      "input": "operations.CustomMessagesDeleteRequest",
+      "query": [
+        "reason"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.any()",
+        "contentType": "application/json"
+      }
+    },
+    "custom_messages_list": {
+      "module": "customMessagesList",
+      "export": "customMessagesList",
+      "sourceSHA256": "9bd5a284f5642984182bb398f2c54585f6c388b111d41bcbb34823ab792b7bbf",
+      "input": "operations.CustomMessagesListRequest",
+      "query": [
+        "end_datetime",
+        "fields",
+        "limit",
+        "order_by",
+        "order_by_direction",
+        "page",
+        "search_field_values",
+        "search_fields",
+        "start_datetime"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponseCustomMessageResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "custom_messages_update": {
+      "module": "customMessagesUpdate",
+      "export": "customMessagesUpdate",
+      "sourceSHA256": "d5422018f4907e3bafe2f944f8da269b47a5548847e8096916e037bbc160a80e",
+      "input": "components.CustomMessageUpdateRequest",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.CustomMessageResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "data_sources_create": {
+      "module": "dataSourcesCreate",
+      "export": "dataSourcesCreate",
+      "sourceSHA256": "24fc52865b7e2b42166a13de51fa6812c38845741db48e1926f3403baf872b59",
+      "input": "components.DataSourceCreateRequest",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.DataSourceDetailResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "data_sources_delete": {
+      "module": "dataSourcesDelete",
+      "export": "dataSourcesDelete",
+      "sourceSHA256": "6575fcdb35467190444ffa605700040ce9ec028e9e7ea2db8c6c735adc6c074d",
+      "input": "operations.DataSourcesDeleteRequest",
+      "query": [
+        "reason"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.any()",
+        "contentType": "application/json"
+      }
+    },
+    "data_sources_get_by_id": {
+      "module": "dataSourcesGetById",
+      "export": "dataSourcesGetById",
+      "sourceSHA256": "4121e5fefa5b2f68d75c02443e40dafd27bc267565eea24f836cd9c2eadf5fa2",
+      "input": "operations.DataSourcesGetByIdRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.DataSourceDetailResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "data_sources_list": {
+      "module": "dataSourcesList",
+      "export": "dataSourcesList",
+      "sourceSHA256": "0d996eeb6771d8a83975776de9e5805f078975177205e9401a6d1e198dda9922",
+      "input": "operations.DataSourcesListRequest",
+      "query": [
+        "end_datetime",
+        "fields",
+        "limit",
+        "order_by",
+        "order_by_direction",
+        "page",
+        "search_field_values",
+        "search_fields",
+        "start_datetime"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponseDataSourceMetadataResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "data_sources_update": {
+      "module": "dataSourcesUpdate",
+      "export": "dataSourcesUpdate",
+      "sourceSHA256": "d997c348a96b1adc9aa91c5542ca27eea8cabb3b96ff6ca3adec40c32b340495",
+      "input": "components.DataSourceUpdateRequest",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.DataSourceDetailResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "directory_member_bulk_load": {
+      "module": "directoryDirectoryMemberBulkLoad",
+      "export": "directoryDirectoryMemberBulkLoad",
+      "sourceSHA256": "4696a54b97c031ad7f14850ff1c3508c845c33ed617127494b3c1d81f95fe659",
+      "input": "components.BodyDirectoryMemberBulkLoad",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": true,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.any()",
+        "contentType": "application/json"
+      }
+    },
+    "directory_member_create": {
+      "module": "directoryCreate",
+      "export": "directoryCreate",
+      "sourceSHA256": "f1ae8e87f47098e14040adc3eb505eee7d906d82c8bd0f832ba5322773252460",
+      "input": "operations.DirectoryMemberCreateRequest",
+      "query": [
+        "response_format"
+      ],
+      "jsonBody": "DirectoryMemberCreate",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.DirectoryMember$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "directory_member_delete": {
+      "module": "directoryDelete",
+      "export": "directoryDelete",
+      "sourceSHA256": "3dd607896fa4d0c601b3d487bd1ce8276866c62e272d08f5f98cde9081cdf09b",
+      "input": "operations.DirectoryMemberDeleteRequest",
+      "query": [
+        "comment"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.any()",
+        "contentType": "application/json"
+      }
+    },
+    "directory_member_download": {
+      "module": "directoryDirectoryMemberDownload",
+      "export": "directoryDirectoryMemberDownload",
+      "sourceSHA256": "6b4613bde2e3abdf83519cbe26060fd4c5127247f391575d550514d4d17542da",
+      "input": "operations.DirectoryMemberDownloadRequest",
+      "query": [
+        "response_format"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.any()",
+        "contentType": "application/json"
+      }
+    },
+    "directory_member_get_by_id": {
+      "module": "directoryGetById",
+      "export": "directoryGetById",
+      "sourceSHA256": "02f43b5dbb64df5d6db5928158489b9508d32fbf65f4f299a3aec246f658e6c2",
+      "input": "operations.DirectoryMemberGetByIdRequest",
+      "query": [
+        "response_format"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.DirectoryMember$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "directory_member_history": {
+      "module": "directoryDirectoryMemberHistory",
+      "export": "directoryDirectoryMemberHistory",
+      "sourceSHA256": "7cbceb914a08ca2d1b79ba59d84144ebd2374c39c30aa2c1b856c519cc69160a",
+      "input": "operations.DirectoryMemberHistoryRequest",
+      "query": [
+        "limit",
+        "order_by_direction",
+        "page",
+        "response_format"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponseDirectoryMemberHistoryResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "directory_member_list": {
+      "module": "directoryList",
+      "export": "directoryList",
+      "sourceSHA256": "f72e604e474da96c59afbb3633685ba2fad7b545f0ddd01651a1d75c83ef5da5",
+      "input": "operations.DirectoryMemberListRequest",
+      "query": [
+        "end_datetime",
+        "fields",
+        "include_deleted",
+        "limit",
+        "order_by",
+        "order_by_direction",
+        "page",
+        "response_format",
+        "search_field_values",
+        "search_fields",
+        "start_datetime",
+        "status"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponseDirectoryMember$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "directory_member_restore": {
+      "module": "directoryDirectoryMemberRestore",
+      "export": "directoryDirectoryMemberRestore",
+      "sourceSHA256": "a8e47cfc39708aa4de62440ab5e11e538c8db4ccc2d69779a4f3c324276fce5d",
+      "input": "operations.DirectoryMemberRestoreRequest",
+      "query": [
+        "response_format"
+      ],
+      "jsonBody": "DirectoryMemberRestore",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.DirectoryMember$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "directory_member_test_extension": {
+      "module": "directoryDirectoryMemberTestExtension",
+      "export": "directoryDirectoryMemberTestExtension",
+      "sourceSHA256": "4c5322bc527290d245d14bafd7c48fa874b1bb74393686fa1d1477d44a919ce2",
+      "input": "operations.DirectoryMemberTestExtensionRequest",
+      "query": [
+        "language_code",
+        "timestamp"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.DirectoryMemberTestResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "directory_member_update": {
+      "module": "directoryUpdate",
+      "export": "directoryUpdate",
+      "sourceSHA256": "da200b7b9162336b7cdbefac63b82aebcdf2ea04fdeeeea1aea13d037a8a0587",
+      "input": "operations.DirectoryMemberUpdateRequest",
+      "query": [
+        "response_format"
+      ],
+      "jsonBody": "DirectoryMemberUpdate",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.DirectoryMember$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "events_list": {
+      "module": "eventsList",
+      "export": "eventsList",
+      "sourceSHA256": "7d9ed61be6f0807731566750c5cf7b8bd50f8392733b586eb2fb99aa5fb7fd52",
+      "input": "operations.EventsListRequest",
+      "query": [
+        "end_datetime",
+        "fields",
+        "limit",
+        "order_by",
+        "order_by_direction",
+        "page",
+        "search_field_values",
+        "search_fields",
+        "start_datetime"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponseEvent$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "experiments_create": {
+      "module": "experimentsCreate",
+      "export": "experimentsCreate",
+      "sourceSHA256": "54084690f8d51ed351e76ecd092179b9f622edf077fdd190833b5770002bff64",
+      "input": "components.ExperimentCreateRequest",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ExperimentResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "experiments_delete": {
+      "module": "experimentsDelete",
+      "export": "experimentsDelete",
+      "sourceSHA256": "e2f5c077457cc618372caca0599279f1fc7bbf6ecf416908d6743c7837203336",
+      "input": "operations.ExperimentsDeleteRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.any()",
+        "contentType": "application/json"
+      }
+    },
+    "experiments_get_by_id": {
+      "module": "experimentsGetById",
+      "export": "experimentsGetById",
+      "sourceSHA256": "0520a5c3078c154f73b065ed4372b8165894a10e3dae11aeff1fef14501a40bf",
+      "input": "operations.ExperimentsGetByIdRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ExperimentResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "experiments_list": {
+      "module": "experimentsList",
+      "export": "experimentsList",
+      "sourceSHA256": "88dde7f352e61408e70f31b62bd764f0aea925021d37704746107aeb10241da1",
+      "input": "operations.ExperimentsListRequest",
+      "query": [
+        "end_datetime",
+        "fields",
+        "limit",
+        "order_by",
+        "order_by_direction",
+        "page",
+        "search_field_values",
+        "search_fields",
+        "start_datetime"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponseExperimentResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "experiments_results": {
+      "module": "experimentsResults",
+      "export": "experimentsResults",
+      "sourceSHA256": "cd5201dbf378fc0a38ea56cc62933e6ef9686b70e85e6e544792348a9e78c1c5",
+      "input": "operations.ExperimentsResultsRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ExperimentResultsResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "experiments_start": {
+      "module": "experimentsExperimentsStart",
+      "export": "experimentsExperimentsStart",
+      "sourceSHA256": "ab7da9bbd987146e32d86e84cee370fa31595be19c7536ec67116723986d339f",
+      "input": "operations.ExperimentsStartRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ExperimentStartResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "experiments_stop": {
+      "module": "experimentsExperimentsStop",
+      "export": "experimentsExperimentsStop",
+      "sourceSHA256": "9751c0d382d5fe48c4eb189b279900d3af4e1de5f8dc17ed4805212377d6d011",
+      "input": "operations.ExperimentsStopRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ExperimentResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "experiments_update": {
+      "module": "experimentsUpdate",
+      "export": "experimentsUpdate",
+      "sourceSHA256": "f7d4e19fa9c9bcd0b1a6a768b2da6f6f7bb5eeaee7d2513014727815d7ab5292",
+      "input": "operations.ExperimentsUpdateRequest",
+      "query": [],
+      "jsonBody": "ExperimentUpdateRequest",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ExperimentResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "generate_session_recording_urls": {
+      "module": "sessionsGenerateSessionRecordingUrls",
+      "export": "sessionsGenerateSessionRecordingUrls",
+      "sourceSHA256": "eb04099ac0b1acaf220eebfcf05a15a06fb469d0fb8e07b9492a6097a1961894",
+      "input": "operations.GenerateSessionRecordingUrlsRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.SessionRecordingResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "get_bridge_phrases_config": {
+      "module": "conversationConfigGetBridgePhrasesConfig",
+      "export": "conversationConfigGetBridgePhrasesConfig",
+      "sourceSHA256": "ae8527377571a9b893905dd26e9b97998b0f8220bba9776db965033f51bff7f1",
+      "input": "operations.GetBridgePhrasesConfigRequest",
+      "query": [
+        "agent_id",
+        "tool_name"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.BridgePhrasesConfig$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "get_session_data_by_session_id": {
+      "module": "sessionDebugGetSessionDataBySessionId",
+      "export": "sessionDebugGetSessionDataBySessionId",
+      "sourceSHA256": "28dc53f51317dd9546bf41c8d2547c3687fd0acc7b937edb69b255fafd9d3dc1",
+      "input": "operations.GetSessionDataBySessionIdRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.SessionData$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "get_session_data_by_sid": {
+      "module": "sessionDebugGetSessionDataBySid",
+      "export": "sessionDebugGetSessionDataBySid",
+      "sourceSHA256": "4f180c119ac97ec3967d3e2ec2c3e848ac9e22d0b8ebb33496d0782c6001bd16",
+      "input": "operations.GetSessionDataBySidRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.SessionData$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "get_session_tool_call_result_by_id": {
+      "module": "sessionDebugGetSessionToolCallResultById",
+      "export": "sessionDebugGetSessionToolCallResultById",
+      "sourceSHA256": "84d2e4ecdf0188f591f7bb0ec1bbeaf50bacc8f87160048b26186a686f0c2b18",
+      "input": "operations.GetSessionToolCallResultByIdRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ToolResultData$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "incident_create": {
+      "module": "incidentsCreate",
+      "export": "incidentsCreate",
+      "sourceSHA256": "7d7ce6154084eace2e811b4daebfa5d280ee5377ccd5df89624a1f7d373443af",
+      "input": "components.IncidentCreateRequest",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.IncidentResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "incident_delete": {
+      "module": "incidentsDelete",
+      "export": "incidentsDelete",
+      "sourceSHA256": "8a2fddace369a7d05e51bcb7939ef77b2b9f3efd0fd1ddd09601cf86ca9c1250",
+      "input": "operations.IncidentDeleteRequest",
+      "query": [
+        "reason"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.any()",
+        "contentType": "application/json"
+      }
+    },
+    "incident_get_by_id": {
+      "module": "incidentsGetById",
+      "export": "incidentsGetById",
+      "sourceSHA256": "59c203207fc6bccfc2b791bbccd114c4b69140ff3be7bef28afe24cb2adf396a",
+      "input": "operations.IncidentGetByIdRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.IncidentResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "incident_get_organizations": {
+      "module": "incidentsIncidentGetOrganizations",
+      "export": "incidentsIncidentGetOrganizations",
+      "sourceSHA256": "fefeee6e9ed96ad1e508b19a821bb26eb13f241cad299c8ed486fcc38cb1d8df",
+      "input": null,
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.array(components.IncidentOrganizationResponse$inboundSchema)",
+        "contentType": "application/json"
+      }
+    },
+    "incident_list": {
+      "module": "incidentsList",
+      "export": "incidentsList",
+      "sourceSHA256": "3c1087492ba6d9e8a45dd21a5674eb7f33f1a362556cea6ab700d2a09ee921ae",
+      "input": "operations.IncidentListRequest",
+      "query": [
+        "end_datetime",
+        "fields",
+        "limit",
+        "order_by",
+        "order_by_direction",
+        "page",
+        "search_field_values",
+        "search_fields",
+        "start_datetime"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponseIncidentResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "incident_update": {
+      "module": "incidentsUpdate",
+      "export": "incidentsUpdate",
+      "sourceSHA256": "9598e12c3e8fad6fc6da1d986636c89eac5eb134a7291d6ce77749f3701b01a3",
+      "input": "components.IncidentUpdateRequest",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.IncidentResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "insight_tool_get_by_id": {
+      "module": "insightsToolsGetById",
+      "export": "insightsToolsGetById",
+      "sourceSHA256": "2ae5c5b66c4d5def4877c2dcb6be0fae027147acc0b8d6e3543a5290793c4604",
+      "input": "operations.InsightToolGetByIdRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.InsightToolResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "insight_tool_get_definitions": {
+      "module": "insightsToolsInsightToolGetDefinitions",
+      "export": "insightsToolsInsightToolGetDefinitions",
+      "sourceSHA256": "bd99126a2f3394c76ec7392a57a76d594029b397b1da0b3ae42b7d3d85375d48",
+      "input": null,
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.array(components.InsightToolDefinition$inboundSchema)",
+        "contentType": "application/json"
+      }
+    },
+    "insight_tool_list": {
+      "module": "insightsToolsList",
+      "export": "insightsToolsList",
+      "sourceSHA256": "68f692ae95526c071607c914a0367048e58faae57a788e9759eabbd109620bb9",
+      "input": "operations.InsightToolListRequest",
+      "query": [
+        "end_datetime",
+        "fields",
+        "limit",
+        "order_by",
+        "order_by_direction",
+        "page",
+        "search_field_values",
+        "search_fields",
+        "start_datetime"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponseInsightToolResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "insights_folder_create": {
+      "module": "insightsFoldersCreate",
+      "export": "insightsFoldersCreate",
+      "sourceSHA256": "ccd16c3ccb8b34b981aeeea2b506f90a56d58c8ef2b8bc3b022191f2ca26fd6e",
+      "input": "components.InsightsFolderInput",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.InsightsFolder$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "insights_folder_delete": {
+      "module": "insightsFoldersDelete",
+      "export": "insightsFoldersDelete",
+      "sourceSHA256": "ce2d5fa5741b2ea0174e3f17faa56ab4a706bb1ca57b4bfdce0ab4346d1b7620",
+      "input": "operations.InsightsFolderDeleteRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.boolean()",
+        "contentType": "application/json"
+      }
+    },
+    "insights_folder_get_by_id": {
+      "module": "insightsFoldersGetById",
+      "export": "insightsFoldersGetById",
+      "sourceSHA256": "9913472dfb5c6a8fa93e52cc113d065e527a2e70eacfc6d904f0b1f41ccabadc",
+      "input": "operations.InsightsFolderGetByIdRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.FolderDetails$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "insights_folder_list": {
+      "module": "insightsFoldersList",
+      "export": "insightsFoldersList",
+      "sourceSHA256": "844314917b6d5058534dae7367342fde2cb986206f43459b0020fdc58f2150d8",
+      "input": "operations.InsightsFolderListRequest",
+      "query": [
+        "end_datetime",
+        "fields",
+        "limit",
+        "order_by",
+        "order_by_direction",
+        "page",
+        "search_field_values",
+        "search_fields",
+        "start_datetime"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponseInsightsFolder$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "insights_folder_update": {
+      "module": "insightsFoldersUpdate",
+      "export": "insightsFoldersUpdate",
+      "sourceSHA256": "e441f36f33f0ea3f0dca25caffd730ecaf94ac53be9aa31a1d12cb972b9ba8dd",
+      "input": "operations.InsightsFolderUpdateRequest",
+      "query": [],
+      "jsonBody": "InsightsFolderInput",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.InsightsFolder$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "insights_folder_upload_file": {
+      "module": "insightsFoldersUploadFile",
+      "export": "insightsFoldersUploadFile",
+      "sourceSHA256": "9eae0384c10e15a07ecbfb649b03d4ddc236bbfe261b046c6c0ff1faf9a2a581",
+      "input": "operations.InsightsFolderUploadFileRequest",
+      "query": [
+        "agent_number",
+        "call_id",
+        "customer_number",
+        "duration",
+        "end_time",
+        "metadata",
+        "start_time"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": true,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.InsightsUploadFile$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "insights_list": {
+      "module": "insightsList",
+      "export": "insightsList",
+      "sourceSHA256": "7544cc2542f324158d520895a13c8ff6a4e836eb5f10825a09f148fa0a8cae1d",
+      "input": "operations.InsightsListRequest",
+      "query": [
+        "end_datetime",
+        "fields",
+        "limit",
+        "order_by",
+        "order_by_direction",
+        "page",
+        "search_field_values",
+        "search_fields",
+        "start_datetime"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponseInsightsOutput$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "insights_tool_create": {
+      "module": "insightsToolsCreate",
+      "export": "insightsToolsCreate",
+      "sourceSHA256": "b890b530a53fd755a24e21d72ca66be8525503dc493f602eea7268ecaa8e3c44",
+      "input": "components.InsightToolInput",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.InsightToolResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "insights_tool_delete": {
+      "module": "insightsToolsDelete",
+      "export": "insightsToolsDelete",
+      "sourceSHA256": "1d8c18e04a1b6fe9f49bf12fcaa6a2fe88241dec770103f629ad51d7e91397ac",
+      "input": "operations.InsightsToolDeleteRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.any()",
+        "contentType": "application/json"
+      }
+    },
+    "insights_tool_test": {
+      "module": "insightsToolsInsightsToolTest",
+      "export": "insightsToolsInsightsToolTest",
+      "sourceSHA256": "b0f4e3268790464d53df9f3503e059d97bd5952580c7bdd82dd481760bb0430b",
+      "input": "components.InsightToolTestInput",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.any()",
+        "contentType": "application/json"
+      }
+    },
+    "insights_tool_update": {
+      "module": "insightsToolsUpdate",
+      "export": "insightsToolsUpdate",
+      "sourceSHA256": "4bf2bd04b1aba14fffca971c6bd6a37d5d391918f5a4ee807f30876f072ef75b",
+      "input": "operations.InsightsToolUpdateRequest",
+      "query": [],
+      "jsonBody": "InsightToolInput",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.InsightToolResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "insights_upload_list_files": {
+      "module": "insightsFoldersListFiles",
+      "export": "insightsFoldersListFiles",
+      "sourceSHA256": "3159e7ad86b8d65c7b0cc4480146ea66f3d1aea46b04fa0c651a8b4d0a568efe",
+      "input": "operations.InsightsUploadListFilesRequest",
+      "query": [
+        "end_datetime",
+        "fields",
+        "limit",
+        "order_by",
+        "order_by_direction",
+        "page",
+        "search_field_values",
+        "search_fields",
+        "start_datetime"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponseInsightsUploadFile$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "insights_upload_move_files": {
+      "module": "insightsFoldersMoveFiles",
+      "export": "insightsFoldersMoveFiles",
+      "sourceSHA256": "ef705b5ef71b669045b12c727915fe8cdd167d19802cce753a89ff6b55769a26",
+      "input": "operations.InsightsUploadMoveFilesRequest",
+      "query": [],
+      "jsonBody": "InsightsFolderFileMove",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.array(components.InsightsUploadFile$inboundSchema)",
+        "contentType": "application/json"
+      }
+    },
+    "insights_workflow_activate": {
+      "module": "insightsWorkflowsActivate",
+      "export": "insightsWorkflowsActivate",
+      "sourceSHA256": "8f3f3ec7d8606a9a7a85dff6696f79953f5b3db1ca36adeaa9e7fe0494dd862f",
+      "input": "operations.InsightsWorkflowActivateRequest",
+      "query": [],
+      "jsonBody": "InsightWorkflowActivate",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.InsightWorkflowOutput$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "insights_workflow_create": {
+      "module": "insightsWorkflowsCreate",
+      "export": "insightsWorkflowsCreate",
+      "sourceSHA256": "c0765aa263b6c13a3dd6450bc9fe8e9bc4a018eec6e637eddcc4cc7d7175c1a7",
+      "input": "components.InsightWorkflowInput",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.InsightWorkflowOutput$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "insights_workflow_delete": {
+      "module": "insightsWorkflowsDelete",
+      "export": "insightsWorkflowsDelete",
+      "sourceSHA256": "5c00dc313e350f544189f0dff401328b0262cb72c722682cff53734fa23437e8",
+      "input": "operations.InsightsWorkflowDeleteRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.any()",
+        "contentType": "application/json"
+      }
+    },
+    "insights_workflow_executions": {
+      "module": "insightsWorkflowsListExecutions",
+      "export": "insightsWorkflowsListExecutions",
+      "sourceSHA256": "daf0684f34ceca33007efcd4afc3908366977c63d40b487e9cc59e1921322e87",
+      "input": "operations.InsightsWorkflowExecutionsRequest",
+      "query": [
+        "end_datetime",
+        "fields",
+        "limit",
+        "order_by",
+        "order_by_direction",
+        "page",
+        "search_field_values",
+        "search_fields",
+        "start_datetime"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponseInsightWorkflowExecutionOutput$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "insights_workflow_executions_summary": {
+      "module": "insightsWorkflowsExecutionsSummary",
+      "export": "insightsWorkflowsExecutionsSummary",
+      "sourceSHA256": "3e6f2182adab7943021fcdfe85c68653289e0df01226285cf20f92629baaa2b5",
+      "input": "operations.InsightsWorkflowExecutionsSummaryRequest",
+      "query": [
+        "end_datetime",
+        "start_datetime"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.InsightWorkflowExecutionSummary$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "insights_workflow_files": {
+      "module": "insightsWorkflowsInsightsWorkflowFiles",
+      "export": "insightsWorkflowsInsightsWorkflowFiles",
+      "sourceSHA256": "a058dc714f3c632c98915ae1635f293d19a50c1452a40b040ffbc8507de8112e",
+      "input": "operations.InsightsWorkflowFilesRequest",
+      "query": [
+        "end_datetime",
+        "limit",
+        "order_by",
+        "order_by_direction",
+        "page",
+        "search_field_values",
+        "search_fields",
+        "start_datetime"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponseWorkflowFileRow$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "insights_workflow_get_by_id": {
+      "module": "insightsWorkflowsGetById",
+      "export": "insightsWorkflowsGetById",
+      "sourceSHA256": "eefdbcdf48ecf3b75f62c2c2bcd4edac766d2607f15c18812ebe3937a3d74404",
+      "input": "operations.InsightsWorkflowGetByIdRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.InsightWorkflowResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "insights_workflow_inactivate": {
+      "module": "insightsWorkflowsInactivate",
+      "export": "insightsWorkflowsInactivate",
+      "sourceSHA256": "a36df5d7f0c786192ad2d1d02625c0b4842f51a1fd144c34f0936cb5e13aeaed",
+      "input": "operations.InsightsWorkflowInactivateRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.InsightWorkflowOutput$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "insights_workflow_list": {
+      "module": "insightsWorkflowsList",
+      "export": "insightsWorkflowsList",
+      "sourceSHA256": "b319316712b5f06e150965e44fcfabb6853a0201455c322731a306d87fa04442",
+      "input": "operations.InsightsWorkflowListRequest",
+      "query": [
+        "end_datetime",
+        "fields",
+        "limit",
+        "order_by",
+        "order_by_direction",
+        "page",
+        "search_field_values",
+        "search_fields",
+        "start_datetime"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponseInsightWorkflowResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "insights_workflow_queue_work": {
+      "module": "insightsWorkflowsQueueWork",
+      "export": "insightsWorkflowsQueueWork",
+      "sourceSHA256": "b25e9459b0ad7f91700cd872771b1f1a6817a5f91c8f2d01ca6a2bd142c3a4f2",
+      "input": "components.InsightsWorkflowQueueSession",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.any()",
+        "contentType": "application/json"
+      }
+    },
+    "insights_workflow_sessions": {
+      "module": "insightsWorkflowsListSessions",
+      "export": "insightsWorkflowsListSessions",
+      "sourceSHA256": "d822e9de22826acd008c332d2e57415b81979cf588a22008aa53b2bedd30d9b0",
+      "input": "operations.InsightsWorkflowSessionsRequest",
+      "query": [
+        "end_datetime",
+        "limit",
+        "order_by",
+        "order_by_direction",
+        "page",
+        "search_field_values",
+        "search_fields",
+        "start_datetime"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponseWorkflowSessionRow$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "insights_workflow_update": {
+      "module": "insightsWorkflowsUpdate",
+      "export": "insightsWorkflowsUpdate",
+      "sourceSHA256": "9a38de5782a53795dcfb33729760d06206d6cf9756afd7e6a06fbeacc21dca09",
+      "input": "operations.InsightsWorkflowUpdateRequest",
+      "query": [],
+      "jsonBody": "InsightWorkflowInput",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.InsightWorkflowOutput$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "language_groups_create": {
+      "module": "languageGroupsCreate",
+      "export": "languageGroupsCreate",
+      "sourceSHA256": "794755e6ffa5428f6aa7d1be2a2db03b15c1b65d4f9c09f9bc463337caa4b7c4",
+      "input": "components.LanguageGroupCreateRequest",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.LanguageGroupResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "language_groups_create_voice_sample": {
+      "module": "languageGroupsLanguageGroupsCreateVoiceSample",
+      "export": "languageGroupsLanguageGroupsCreateVoiceSample",
+      "sourceSHA256": "630e78fd493a417148caf7132641b3f1ded5116e6a446279e70c913b469a994b",
+      "input": "components.LanguageSampleCreateRequest",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/octet-stream",
+      "response": {
+        "type": "stream",
+        "status": 200,
+        "schema": "z.instanceof((ReadableStream))",
+        "contentType": "application/octet-stream"
+      }
+    },
+    "language_groups_delete": {
+      "module": "languageGroupsDelete",
+      "export": "languageGroupsDelete",
+      "sourceSHA256": "bdb8d60166ce0e4dde254c522d0c954ae497143a1ef2eb65cb79a48a351a320a",
+      "input": "operations.LanguageGroupsDeleteRequest",
+      "query": [
+        "reason"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.any()",
+        "contentType": "application/json"
+      }
+    },
+    "language_groups_get_by_id": {
+      "module": "languageGroupsGetById",
+      "export": "languageGroupsGetById",
+      "sourceSHA256": "8d2d8ea0d28fdf319343849d77af6f89aa4deefd0526aeff774183f0dfdc0a99",
+      "input": "operations.LanguageGroupsGetByIdRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.LanguageGroupResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "language_groups_list": {
+      "module": "languageGroupsList",
+      "export": "languageGroupsList",
+      "sourceSHA256": "2f6dba2967c864f1ca0ebe49ff6db4a1339b9bb725c2c514c51df4aa619d2f69",
+      "input": "operations.LanguageGroupsListRequest",
+      "query": [
+        "end_datetime",
+        "fields",
+        "limit",
+        "order_by",
+        "order_by_direction",
+        "page",
+        "search_field_values",
+        "search_fields",
+        "start_datetime"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponseLanguageGroupResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "language_groups_update": {
+      "module": "languageGroupsUpdate",
+      "export": "languageGroupsUpdate",
+      "sourceSHA256": "1833f5975f619ed0cc1a373c1f268a92ca66f2aeffd316dbd75e20e16c33c16a",
+      "input": "components.LanguageGroupUpdateRequest",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.LanguageGroupResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "organization_sip_ip_ranges_create": {
+      "module": "organizationsSipIpRangesCreate",
+      "export": "organizationsSipIpRangesCreate",
+      "sourceSHA256": "4dbbd9c40867fac5521a53ebc576f332c0a34a57ebdff4648755c5c5df11761b",
+      "input": "components.OrganizationSipIpRangeCreate",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 201,
+        "schema": "components.OrganizationSipIpRange$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "organization_sip_ip_ranges_delete": {
+      "module": "organizationsSipIpRangesDelete",
+      "export": "organizationsSipIpRangesDelete",
+      "sourceSHA256": "9ef05d9428a161460d7672e27b675eb9a47166c5a1d64c112653314e0221f568",
+      "input": "operations.OrganizationSipIpRangesDeleteRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "nil",
+        "status": 204,
+        "schema": "z.void()",
+        "contentType": "application/octet-stream"
+      }
+    },
+    "organization_sip_ip_ranges_list": {
+      "module": "organizationsSipIpRangesList",
+      "export": "organizationsSipIpRangesList",
+      "sourceSHA256": "3dcab38800b97cdc2cf451e02610761e96482fd9fd80bcb754410a3317bb8e43",
+      "input": null,
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.array(components.OrganizationSipIpRange$inboundSchema)",
+        "contentType": "application/json"
+      }
+    },
+    "organization_sip_ip_ranges_update": {
+      "module": "organizationsSipIpRangesUpdate",
+      "export": "organizationsSipIpRangesUpdate",
+      "sourceSHA256": "d8f3aab870878b64e1dffdb670a986a97b2b6f82a462aeafccd1e9f420f3136c",
+      "input": "operations.OrganizationSipIpRangesUpdateRequest",
+      "query": [],
+      "jsonBody": "OrganizationSipIpRangeUpdate",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.OrganizationSipIpRange$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "organizations_create": {
+      "module": "organizationsCreate",
+      "export": "organizationsCreate",
+      "sourceSHA256": "2a7295e8926f23b02701a048efa3a8525365eb70dc82ec73bc5be8308ef09ca3",
+      "input": "components.BodyOrganizationsCreate",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": true,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.OrganizationResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "organizations_delete": {
+      "module": "organizationsDelete",
+      "export": "organizationsDelete",
+      "sourceSHA256": "e729e20dd50c78501e28cc4181f7e4b77115a35b4c1ecdc29868205a5b7bac7e",
+      "input": null,
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.any()",
+        "contentType": "application/json"
+      }
+    },
+    "organizations_get": {
+      "module": "organizationsOrganizationsGet",
+      "export": "organizationsOrganizationsGet",
+      "sourceSHA256": "c29ba769df136d90ef507204002a4fea5dc59c065bf2eb3719c65130d511b001",
+      "input": null,
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.OrganizationResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "organizations_update": {
+      "module": "organizationsUpdate",
+      "export": "organizationsUpdate",
+      "sourceSHA256": "067980b011c570497439e94a56cf2ce4f4c9c910e7166d2b3e44f1a2c6b6cd23",
+      "input": "components.BodyOrganizationsUpdate",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": true,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.OrganizationResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "outbound_batch_add": {
+      "module": "outboundBatchesAdd",
+      "export": "outboundBatchesAdd",
+      "sourceSHA256": "0f3924aa909091941da0b4a2597fe0d1589e975d310dfacabbc9295e3d917e01",
+      "input": "operations.OutboundBatchAddRequest",
+      "query": [],
+      "jsonBody": "CommunicationRequest",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.any()",
+        "contentType": "application/json"
+      }
+    },
+    "outbound_batch_create": {
+      "module": "outboundBatchesCreate",
+      "export": "outboundBatchesCreate",
+      "sourceSHA256": "0f7ba49ff93d3b18a3e574cfb0d0aadaf97c820a68cb868016b348faa5371f0c",
+      "input": "components.CommunicationBatchInput",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.CommunicationBatch$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "outbound_batch_delete": {
+      "module": "outboundBatchesDelete",
+      "export": "outboundBatchesDelete",
+      "sourceSHA256": "19e5c07758151562df6c71cc7fc9469d7545bbb7673a7ab1aa5c67b658fc8870",
+      "input": "operations.OutboundBatchDeleteRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": "Body_outbound_batch_delete",
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.any()",
+        "contentType": "application/json"
+      }
+    },
+    "outbound_batch_get_by_id": {
+      "module": "outboundBatchesGetById",
+      "export": "outboundBatchesGetById",
+      "sourceSHA256": "5b4510dc8a00e06725a38929e43f43c943fb06eef5387a43eb2727af09952aae",
+      "input": "operations.OutboundBatchGetByIdRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.BatchDetails$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "outbound_batch_list": {
+      "module": "outboundBatchesList",
+      "export": "outboundBatchesList",
+      "sourceSHA256": "26c2527160b265768b97d6c30d55078a31aa97dd50399ed6a5677868d6865851",
+      "input": "operations.OutboundBatchListRequest",
+      "query": [
+        "end_datetime",
+        "fields",
+        "limit",
+        "order_by",
+        "order_by_direction",
+        "page",
+        "search_field_values",
+        "search_fields",
+        "start_datetime"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponseCommunicationBatch$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "outbound_batch_remove": {
+      "module": "outboundBatchesRemove",
+      "export": "outboundBatchesRemove",
+      "sourceSHA256": "d7247f7fe7b5ee4d6b6aaef264f63b08a52e31bd4b9e1111a31269aa8ffdd0fc",
+      "input": "operations.OutboundBatchRemoveRequest",
+      "query": [],
+      "jsonBody": "RequestBody",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.any()",
+        "contentType": "application/json"
+      }
+    },
+    "outbound_batch_results": {
+      "module": "outboundBatchesResults",
+      "export": "outboundBatchesResults",
+      "sourceSHA256": "da39b88ead38d25bfb81177eddac4cdbbc1dc11aa4149f4d580576d5f3abb435",
+      "input": "operations.OutboundBatchResultsRequest",
+      "query": [
+        "insights_status",
+        "reference_id",
+        "status"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.array(components.CommunicationRequestResult$inboundSchema)",
+        "contentType": "application/json"
+      }
+    },
+    "outbound_batch_update": {
+      "module": "outboundBatchesUpdate",
+      "export": "outboundBatchesUpdate",
+      "sourceSHA256": "27e6499d73efbb59244138196f4a55008433fb36c2a2415067247e919f4cbf92",
+      "input": "operations.OutboundBatchUpdateRequest",
+      "query": [],
+      "jsonBody": "CommunicationBatchUpdate",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.CommunicationBatch$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "outbound_batch_upload": {
+      "module": "outboundBatchesUpload",
+      "export": "outboundBatchesUpload",
+      "sourceSHA256": "d800d657686302d267a3e9e7c5dc9770cc2dc64dfbff94491cd38d2742462717",
+      "input": "operations.OutboundBatchUploadRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": true,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.any()",
+        "contentType": "application/json"
+      }
+    },
+    "outbound_campaign_create": {
+      "module": "outboundCampaignsCreate",
+      "export": "outboundCampaignsCreate",
+      "sourceSHA256": "e9235773f62962843747e00255b91c2395f4fb80733bc66319b614ca2e1802d6",
+      "input": "components.OutboundCampaignInput",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.OutboundCampaign$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "outbound_campaign_delete": {
+      "module": "outboundCampaignsDelete",
+      "export": "outboundCampaignsDelete",
+      "sourceSHA256": "b287724a723489240be307ca424fcd4163533be02762f4f66e08d64f200f1e15",
+      "input": "operations.OutboundCampaignDeleteRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.any()",
+        "contentType": "application/json"
+      }
+    },
+    "outbound_campaign_get_by_id": {
+      "module": "outboundCampaignsGetById",
+      "export": "outboundCampaignsGetById",
+      "sourceSHA256": "680823734236e920051c436270fa6e870a77b2b76d3552413ba0701aa61d9767",
+      "input": "operations.OutboundCampaignGetByIdRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.OutboundCampaign$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "outbound_campaign_list": {
+      "module": "outboundCampaignsList",
+      "export": "outboundCampaignsList",
+      "sourceSHA256": "3efae6d6cb5803aeb8ee74a57793e85c81584a81105874027d9945fcb0bf4a8d",
+      "input": "operations.OutboundCampaignListRequest",
+      "query": [
+        "end_datetime",
+        "fields",
+        "limit",
+        "order_by",
+        "order_by_direction",
+        "page",
+        "search_field_values",
+        "search_fields",
+        "start_datetime"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponseOutboundCampaign$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "outbound_campaign_update": {
+      "module": "outboundCampaignsUpdate",
+      "export": "outboundCampaignsUpdate",
+      "sourceSHA256": "bbc6724f565d60f26365bb2ecb6e7bbc4df429e95d9fa9b80172f58c39170cc0",
+      "input": "operations.OutboundCampaignUpdateRequest",
+      "query": [],
+      "jsonBody": "OutboundCampaignInput",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.OutboundCampaign$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "permissions_list": {
+      "module": "permissionsList",
+      "export": "permissionsList",
+      "sourceSHA256": "c035e52d793c80073623de7d09162aa8f5df59d95b27e8c46535f00fff7257aa",
+      "input": null,
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.array(components.PermissionGroupResponse$inboundSchema)",
+        "contentType": "application/json"
+      }
+    },
+    "post_card_click_event": {
+      "module": "agentsPostCardClickEvent",
+      "export": "agentsPostCardClickEvent",
+      "sourceSHA256": "4b630ab65faaf404c497e96c7e99a83a987266f35e3e7fb885b50e9518919fe0",
+      "input": "operations.PostCardClickEventRequest",
+      "query": [],
+      "jsonBody": "CardClickRequest",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.CardClickResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "post_get_dashboard": {
+      "module": "dashboardsPostGetDashboard",
+      "export": "dashboardsPostGetDashboard",
+      "sourceSHA256": "62f7ff9b84f006923b4e8d817656d3bf9f298dc94e5c895593870bb22ec76e4e",
+      "input": "operations.PostGetDashboardRequest",
+      "query": [
+        "dashboard_name"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.DashboardTokenResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "post_list_dashboard": {
+      "module": "dashboardsPostListDashboard",
+      "export": "dashboardsPostListDashboard",
+      "sourceSHA256": "894f2f217c0e2c9223bafcd8a9c3585f2e594803cb8a42f7c35b764151a0f937",
+      "input": "operations.PostListDashboardRequest",
+      "query": [
+        "end_datetime",
+        "fields",
+        "limit",
+        "order_by",
+        "order_by_direction",
+        "page",
+        "search_field_values",
+        "search_fields",
+        "start_datetime"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponseDashboardResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "post_session_events_dashboard": {
+      "module": "dashboardsPostSessionEventsDashboard",
+      "export": "dashboardsPostSessionEventsDashboard",
+      "sourceSHA256": "2d62780b4cfb0a5f33b9a52d6bcb562403296be66068b013ade7118d1b3d6b45",
+      "input": null,
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.Dashboard$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "post_session_summary_dashboard": {
+      "module": "dashboardsPostSessionSummaryDashboard",
+      "export": "dashboardsPostSessionSummaryDashboard",
+      "sourceSHA256": "e92dac6846221aa50b59628dff9fa5bd205569876a639e6d437e62d2d048f2f5",
+      "input": null,
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.Dashboard$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "post_session_transfers_dashboard": {
+      "module": "dashboardsPostSessionTransfersDashboard",
+      "export": "dashboardsPostSessionTransfersDashboard",
+      "sourceSHA256": "6907c75012dec9b88bf867071ec0a24d6e5074fe1a47aeadba234218a30cef6e",
+      "input": null,
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.Dashboard$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "post_sessions_dashboard": {
+      "module": "dashboardsPostSessionsDashboard",
+      "export": "dashboardsPostSessionsDashboard",
+      "sourceSHA256": "e2bfe5ec1fe9b30e9943c5726f8301f74551ed0df15e4a94b15f3569563efc0d",
+      "input": null,
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.Dashboard$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "prompt_get_supported_llms": {
+      "module": "promptsPromptGetSupportedLlms",
+      "export": "promptsPromptGetSupportedLlms",
+      "sourceSHA256": "10eefbb5c13e949b8cec535b14df9ea6d3c224446ce1c39aa193c541a86b6a36",
+      "input": "operations.PromptGetSupportedLlmsRequest",
+      "query": [
+        "selected_model"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.array(components.SupportedLlm$inboundSchema)",
+        "contentType": "application/json"
+      }
+    },
+    "prompts_create": {
+      "module": "promptsCreate",
+      "export": "promptsCreate",
+      "sourceSHA256": "786bcce383a4e62ad82922c834ab15926e5feec4ee6bc602671bf7132a63d7f5",
+      "input": "components.PromptCreateRequest",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.PromptResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "prompts_delete": {
+      "module": "promptsDelete",
+      "export": "promptsDelete",
+      "sourceSHA256": "77f43c00a987d57c608ec54c1b87a3f53b9ea40fa2658ae90080f5c36e3091a2",
+      "input": "operations.PromptsDeleteRequest",
+      "query": [
+        "reason"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.any()",
+        "contentType": "application/json"
+      }
+    },
+    "prompts_get_by_id": {
+      "module": "promptsGetById",
+      "export": "promptsGetById",
+      "sourceSHA256": "28c4766e324182ab6dec3c262547b9c333c7d857cc12d8246805288491ef3da5",
+      "input": "operations.PromptsGetByIdRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.PromptResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "prompts_history": {
+      "module": "promptsPromptsHistory",
+      "export": "promptsPromptsHistory",
+      "sourceSHA256": "faf5da400c0ce4ca8de119769d7703488d1fd3f900b724da3835d25483f220b7",
+      "input": "operations.PromptsHistoryRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.array(components.PromptHistoryResponse$inboundSchema)",
+        "contentType": "application/json"
+      }
+    },
+    "prompts_list": {
+      "module": "promptsList",
+      "export": "promptsList",
+      "sourceSHA256": "9e68592877b5ef467db211a900b1d10d12a696996d1a6812c32fff0b7a0396d9",
+      "input": "operations.PromptsListRequest",
+      "query": [
+        "end_datetime",
+        "fields",
+        "limit",
+        "order_by",
+        "order_by_direction",
+        "page",
+        "search_field_values",
+        "search_fields",
+        "start_datetime"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponsePromptResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "prompts_update": {
+      "module": "promptsUpdate",
+      "export": "promptsUpdate",
+      "sourceSHA256": "dd6cb21d1c2f8c806f51042fb5b5dc5936a8d72196edc345769a48834505376e",
+      "input": "components.PromptUpdateRequest",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.PromptResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "pronunciations_delete_csv": {
+      "module": "pronunciationsPronunciationsDeleteCsv",
+      "export": "pronunciationsPronunciationsDeleteCsv",
+      "sourceSHA256": "d5706c4db172225ca5ba270fd048c9c0ff0bb1023c0779f69c5ad625ada81905",
+      "input": null,
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "*/*",
+      "response": {
+        "type": "nil",
+        "status": 204,
+        "schema": "z.void()",
+        "contentType": "application/octet-stream"
+      }
+    },
+    "pronunciations_download_csv": {
+      "module": "pronunciationsPronunciationsDownloadCsv",
+      "export": "pronunciationsPronunciationsDownloadCsv",
+      "sourceSHA256": "e835cf65185fcb571d67ac6d0f5824eafc6838497caf50f9a36e5ef295908bb7",
+      "input": null,
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "text/csv",
+      "response": {
+        "type": "stream",
+        "status": 200,
+        "schema": "z.instanceof((ReadableStream))",
+        "contentType": "text/csv"
+      }
+    },
+    "pronunciations_get": {
+      "module": "pronunciationsPronunciationsGet",
+      "export": "pronunciationsPronunciationsGet",
+      "sourceSHA256": "d5e65f823ca7b0455e9501a7ced7a225b4742758666282b644b23112be56b509",
+      "input": null,
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.PronunciationOverridesDictionary$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "pronunciations_get_metadata": {
+      "module": "pronunciationsPronunciationsGetMetadata",
+      "export": "pronunciationsPronunciationsGetMetadata",
+      "sourceSHA256": "8b85c179220f6748888114839c69156e7d138d42c60e77e17d657aa41d1df6dc",
+      "input": null,
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.DictionaryMetadata$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "pronunciations_upload_csv": {
+      "module": "pronunciationsPronunciationsUploadCsv",
+      "export": "pronunciationsPronunciationsUploadCsv",
+      "sourceSHA256": "face7a20886207c754e3377e00fd84eaf1b4f0969c1a7aeaf39de210fbb3c810",
+      "input": "components.BodyPronunciationsUploadCsv",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": true,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 202,
+        "schema": "components.PronunciationsCsvUploadResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "roles_create": {
+      "module": "rolesCreate",
+      "export": "rolesCreate",
+      "sourceSHA256": "b9effcedc1882e0e16a38dd90cfb275e2b6a07a66bdde0f44c20b025bfafca34",
+      "input": "components.RoleCreateRequest",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.RoleResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "roles_delete": {
+      "module": "rolesDelete",
+      "export": "rolesDelete",
+      "sourceSHA256": "a69e12a2cdb6087b5de6dec694c8155df32387472861f6a521bc5a11b6014fc8",
+      "input": "operations.RolesDeleteRequest",
+      "query": [
+        "new_role_id",
+        "reason"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.any()",
+        "contentType": "application/json"
+      }
+    },
+    "roles_get_by_id": {
+      "module": "rolesGetById",
+      "export": "rolesGetById",
+      "sourceSHA256": "bf3d926788503d7fc6895039141e12be2af74f503ad02654b3dac4652c18d54d",
+      "input": "operations.RolesGetByIdRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.RoleResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "roles_list": {
+      "module": "rolesList",
+      "export": "rolesList",
+      "sourceSHA256": "4dc7e52a4d1d47f6495e92309eddd5df2d9c2d53d9adae19f1987d30152bd11c",
+      "input": "operations.RolesListRequest",
+      "query": [
+        "end_datetime",
+        "fields",
+        "limit",
+        "order_by",
+        "order_by_direction",
+        "page",
+        "search_field_values",
+        "search_fields",
+        "start_datetime"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponseRoleResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "roles_update": {
+      "module": "rolesUpdate",
+      "export": "rolesUpdate",
+      "sourceSHA256": "227a3af7441b52685df22cb6594bef2a5e16b91caa8f506e0d6b5f32724e1cd9",
+      "input": "components.RoleUpdateRequest",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.RoleResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "send_test_message": {
+      "module": "agentsTestSendTestMessage",
+      "export": "agentsTestSendTestMessage",
+      "sourceSHA256": "86c2a59b29b299772d6d71adb31d3889f13b6f643e79b3addc64a1916a41ac3f",
+      "input": "components.TestMessage",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.TestMessageResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "service_create": {
+      "module": "servicesCreate",
+      "export": "servicesCreate",
+      "sourceSHA256": "a9d83e083b06ce8e3de4cc127f21df5c89602d84a38db641d927a579d0b8fddd",
+      "input": "components.ServiceCreateRequest",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ServiceResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "service_delete": {
+      "module": "servicesDelete",
+      "export": "servicesDelete",
+      "sourceSHA256": "61888b5a552f8b26169a6c3b8479dd8fc1c717df89327d2aebc9599b556c47ed",
+      "input": "operations.ServiceDeleteRequest",
+      "query": [
+        "reason"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.any()",
+        "contentType": "application/json"
+      }
+    },
+    "service_list": {
+      "module": "servicesList",
+      "export": "servicesList",
+      "sourceSHA256": "96afaef25bd7731c54d77d2cdadad06edc6c4c57c60143a400cc5ae9e1c64ab3",
+      "input": "operations.ServiceListRequest",
+      "query": [
+        "end_datetime",
+        "fields",
+        "limit",
+        "order_by",
+        "order_by_direction",
+        "page",
+        "search_field_values",
+        "search_fields",
+        "start_datetime"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponseServiceResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "service_update": {
+      "module": "servicesUpdate",
+      "export": "servicesUpdate",
+      "sourceSHA256": "2a610329cebaaf3590b60036174505010a752ecedf8eb3eec289456e2358bc14",
+      "input": "components.ServiceUpdateRequest",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ServiceResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "services_get_by_id": {
+      "module": "servicesGetById",
+      "export": "servicesGetById",
+      "sourceSHA256": "41ff51b8c778a7de2e05346c51203c2987a903121227e4122e9b9c0719c24420",
+      "input": "operations.ServicesGetByIdRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ServiceResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "session_full_summary_get_by_id": {
+      "module": "sessionsFullSummaryGetById",
+      "export": "sessionsFullSummaryGetById",
+      "sourceSHA256": "626b6e5913d5b4dc6091b1a6d2d2f23d16870c9d4e4e7166b801b77c7900cf8d",
+      "input": "operations.SessionFullSummaryGetByIdRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.SessionSummaryResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "session_get_by_id": {
+      "module": "sessionsGetById",
+      "export": "sessionsGetById",
+      "sourceSHA256": "5cfa6ea29874dff4b36f3d404a9186f2df34ff6377bb23000e585c01f5763fd0",
+      "input": "operations.SessionGetByIdRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.Session$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "session_label_create": {
+      "module": "sessionLabelsCreate",
+      "export": "sessionLabelsCreate",
+      "sourceSHA256": "4bbc926b34484211514fa01733ccc62a1353d4ee71018134eca3492051f77a84",
+      "input": "components.SessionLabelCreate",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.SessionLabel$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "session_label_get_by_id": {
+      "module": "sessionLabelsGetById",
+      "export": "sessionLabelsGetById",
+      "sourceSHA256": "45b00797c009f9f3af76cbe16963fea7ec8567f22b438718107e45e67741d211",
+      "input": "operations.SessionLabelGetByIdRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.SessionLabel$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "session_labels_list": {
+      "module": "sessionLabelsList",
+      "export": "sessionLabelsList",
+      "sourceSHA256": "c0f743c8c8e57118887c11a620130b082546801ddbd353bd6f6eb7749b8073c6",
+      "input": "operations.SessionLabelsListRequest",
+      "query": [
+        "end_datetime",
+        "fields",
+        "limit",
+        "order_by",
+        "order_by_direction",
+        "page",
+        "search_field_values",
+        "search_fields",
+        "start_datetime"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponseSessionLabel$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "session_latency_get_by_id": {
+      "module": "sessionsLatencyGetById",
+      "export": "sessionsLatencyGetById",
+      "sourceSHA256": "fadfb881e858d36c2695f218c81622e37b21f5da2a47ed7d3491ba41059d13c8",
+      "input": "operations.SessionLatencyGetByIdRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.InspectLatencyResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "session_recording_stream": {
+      "module": "sessionsSessionRecordingStream",
+      "export": "sessionsSessionRecordingStream",
+      "sourceSHA256": "7d09fc86ed0fae710b14ff5c31bfcb85552fd23c7a65e202e69cb700e9e747d7",
+      "input": "operations.SessionRecordingStreamRequest",
+      "query": [
+        "token"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/octet-stream",
+      "response": {
+        "type": "stream",
+        "status": 200,
+        "schema": "z.instanceof((ReadableStream))",
+        "contentType": "application/octet-stream"
+      }
+    },
+    "session_timeline_get_by_id": {
+      "module": "sessionsTimelineGetById",
+      "export": "sessionsTimelineGetById",
+      "sourceSHA256": "eade8c620e8af47d49af4645ef5f0a95a50af19abdf678db63aa96de8f852059",
+      "input": "operations.SessionTimelineGetByIdRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.SessionTimelineResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "session_transcript_get_by_id": {
+      "module": "sessionsTranscriptGetById",
+      "export": "sessionsTranscriptGetById",
+      "sourceSHA256": "2f6490335977d4d54bf7d79eb68fbee35b3307717960365b7570790e5b820dc0",
+      "input": "operations.SessionTranscriptGetByIdRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.SessionTranscriptionResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "sessions_list": {
+      "module": "sessionsList",
+      "export": "sessionsList",
+      "sourceSHA256": "4957a78784a6c3b2f2acf5c71d9a9dec01d80ca0643cb3da2a68a205d3a7648d",
+      "input": "operations.SessionsListRequest",
+      "query": [
+        "end_datetime",
+        "fields",
+        "limit",
+        "order_by",
+        "order_by_direction",
+        "page",
+        "search_field_values",
+        "search_fields",
+        "start_datetime"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponseSession$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "takeouts_create": {
+      "module": "takeoutsCreate",
+      "export": "takeoutsCreate",
+      "sourceSHA256": "fa992a6716173b31e8c30887f3aeb3414b07060fe64be7abbc17ad753b0e0af4",
+      "input": null,
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.CreateTakeoutResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "takeouts_get_by_job_id": {
+      "module": "takeoutsTakeoutsGetByJobId",
+      "export": "takeoutsTakeoutsGetByJobId",
+      "sourceSHA256": "6adae58e14e3aef779a3bd986f39f0a3d7f3073a03296c2bd85300f8428a0a65",
+      "input": "operations.TakeoutsGetByJobIdRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.TakeoutStatusResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "takeouts_get_file": {
+      "module": "takeoutsTakeoutsGetFile",
+      "export": "takeoutsTakeoutsGetFile",
+      "sourceSHA256": "ae9c8d46888390defdb88eeeca2dbee7ccb6a5d33292aa96e90b511cb93d321d",
+      "input": "operations.TakeoutsGetFileRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/zip",
+      "response": {
+        "type": "stream",
+        "status": 200,
+        "schema": "z.instanceof((ReadableStream))",
+        "contentType": "application/zip"
+      }
+    },
+    "tool_create": {
+      "module": "toolsCreate",
+      "export": "toolsCreate",
+      "sourceSHA256": "f62cca8fef9fa6b165de8be0482d7025eae07c213a61a3f52687793abe5cc85e",
+      "input": "components.ToolCreateRequest",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ToolResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "tool_delete": {
+      "module": "toolsDelete",
+      "export": "toolsDelete",
+      "sourceSHA256": "80743b8063dbdb91c6764235fd78636c74525be3ede3bac149ceb730a49fcee1",
+      "input": "operations.ToolDeleteRequest",
+      "query": [
+        "reason"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.any()",
+        "contentType": "application/json"
+      }
+    },
+    "tool_get_by_name": {
+      "module": "toolsGetByName",
+      "export": "toolsGetByName",
+      "sourceSHA256": "d396fb142670a93fbaa48a0f44d949c266eab6e05b7e287f3ae995128fd7c81e",
+      "input": "operations.ToolGetByNameRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ToolDetailResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "tool_history": {
+      "module": "toolsToolHistory",
+      "export": "toolsToolHistory",
+      "sourceSHA256": "2e07240d5f94d339e47531595b97de3eda4c1c35e2327522e79dd0cc067ef63b",
+      "input": "operations.ToolHistoryRequest",
+      "query": [
+        "limit",
+        "order_by_direction",
+        "page"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponseToolHistoryResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "tool_list": {
+      "module": "toolsList",
+      "export": "toolsList",
+      "sourceSHA256": "3c1af84e4204646942e13348321fb466c2f35920f4cc3c3b5ad31918633f1c51",
+      "input": "operations.ToolListRequest",
+      "query": [
+        "end_datetime",
+        "fields",
+        "limit",
+        "order_by",
+        "order_by_direction",
+        "page",
+        "search_field_values",
+        "search_fields",
+        "start_datetime"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponseToolResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "tool_update": {
+      "module": "toolsUpdate",
+      "export": "toolsUpdate",
+      "sourceSHA256": "6fd1dad0a4e5603af6b11a972b90584fa1d6ea9a11f5da488b5bdd713d7eac70",
+      "input": "components.ToolUpdateRequest",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ToolResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "update_bridge_phrases_config": {
+      "module": "conversationConfigUpdateBridgePhrasesConfig",
+      "export": "conversationConfigUpdateBridgePhrasesConfig",
+      "sourceSHA256": "7f8b058ca96121d441d35f6376dd4050fbb94d36098d2f313e87ff71aa3c1087",
+      "input": "operations.UpdateBridgePhrasesConfigRequest",
+      "query": [
+        "agent_id",
+        "tool_name"
+      ],
+      "jsonBody": "BridgePhrasesConfig",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.BridgePhrasesConfig$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "users_create": {
+      "module": "usersCreate",
+      "export": "usersCreate",
+      "sourceSHA256": "b6e24183e219d9c34da3709f630e6d2dec7c9b1cfc63f1cbce6ae6c580a18d65",
+      "input": "components.UserCreateRequest",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.UserResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "users_delete": {
+      "module": "usersDelete",
+      "export": "usersDelete",
+      "sourceSHA256": "107543397f235fb4c57ef4f66305e668cce6672240db1455cc74111c0773bc74",
+      "input": "components.UserDeleteRequest",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.any()",
+        "contentType": "application/json"
+      }
+    },
+    "users_delete_account": {
+      "module": "usersUsersDeleteAccount",
+      "export": "usersUsersDeleteAccount",
+      "sourceSHA256": "350ccc0b048966d9b84ce5bcf319d5517f59757c1d2f7a1f0f5166fdf876a945",
+      "input": null,
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.any()",
+        "contentType": "application/json"
+      }
+    },
+    "users_get_by_email": {
+      "module": "usersUsersGetByEmail",
+      "export": "usersUsersGetByEmail",
+      "sourceSHA256": "8ec32d4926c03371e1322a14b15deb69198e54b44621c5fa4a01c7a6dda530f9",
+      "input": "operations.UsersGetByEmailRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.UserResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "users_list": {
+      "module": "usersList",
+      "export": "usersList",
+      "sourceSHA256": "4d316cff24d448fd89b9e780a6460eccdf0f6ee1fc78189d34babb6af983142c",
+      "input": "operations.UsersListRequest",
+      "query": [
+        "end_datetime",
+        "fields",
+        "limit",
+        "order_by",
+        "order_by_direction",
+        "page",
+        "search_field_values",
+        "search_fields",
+        "start_datetime"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponseUserResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "users_send_email": {
+      "module": "usersUsersSendEmail",
+      "export": "usersUsersSendEmail",
+      "sourceSHA256": "a434e5d141b969513cf10ab3cb9da9040e652fa5dd1e57abe0b8d75756e14e6c",
+      "input": "operations.UsersSendEmailRequest",
+      "query": [
+        "skip_auth"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.any()",
+        "contentType": "application/json"
+      }
+    },
+    "users_update": {
+      "module": "usersUpdate",
+      "export": "usersUpdate",
+      "sourceSHA256": "bc040bf563cd71047c7c61138c0c2b71adc64e82842f061b658b8e80bf63eb22",
+      "input": "components.UserUpdateRequest",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.UserResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "voice_groups_create": {
+      "module": "voiceGroupsCreate",
+      "export": "voiceGroupsCreate",
+      "sourceSHA256": "6c51bbfbaf1d7eacb56724e61716c04d569c2c56d08155d5893f39cd57f71e3c",
+      "input": "components.VoiceGroupCreateRequest",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.VoiceGroupResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "voice_groups_create_voice_sample": {
+      "module": "voiceGroupsVoiceGroupsCreateVoiceSample",
+      "export": "voiceGroupsVoiceGroupsCreateVoiceSample",
+      "sourceSHA256": "322ca979e66cb8a72cf288c43285662d242c6ffaa5e73eaaadd84cabaf58c9ae",
+      "input": "components.VoiceSampleCreateRequest",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/octet-stream",
+      "response": {
+        "type": "stream",
+        "status": 200,
+        "schema": "z.instanceof((ReadableStream))",
+        "contentType": "application/octet-stream"
+      }
+    },
+    "voice_groups_delete": {
+      "module": "voiceGroupsDelete",
+      "export": "voiceGroupsDelete",
+      "sourceSHA256": "37300213d9521b9182a9860ce9257234247d11e07a0295974e8ac1c5d4c30e5a",
+      "input": "operations.VoiceGroupsDeleteRequest",
+      "query": [
+        "reason"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "z.any()",
+        "contentType": "application/json"
+      }
+    },
+    "voice_groups_get_by_id": {
+      "module": "voiceGroupsGetById",
+      "export": "voiceGroupsGetById",
+      "sourceSHA256": "2a4845ec552a02e3d0419d9d83f8958648bb38aa4a21fda394e8f8afeed21cd1",
+      "input": "operations.VoiceGroupsGetByIdRequest",
+      "query": [],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.VoiceGroupResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "voice_groups_list": {
+      "module": "voiceGroupsList",
+      "export": "voiceGroupsList",
+      "sourceSHA256": "63f9a5410ece7b3502fd1098cc8fb84f67a43c48c3f440787f184e411e8ec365",
+      "input": "operations.VoiceGroupsListRequest",
+      "query": [
+        "end_datetime",
+        "fields",
+        "limit",
+        "order_by",
+        "order_by_direction",
+        "page",
+        "search_field_values",
+        "search_fields",
+        "start_datetime"
+      ],
+      "jsonBody": null,
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.ListResponseVoiceGroupResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    },
+    "voice_groups_update": {
+      "module": "voiceGroupsUpdate",
+      "export": "voiceGroupsUpdate",
+      "sourceSHA256": "5eaa297abd1a6adf96c060d980fbeca68983f37192732545ce02d8ddce06a03e",
+      "input": "components.VoiceGroupUpdateRequest",
+      "query": [],
+      "jsonBody": "$request",
+      "formBody": null,
+      "multipart": false,
+      "accept": "application/json",
+      "response": {
+        "type": "json",
+        "status": 200,
+        "schema": "components.VoiceGroupResponse$inboundSchema",
+        "contentType": "application/json"
+      }
+    }
+  }
+}
