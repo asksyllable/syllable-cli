@@ -46,6 +46,10 @@ Practical notes on non-obvious CLI and platform behavior — exact payload shape
 
 ## Validation
 
+SDK 1.0.68 catalog lifecycle fields include `status`, `sunset_date`, `removed`, and `fallback`. Saved retired voices, STT providers, and LLMs can be included using `--selected-voice`, `--selected-provider`, and `--selected-model`. `Deepgram Nova 3 (On-Prem)` was removed from the STT enum. Inspect current catalogs and resource `validation_issues` in JSON before changing a saved configuration.
+
+Experiments route update IDs through the URL, not the JSON body. Updates are allowed only in draft status; variants are submitted as a complete set with different agents, weights totaling 100, and exactly one control. Stop a running experiment before deletion. A historical response can have `target_id: null` after its channel target is deleted.
+
 | Topic | What to do |
 |-------|-----------|
 | Prompt updates send the full object | `prompts update` is a full PUT — include `id`, `name`, `type`, and `llm_config` (and large fields like `context`) even for a one-field change. Fetch first (`prompts get <id> -o json`), edit the JSON, resubmit; a partial body returns 422. |

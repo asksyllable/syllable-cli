@@ -41,6 +41,8 @@ SYLLABLE_ORG=sandbox go test -tags integration ./integration/...
 
 Without `-tags integration` the suite's files are excluded from the build, so `go test ./...` reports no tests for the package and makes no live calls. `SYLLABLE_API_KEY` is read directly by the CLI (no config file needed — this is how CI authenticates); `SYLLABLE_ORG` instead resolves the key from `~/.syllable/config.yaml`. **Do not point integration tests at customer orgs** — use a dedicated throwaway org such as `cli-test`. The org slugs in [AGENTS.md](AGENTS.md) examples (`acme`, `globex`, etc.) are placeholders, not test targets.
 
+SDK catch-up coverage lives in `integration/sdk_sync_test.go`. STT and experiment lists run with the usual integration credentials; workflow views use an existing workflow and skip if none exist. The experiment lifecycle test requires `SYLLABLE_EXPERIMENT_TARGET_ID`, `SYLLABLE_EXPERIMENT_CONTROL_AGENT_ID`, and `SYLLABLE_EXPERIMENT_VARIANT_AGENT_ID`, all belonging to dedicated test resources. It starts/stops routing on that target and cleans up by stopping before deleting. The card-click test requires `SYLLABLE_TEST_AGENT_ID` and creates a conversation-test session before logging a click. Compile this coverage without any live calls with `go test -tags integration -c ./integration -o /tmp/syllable-integration.test`.
+
 ## Branch and release workflow
 
 - Feature branches; squash-merge into `main`. Commit titles end with `(#NN)`.

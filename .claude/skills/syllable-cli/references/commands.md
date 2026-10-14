@@ -28,7 +28,10 @@ syllable agents update <agent-id> --file agent.json
 syllable agents delete <agent-id>
 syllable agents send-test-message <agent-id> --test-id <id> [--session-start] --text "<msg>"
 syllable agents labels    # list active agent labels across the org (v1.7)
-syllable agents voices    # list available voices (PROVIDER, DISPLAY_NAME, GENDER, MODEL)
+syllable agents voices [--selected-voice VOICE]  # repeat for multiple saved voices
+syllable agents stt-providers [--selected-provider PROVIDER]
+syllable agents card-click <test-id> --action-id ID --action-type cta|action
+syllable agents card-click <test-id> --file click.json
 ```
 
 **Table columns:** ID, NAME, TYPE, LABEL, DESCRIPTION, UPDATED
@@ -36,6 +39,27 @@ syllable agents voices    # list available voices (PROVIDER, DISPLAY_NAME, GENDE
 **Get fields:** ID, Name, Type, Label, Description, Prompt ID, Timezone, Updated At, Last Updated By
 
 **Inline create defaults:** Includes empty `variables` and `tool_headers` maps.
+
+Voice columns: PROVIDER, DISPLAY_NAME, GENDER, MODEL, STATUS, SUNSET_DATE, FALLBACK. STT columns: PROVIDER, DISPLAY_NAME, STATUS, DEPRECATED, REMOVED, SUNSET_DATE, FALLBACK. Selected catalog options are returned even when retired.
+
+## Experiments
+
+```bash
+syllable experiments list [--page N] [--limit N] [--search TEXT] [--search-field FIELD]
+syllable experiments get <experiment-id>
+syllable experiments create --file experiment.json
+syllable experiments update <experiment-id> --file experiment-update.json
+syllable experiments start <experiment-id>
+syllable experiments stop <experiment-id>
+syllable experiments results <experiment-id>
+syllable experiments delete <experiment-id>
+```
+
+An experiment splits one channel target's traffic across two or more distinct agent variants, weights totaling 100, exactly one control. Only drafts can be updated/started. Stop before deleting a running experiment. Create requires `name` and `target_id`; provide the complete variants set. Update requires `name`, uses the URL ID, and replaces the variants set when supplied. Use `ExperimentCreateRequest` / `ExperimentUpdateRequest` for body shapes. `--file -` supports stdin.
+
+List also supports `--order-by`, `--order-by-direction`, `--start-date`, `--end-date`, and `--api-fields` (API projection; `--fields` filters table columns). Start returns `{experiment, warnings}`. Results counts sessions per variant. Historical `target_id` can be null after a target is deleted.
+
+List columns: ID, NAME, STATUS, TARGET_ID, VARIANTS, UPDATED_AT. Results columns: VARIANT_ID, SESSION_COUNT.
 
 ### Conversation Test API (`send-test-message`, v1.3.1+)
 
@@ -127,7 +151,7 @@ syllable prompts create --file prompt.json
 syllable prompts update <prompt_id> --file prompt.json
 syllable prompts delete <prompt_id>
 syllable prompts history <prompt_id>
-syllable prompts supported-llms
+syllable prompts supported-llms [--selected-model MODEL]
 ```
 
 **Table columns:** ID, NAME, TYPE, VERSION, AGENTS, LAST_UPDATED
@@ -243,7 +267,7 @@ syllable users send-email <email>
 
 ## Directory
 ```bash
-syllable directory list [--page N] [--limit N] [--search TEXT]
+syllable directory list [--page N] [--limit N] [--search TEXT] [--include-deleted] [--status active|deleted|all] [--format normalized|raw]
 syllable directory get <member-id>
 syllable directory create --file member.json
 syllable directory create --name NAME --type TYPE
@@ -260,6 +284,8 @@ syllable directory upload --file <path>                             # bulk-impor
 
 **Get fields:** ID, Name, Type, Comments, Created At, Updated At, Last Updated By
 
+`--status` overrides `--include-deleted`. The default excludes deleted contacts and returns normalized values; `--format raw` returns stored directory values.
+
 ## Insights
 
 ### Workflows
@@ -272,6 +298,10 @@ syllable insights workflows update --file workflow.json
 syllable insights workflows delete <workflow_id>
 syllable insights workflows activate <workflow_id>
 syllable insights workflows inactivate <workflow_id>
+syllable insights workflows executions <workflow_id> [--search STATUS]
+syllable insights workflows executions-summary <workflow_id> [--start-date DATE] [--end-date DATE]
+syllable insights workflows sessions <workflow_id> [--search SESSION_ID] [--search-field session_id|status]
+syllable insights workflows files <workflow_id> [--search TEXT] [--search-field filename|status]
 
 # Folders
 syllable insights folders list
@@ -292,9 +322,11 @@ syllable insights tool-configs delete <config_id>
 syllable insights tool-definitions list
 ```
 
-**Table columns:** ID, NAME, LABEL, CREATED_AT, UPDATED_AT
+Workflow execution/session/file lists support `--page`, `--limit`, `--search`, `--search-field`, `--order-by`, `--order-by-direction`, `--start-date`, and `--end-date`. Execution search is by `status` only, and supports `--api-fields`. Summary filters `created_at` with an inclusive start and exclusive end. Session/file JSON preserves `results` keyed by tool and insight key.
 
-**Get fields:** ID, Name, Label, Description, Created At, Updated At, Last Updated By
+**Workflow list columns:** ID, NAME, SOURCE, STATUS, UPDATED_AT
+
+**Workflow get fields:** ID, Name, Description, Source, Status, Failed Count, Created At, Updated At, Last Updated By
 
 ## Custom Messages
 ```bash
