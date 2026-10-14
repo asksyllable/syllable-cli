@@ -1,6 +1,7 @@
 import copy
 import contextlib
 import io
+import itertools
 import json
 import subprocess
 import sys
@@ -136,6 +137,127 @@ class ContractDiffTests(unittest.TestCase):
         new = copy.deepcopy(old)
         new["components"]["schemas"]["Item"]["properties"]["value"]["anyOf"].reverse()
         self.assertFalse(diff_specs.has_changes(diff_specs.compute_diff(old, new)))
+
+    def test_additive_enum_update_does_not_reidentify_union_branches(self):
+        for keyword in ("anyOf", "oneOf", "allOf"):
+            with self.subTest(keyword=keyword):
+                old = document()
+                old["components"]["schemas"]["Item"]["properties"]["value"] = {keyword: [
+                    {"type": "string", "pattern": "^m$", "enum": ["m"]},
+                    {"type": "string", "pattern": "^[az]$", "enum": ["z"]},
+                ]}
+                new = copy.deepcopy(old)
+                new["components"]["schemas"]["Item"]["properties"]["value"][keyword][1]["enum"].append("a")
+                result = diff_specs.compute_diff(old, new)
+                self.assertTrue(diff_specs.has_changes(result))
+                self.assertEqual(diff_specs.enum_removals(result), [])
+                self.assertEqual([added for _, added, _ in result["enum_changes"]], [["a"]])
+
+    def test_union_branch_insertions_and_reordering_are_additive(self):
+        for keyword in ("anyOf", "oneOf", "allOf"):
+            with self.subTest(keyword=keyword):
+                old = document()
+                old["components"]["schemas"]["Item"]["properties"]["value"] = {keyword: [
+                    {"type": "string", "pattern": "^z$", "enum": ["z"]},
+                    {"type": "null"},
+                ]}
+                new = copy.deepcopy(old)
+                branches = new["components"]["schemas"]["Item"]["properties"]["value"][keyword]
+                branches.reverse()
+                branches.insert(0, {"type": "string", "pattern": "^a$", "enum": ["a"]})
+                result = diff_specs.compute_diff(old, new)
+                self.assertEqual(diff_specs.enum_removals(result), [])
+                self.assertEqual([added for _, added, _ in result["enum_changes"]], [["a"]])
+
+    def test_nested_anyof_oneof_enum_additions_survive_reordering(self):
+        for outer, inner in (("anyOf", "oneOf"), ("oneOf", "anyOf")):
+            with self.subTest(outer=outer, inner=inner):
+                old = document()
+                old["components"]["schemas"]["Item"]["properties"]["value"] = {outer: [
+                    {"type": "array", "items": {inner: [
+                        {"type": "string", "pattern": "^m$", "enum": ["m"]},
+                        {"type": "string", "pattern": "^[az]$", "enum": ["z"]},
+                    ]}},
+                    {"type": "null"},
+                ]}
+                new = copy.deepcopy(old)
+                branches = new["components"]["schemas"]["Item"]["properties"]["value"][outer]
+                branches[0]["items"][inner][1]["enum"].append("a")
+                branches[0]["items"][inner].reverse()
+                branches.reverse()
+                result = diff_specs.compute_diff(old, new)
+                self.assertEqual(diff_specs.enum_removals(result), [])
+                self.assertEqual([added for _, added, _ in result["enum_changes"]], [["a"]])
+
+    def test_nested_union_branch_addition_keeps_outer_branch_identity(self):
+        old = document()
+        old["components"]["schemas"]["Item"]["properties"]["value"] = {"oneOf": [
+            {"type": "object", "properties": {"status": {"anyOf": [
+                {"type": "string", "pattern": "^z$", "enum": ["z"]},
+            ]}}},
+            {"type": "null"},
+        ]}
+        new = copy.deepcopy(old)
+        new["components"]["schemas"]["Item"]["properties"]["value"]["oneOf"][0]["properties"]["status"]["anyOf"].append(
+            {"type": "string", "pattern": "^a$", "enum": ["a"]})
+        result = diff_specs.compute_diff(old, new)
+        self.assertEqual(diff_specs.enum_removals(result), [])
+        self.assertEqual([added for _, added, _ in result["enum_changes"]], [["a"]])
+
+    def test_duplicate_shapes_use_one_to_one_additive_matching(self):
+        before = [{"type": "string", "enum": ["a", "b"]}, {"type": "string", "enum": ["b", "c"]}]
+        after = [{"type": "string", "enum": ["a", "b", "c"]}, {"type": "string", "enum": ["a", "b", "d"]}]
+        for keyword, old_order, new_order in itertools.product(
+                ("anyOf", "oneOf", "allOf"), itertools.permutations(before), itertools.permutations(after)):
+            with self.subTest(keyword=keyword, old=old_order, new=new_order):
+                old, new = document(), document()
+                old["components"]["schemas"]["Item"]["properties"]["value"] = {keyword: list(old_order)}
+                new["components"]["schemas"]["Item"]["properties"]["value"] = {keyword: list(new_order)}
+                result = diff_specs.compute_diff(old, new)
+                self.assertTrue(result["enum_changes"])
+                self.assertEqual(diff_specs.enum_removals(result), [])
+
+    def test_value_retained_elsewhere_does_not_hide_branch_removal(self):
+        for keyword in ("anyOf", "oneOf", "allOf"):
+            with self.subTest(keyword=keyword):
+                old = document()
+                old["components"]["schemas"]["Item"]["properties"]["value"] = {keyword: [
+                    {"type": "string", "pattern": "^(blue|red)$", "enum": ["blue", "red"]},
+                    {"type": "string", "pattern": "^(amber|green|red)$", "enum": ["green", "red"]},
+                ]}
+                new = copy.deepcopy(old)
+                branches = new["components"]["schemas"]["Item"]["properties"]["value"][keyword]
+                branches[0]["enum"].remove("red")
+                branches[1]["enum"].append("amber")
+                branches.reverse()
+                result = diff_specs.compute_diff(old, new)
+                self.assertEqual([removed for _, _, removed in diff_specs.enum_removals(result)], [["red"]])
+                self.assertEqual([added for _, added, _ in result["enum_changes"] if added], [["amber"]])
+
+    def test_removing_distinct_branch_is_reported_with_shared_enum_values(self):
+        old = document()
+        old["components"]["schemas"]["Item"]["properties"]["value"] = {"oneOf": [
+            {"type": "object", "properties": {"kind": {"const": "left"}, "status": {"enum": ["red"]}}},
+            {"type": "object", "properties": {"kind": {"const": "right"}, "status": {"enum": ["red"]}}},
+        ]}
+        new = copy.deepcopy(old)
+        del new["components"]["schemas"]["Item"]["properties"]["value"]["oneOf"][0]
+        result = diff_specs.compute_diff(old, new)
+        self.assertEqual([removed for _, _, removed in diff_specs.enum_removals(result)], [["red"]])
+
+    def test_query_insertion_and_nested_enum_addition_keep_parameter_identity(self):
+        old = document()
+        old["paths"]["/items"]["get"]["parameters"] = [{"name": "status", "in": "query", "schema": {"oneOf": [
+            {"type": "string", "pattern": "^m$", "enum": ["m"]},
+            {"type": "string", "pattern": "^[az]$", "enum": ["z"]},
+        ]}}]
+        new = copy.deepcopy(old)
+        parameters = new["paths"]["/items"]["get"]["parameters"]
+        parameters[0]["schema"]["oneOf"][1]["enum"].append("a")
+        parameters.insert(0, {"name": "earlier", "in": "query", "schema": {"type": "integer"}})
+        result = diff_specs.compute_diff(old, new)
+        self.assertEqual(diff_specs.enum_removals(result), [])
+        self.assertEqual([added for _, added, _ in result["enum_changes"]], [["a"]])
 
     def test_query_insertion_does_not_invent_enum_removal(self):
         old = document()
