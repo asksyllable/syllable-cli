@@ -15,7 +15,7 @@ go build -o syllable .
 go test ./...
 ```
 
-CI ([test.yml](.github/workflows/test.yml)) runs `go test $(go list ./... | grep -v /integration)` on every push and PR. The `integration` package is excluded from CI by design — it requires live API credentials (see below).
+CI ([test.yml](.github/workflows/test.yml)) runs Go vet, race-enabled unit tests, Python spec-drift regressions, and the pinned SDK differential suite on pull requests and pushes to main. The live `integration` package is excluded from this job by its build tag because it requires platform credentials (see below).
 
 ## Test conventions
 
@@ -68,11 +68,22 @@ Inspect individual test results: `SKIP` means the feature was not exercised, eve
 
 Live validation on 2026-10-13 (`cli-test`, production): STT provider and experiment-list integration tests passed; workflow views skipped because the org had no workflows. Twelve additional read-only checks passed for catalog selection queries, lifecycle table columns, directory status/raw-format queries, and experiment list search/sort/date/projection options. The directory returned zero active rows and ten deleted rows on the first page; explicit active status also returned zero rows with `--include-deleted`. A further `--selected-provider "Deepgram Nova 3 (On-Prem)"` query succeeded but did not return that removed provider. Retention of registered retired options, workflow result semantics, experiment routing, and card interactions still need suitable fixtures.
 
+After the complete parity changes, the same integration selection passed again with the same workflow skip. Two further read-only checks passed: agent sorting/projection returned one row, and repeated session search combined with `--include-test` returned zero rows. These verify live request acceptance; populated filtering semantics still need fixtures.
+
 The mutable test selection is `-run '^(TestExperimentsCRUD|TestAgentCardClick)$'`, with the dedicated fixture variables described above. The experiment test covers CRUD and start/stop transitions. To verify actual traffic routing, start a test experiment and create new sessions through its channel target, then check per-variant result counts and session attribution. `agents send-test-message` targets an agent directly and does not exercise channel-target routing. The card-click test verifies the event endpoint; rendered card behavior needs a test agent/tool that emits a card plus a real client interaction.
 
 Release readiness also needs the `ai-specialist` companion documentation and read-only-hook update described under the cross-repo contract below. Its installed CLI executable is upgraded separately from its skill docs. Keep the published docs-version marker until a CLI release exists; prerelease notes should identify the SDK source commit without inventing a CLI release version.
 
-The catch-up completeness audit is pinned to SDK 1.0.68 at `6c6fc6f906f103b763dcffa65ccc6ea2403883d4`: 118 paths and 190 HTTP operations. `TestSDKOperationCoverage` executes registered command implementations without network access and verifies exact HTTP methods/paths against the embedded spec. It covers 187 operations, including all 14 added since the branch base. Three deliberate exclusions are documented in the test: organization create/delete remain console-only, and deprecated language-group sampling is superseded by `voice-groups sample`. `TestSDKCatchUpPayloadPassthrough` checks both create and update for all five new nested request fields across custom messages, tools, directory members, and campaigns. These checks verify command availability and serialization; the live fixture-dependent tests above verify backend behavior.
+The parity contract is pinned to SDK 1.0.68 at `6c6fc6f906f103b763dcffa65ccc6ea2403883d4`: 118 paths and 190 HTTP operations. `TestSDKOperationCoverage` verifies all 188 mapped operations against the embedded spec; only organization create/delete remain console-only. Legacy language-group sampling is included. `TestSDKQueryParameterSerialization` captures all 339 query declarations with explicit empty/zero/false and repeated values. JSON files preserve arbitrary nested data, number precision, and supplied null. Dedicated body tests cover specialized actions and exact media types.
+
+The independent [SDK differential suite](tests/sdk-parity/README.md) executes the published TypeScript SDK and branch CLI against the same loopback server. Its current complete run passes 188 operation requests/responses, 46 nullable-body cases, 59 omitted-query/default cases, two custom multipart filename/MIME/stdin uploads, one anonymous `skip_auth` request, and 49 HTTP-error cases. It tests representative finite values for records, recursive types, and unions; it does not prove every backend business rule or live routing behavior. Run it without any platform credentials:
+
+```bash
+npm ci --prefix tests/sdk-parity --ignore-scripts --no-audit --no-fund
+npm test --prefix tests/sdk-parity
+```
+
+Further opt-in integration coverage in `integration/body_parity_test.go` uses `SYLLABLE_TEST_AGENT_ID` for full-file test messages, `SYLLABLE_TEST_WORKFLOW_ACTIVATION_ID` for an inactive workflow with no backfill, and `SYLLABLE_VOICE_SAMPLE_BODY_FILE` for both sample endpoints. These fixture-dependent tests have not been run against production in this catch-up. Use isolated test resources and inspect individual skips before declaring live readiness.
 
 ## Branch and release workflow
 

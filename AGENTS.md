@@ -159,6 +159,10 @@ Auth and base URL are sourced from `~/.syllable/config.yaml`. Use `--org` and `-
 
 ## Common List Flags
 
+SDK query options are available on each command that declares them. Check `--help`. Common additions include `--order-by`, `--order-by-direction`, `--start-date`, `--end-date`, `--api-fields`, and paired repeated `--search-fields` / `--search-values` (commas are literal). Keep `--fields` for table columns. Explicit empty/zero/false inputs are preserved. SDK query flags also expose operation-specific options such as role deletion `--new-role-id`, outbound result filters, and directory `--response-format` (or existing `--format`).
+
+Global transport controls: `--request-timeout` (duration; explicit 0 disables), `--retries` (default 0), `--retry-writes`, `--retry-delay`, `--retry-max-delay`, `--retry-exponent`, `--retry-max-elapsed-time`, `--retry-statuses`, `--retry-connection-errors`, `--user-agent`, `--upload-filename`, and `--upload-content-type`. Write retries require explicit opt-in. Headers and multipart encodings follow the SDK's media types.
+
 All list commands support:
 
 | Flag | Default | Description |
@@ -266,6 +270,7 @@ syllable agents card-click <test-id> --action-id ID --action-type cta|action
 syllable agents card-click <test-id> --file click.json
 syllable agents labels
 syllable agents send-test-message <agent-id> --test-id ID [--session-start] [--text TEXT] [--override-timestamp ISO8601]
+syllable agents send-test-message <agent-id> --file test-message.json
 ```
 **Table columns:** ID, NAME, TYPE, LABEL, DESCRIPTION, UPDATED
 
@@ -315,6 +320,7 @@ syllable channels twilio numbers-list
 syllable channels twilio numbers-add --file number.json
 syllable channels twilio numbers-update --file number.json
 syllable channels twilio numbers-verify-a2p-compliance <channel-id> --phone +18042221111
+syllable channels twilio numbers-verify-a2p-compliance <channel-id> --file verification.json
 ```
 **Table columns:** ID, NAME, SERVICE, IS_SYSTEM
 
@@ -398,11 +404,15 @@ syllable users create --file user.json
 syllable users create --email EMAIL --role-id ID [--first-name NAME] [--last-name NAME]
 syllable users update <email> --file user.json
 syllable users delete <email>
+syllable users delete <email> --reason TEXT
+syllable users delete <email> --file user-delete.json
 syllable users me
-syllable users send-email <email>
+syllable users send-email <email> [--skip-auth]
 syllable users delete-account --confirm
 ```
 **Table columns:** ID, EMAIL, NAME, ROLE, STATUS, LAST_UPDATED
+
+Only explicit `users send-email --skip-auth=true` may run without an API key, matching the SDK's anonymous request. It sends email; the offline parity suite uses a local mock server.
 
 ### Directory
 Member/contact list for call routing and agent-initiated transfers.
@@ -417,6 +427,7 @@ syllable directory upload --file members.csv
 syllable directory download [--format normalized|raw]
 syllable directory history <member-id> [--page N] [--limit N] [--order-by-direction asc|desc]
 syllable directory restore <member-id> [--comments TEXT]
+syllable directory restore <member-id> --file restore.json
 syllable directory test <member-id> [--timestamp ISO8601] [--language-code BCP47]
 ```
 
@@ -432,6 +443,7 @@ syllable insights workflows create --file workflow.json
 syllable insights workflows update <workflow-id> --file workflow.json
 syllable insights workflows delete <workflow-id>
 syllable insights workflows activate <workflow-id>
+syllable insights workflows activate <workflow-id> --file activation.json
 syllable insights workflows inactivate <workflow-id>
 syllable insights workflows queue-work --file work.json
 syllable insights workflows executions <workflow-id> [--search STATUS]
@@ -487,6 +499,7 @@ syllable language-groups create --file group.json
 syllable language-groups create --name NAME
 syllable language-groups update <group-id> --file group.json
 syllable language-groups delete <group-id>
+syllable language-groups sample --file voice.json > sample.bin
 ```
 
 ### Data Sources
@@ -570,10 +583,11 @@ syllable session-debug tool-result <session-id> <tool-result-id>
 ### Takeouts
 Data export jobs. Workflow: create → poll with get until complete → download file.
 ```bash
-syllable takeouts create --file takeout.json
+syllable takeouts create
 syllable takeouts get <job-id>
 syllable takeouts download <job-id> <file-name>
 ```
+The SDK's create operation sends no body. Optional `--file` remains available for compatibility with older callers.
 
 ### Events
 ```bash

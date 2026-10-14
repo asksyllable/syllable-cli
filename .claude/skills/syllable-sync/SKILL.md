@@ -31,6 +31,9 @@ code that implements it in the **same** PR — never ship a spec-only bump.
 | Cmd files | `scripts/syllable-cli/cmd/` (one `.go` file per resource) |
 | HTTP client | `scripts/syllable-cli/internal/client/client.go` |
 | Diff script | `.claude/skills/syllable-sync/scripts/diff_specs.py` (repo-relative; committed) |
+| Reviewed operation mappings | `scripts/syllable-cli/cmd/sdk_operations.go` |
+| Spec-backed query flags | `scripts/syllable-cli/cmd/query_parameters.go` |
+| Actual SDK differential tests | `tests/sdk-parity/` (exact package version, lockfile, implementation manifest) |
 
 ---
 
@@ -114,7 +117,9 @@ Based on the diff output, categorize the work into a checklist:
 - [ ] Expose new query parameters, and check changed defaults, constraints, required fields, and nullable types
 - [ ] Verify response JSON preserves new fields and renamed response models
 - [ ] Preserve renamed schema lookups with aliases when appropriate; document actual removals
-- [ ] Add every new operation to `cmd/api_surface_test.go` and test new nested request fields through file input
+- [ ] Add every new operation to `cmd/sdk_operations.go`; `cmd/api_surface_test.go` must show complete coverage with only documented policy exceptions
+- [ ] Verify spec-backed flags through `TestSDKQueryParameterSerialization` and test new nested request fields through file input
+- [ ] Update the exact SDK dependency and lockfile in `tests/sdk-parity/`, set the upstream source commit in `generate-manifest.cjs`, and refresh the implementation manifest with `npm run refresh-manifest --prefix tests/sdk-parity`; review the diff against the actual SDK
 
 **Doc updates:**
 - [ ] README.md — add/remove/update the resource's section under Commands
@@ -263,6 +268,15 @@ go build -o /tmp/syllable-test .
 # Smoke test the new command
 /tmp/syllable-test widgets --help
 ```
+
+From the repository root, also run the independent SDK request/response comparison:
+
+```bash
+npm ci --prefix tests/sdk-parity --ignore-scripts --no-audit --no-fund
+npm test --prefix tests/sdk-parity
+```
+
+This uses synthetic credentials and a loopback mock server. It must pass every allowed operation without skips. Do not refresh the manifest just to silence failures, and keep fixture-dependent live behavior distinct from mock contract coverage.
 
 Fix any compilation errors or test failures before proceeding.
 

@@ -284,6 +284,33 @@ When using `--output json`, errors are machine-readable:
 
 ## Commands
 
+### SDK parameter and request parity
+
+Commands expose the query parameters declared by SDK 1.0.68. Use a command's `--help` for its available options, including sorting, date ranges, API projection, filters, deletion reasons, and response formats. `--fields` selects table columns; `--api-fields` selects fields requested from the API.
+
+```bash
+syllable agents list --order-by updated_at --order-by-direction desc --api-fields id,name
+syllable sessions list --include-test --search-fields agent_name --search-values "Support"
+syllable agents list --search-fields name --search-values "A, B" --search-fields id --search-values 17
+syllable outbound batches results <id> --reference-id REF --status STATUS --insights-status STATUS
+syllable roles delete <id> --new-role-id <replacement-id> --reason "Replace obsolete role"
+```
+
+Repeat `--search-fields` and `--search-values` once per paired value; commas within a value are literal. The plural options replace the convenience `--search` / `--search-field` pair. Explicit empty strings, zero, and false values are sent when supplied. API options are scoped to their operation, so a workflow activation's estimate lookup does not inherit unrelated filters.
+
+Full JSON input is also available for `agents send-test-message`, workflow `activate`, `users delete`, directory `restore`, and Twilio `numbers-verify-a2p-compliance`. Use `--file -` for stdin. For these full-body actions, put body fields in the file rather than combining it with their inline body flags; positional identifiers must agree with the body. JSON numbers and explicit null values are preserved.
+
+```bash
+syllable agents send-test-message <id> --file test-message.json
+syllable insights workflows activate <id> --file activation.json
+syllable directory restore <id> --comments ""
+syllable language-groups sample --file voice.json > sample.bin
+```
+
+Transport options include `--request-timeout 45s` (explicit `0` disables the timeout), `--retries 3`, `--retry-delay`, `--retry-max-delay`, `--retry-exponent`, `--retry-max-elapsed-time`, `--retry-statuses`, and `--retry-connection-errors`. Existing operation-specific timeouts remain when no override is supplied. Retries default to zero; retrying mutating requests also requires `--retry-writes`. `--user-agent`, `--upload-filename`, and `--upload-content-type` expose request and multipart metadata controls.
+
+The [SDK differential suite](tests/sdk-parity/README.md) compares the real pinned SDK and CLI against one local mock server. It covers all 188 allowed operations and 339 query declarations; organization create/delete remain console-only. This contract coverage is separate from live workflow results, experiment routing, and card interaction tests.
+
 ### Agents
 
 Agents are the AI systems that communicate with users. Each agent is configured with a prompt, a timezone, an optional opening message, session variables for personalization, and optional tool headers. Each channel target has one assigned agent; experiments can split its traffic across agent variants. A test channel is auto-generated for every agent for pre-production testing.
@@ -433,7 +460,7 @@ syllable outbound batches remove-requests <id> --file requests.json
 
 ### Users
 
-Users are platform accounts. `users me` returns the currently authenticated user — useful for verifying that an API key is working.
+Users are platform accounts. `users me` looks up the email configured during setup; it requires that email because the API has no key-identity endpoint.
 
 ```bash
 syllable users list [--search TEXT]
@@ -443,8 +470,10 @@ syllable users create --email EMAIL --role-id ID [--first-name NAME] [--last-nam
 syllable users create --file user.json
 syllable users update <email> --file user.json
 syllable users delete <email>
-syllable users send-email <email>
+syllable users send-email <email> [--skip-auth]
 ```
+
+The SDK supports an anonymous `users send-email` request when `--skip-auth=true` is explicit. This command can run without configured credentials; all other platform commands require an API key. It sends a real email, so use a controlled address for live testing.
 
 ### Directory
 

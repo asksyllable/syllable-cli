@@ -11,7 +11,7 @@ A Go CLI for managing the Syllable AI platform. Source and releases: **https://g
 
 > **Docs synced to CLI v2.2.0** — bump this marker whenever these docs are updated for a new release.
 >
-> Pending SDK 1.0.68 refresh: experiments (list/get/create/update/delete/start/stop/results); `agents stt-providers` and `card-click`; insight workflow `executions`, `executions-summary`, `sessions`, and `files`; saved catalog selection flags; directory deleted-member filters. Embedded spec source is SDK commit `6c6fc6f906f103b763dcffa65ccc6ea2403883d4`. The upstream `AgentSttProvider` enum removes `Deepgram Nova 3 (On-Prem)`; use the STT catalog to find current options. Nested configuration additions are supported through `--file`, including campaign schedule overrides, holiday greetings, SIP transfer mode, and tool response display mappings. This refresh is not yet a CLI release.
+> Pending SDK 1.0.68 parity refresh: experiments; STT catalogs and card-click events; workflow execution/session/file views; all SDK query options; full JSON body actions; transport and multipart controls. The differential suite covers all 188 allowed operations against the real SDK, with organization create/delete retained as console-only. Source is SDK commit `6c6fc6f906f103b763dcffa65ccc6ea2403883d4`. `Deepgram Nova 3 (On-Prem)` is removed; use current STT options. This refresh is not yet a CLI release, and mock contract coverage does not establish live routing/workflow/card behavior.
 >
 > v2.2.0 (minor) highlights — purely additive, no breaking changes: new `sessions timeline <session-id>` command returning one consolidated, time-ordered stream of transcript turns, tool calls, and latency events with offsets from session start; outbound batch create/update bodies accept `call_rate` and `auto_call_rate` (per-batch rate control, with `auto_call_rate_baseline` in responses); `SipConfiguration` gains `call_info_placement`; sessions expose `override_timestamp`; new Cartesia TTS provider with the `sonic-3.5` voice model and 18 new voices across US/MX/ES/KR/CN/VN/TH.
 >
@@ -128,6 +128,12 @@ If `default_org` is set in `~/.syllable/config.yaml`, it's used when `--org` is 
 | `--debug` | -- | `false` | Print HTTP request/response details to stderr |
 
 ## Common List Flags
+
+For SDK 1.0.68 parameter parity, inspect each command's `--help`: sorting, date filters, API projection (`--api-fields`, separate from table `--fields`), repeated paired `--search-fields` / `--search-values`, and operation-specific filters are exposed wherever declared by the SDK. Repeat each plural search option per value; commas within values are literal. Explicit empty, zero, and false values are preserved.
+
+Use full `--file` / stdin JSON on specialized body actions too: agent test messages, workflow activation, user deletion, directory restore, and Twilio A2P checks. Put all body fields in the file; don't combine it with their inline body flags. Numeric precision and explicit null are preserved. Legacy `language-groups sample` remains available alongside `voice-groups sample`.
+
+Global HTTP controls include `--request-timeout`, opt-in `--retries` / `--retry-writes`, backoff/status/connection-error options, `--user-agent`, and multipart `--upload-filename` / `--upload-content-type`. Defaults retain existing timeouts and perform no retries. See `references/commands.md` for examples. Organization creation/deletion remain console-only.
 
 All list commands support these flags:
 
