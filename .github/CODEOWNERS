@@ -2,6 +2,10 @@
 # the release automation's PR and be reviewed, never hand-edited (#140).
 /Casks/ @yorkable
 
+# The spec-sync routine follows these instructions straight from main, unattended
+# and with release rights, so changes to them need owner review.
+/.claude/skills/syllable-sync/ @yorkable
+
 # Release and CI plumbing.
 /.goreleaser.yaml @yorkable
 /.github/ @yorkable

@@ -161,7 +161,10 @@ jobs:
         if: steps.detect.outputs.drift == 'yes'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          STALL_HOURS: "72"
+          # Keep this at the routine's schedule interval plus a day, or every
+          # normal wait between fires looks like an outage. The default suits the
+          # weekly schedule; set the repo variable to 48 for a daily one.
+          STALL_HOURS: ${{ vars.SPEC_SYNC_STALL_HOURS || '192' }}
           OWNER: yorkable
         run: |
           set -eo pipefail
