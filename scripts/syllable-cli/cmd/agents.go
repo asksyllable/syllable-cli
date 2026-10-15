@@ -500,8 +500,8 @@ var timestampOffsetRe = regexp.MustCompile(`[+-][0-9]{2}:[0-9]{2}$`)
 // flag still sends the value (warn, don't block) — a hard rejection would
 // break the thin-passthrough contract and become wrong once the server
 // accepts tz-aware values. Negative checks only: a positive validator would
-// false-positive on forms not confirmed either way (#77). Remove once
-// ZOO-7814 lands server-side — the spec-drift workflow will flag the
+// false-positive on forms not confirmed either way (#77). Remove once the
+// server-side fix lands (#179) — the spec-drift workflow will flag the
 // TestMessage.override_timestamp schema change.
 func overrideTimestampWarning(ts string) string {
 	var reason string

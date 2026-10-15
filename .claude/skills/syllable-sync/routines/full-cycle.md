@@ -24,6 +24,13 @@ This routine runs **locally** from `~/Documents/Claude/syllable-cli` with the us
 
 **When you stop and leave something for a human** — a breaking/ambiguous change, a failed check, or a failed release build — don't rely on anyone noticing. Comment with the specifics **and a recommended action**, then assign the PR (or the `spec-drift` issue) to **@yorkable** and @-mention him so GitHub emails him. This routine should reach out **only** when it is genuinely blocked; the additive happy path runs start-to-finish in silence.
 
+**Public repo hygiene.** This repository is public, so every PR, issue, comment, commit message, and release note you write is readable by anyone. Follow the *Public repo hygiene* rules in `CONTRIBUTING.md`:
+- name only `cli-test` (never a customer or other org);
+- no internal ticket IDs, internal hostnames, emails, or phone numbers;
+- describe platform bugs neutrally with a repro, and put no process commentary about other teams in public;
+- send security defects to a draft security advisory, not an issue;
+- comment once per real state change, never a repeated reminder.
+
 **Command hygiene (you run unattended).** Run each irreversible command (`gh pr merge`, `gh pr review --approve`, `git tag`, `git push`) as its own standalone command: target the repo with `--repo asksyllable/syllable-cli` or `git -C <path>`, and never chain it after `cd`, `&&`, or `;`. Unattended permission checks evaluate chained irreversible commands far more strictly and have blocked them. Run live CLI probes the same way, one `syllable --org cli-test --env prod …` command per call, never against another org. If a permission check denies a command, don't retry it or look for another route to the same effect: comment on the PR (or the `spec-drift` issue) with the exact denied command, @-mention @yorkable so the permission rule can be added, and stop.
 
 **Gather the state first**, then match the first applicable case A–I below:
