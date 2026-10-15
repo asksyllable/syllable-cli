@@ -332,7 +332,7 @@ Voice, STT, and LLM catalogs report lifecycle status, sunset dates, and fallback
 
 ### Experiments
 
-Experiments split one channel target's traffic across agent variants. Use two or more different agents, weights totaling 100, and exactly one control. Only draft experiments can be updated or started; stop a running experiment before deleting it.
+Experiments split one channel target's traffic across agent variants. Use two or more different agents, weights of at least 1 totaling 100, and exactly one control. Only draft experiments can be updated or started; stop a running experiment before deleting it.
 
 ```bash
 syllable experiments list [--search TEXT] [--search-field FIELD]
@@ -358,7 +358,7 @@ Example create body:
 }
 ```
 
-Updates use `ExperimentUpdateRequest`: include `name` and the complete `variants` set when changing variants. The target is set on creation. `start` returns the experiment and any warnings; `results` reports session counts per variant. Session JSON includes experiment and variant attribution.
+Updates use `ExperimentUpdateRequest`: include `name` and the complete `variants` set (required on every update, at least two). The target is set on creation. `start` returns the experiment and any warnings; `results` reports session counts per variant. Session JSON includes experiment and variant attribution.
 
 `experiments list` supports `--page`, `--limit`, `--order-by`, `--order-by-direction`, `--start-date`, and `--end-date`. Use `--api-fields id,name,status` to select API response fields; `--fields` selects table columns. Create/update accept `--file -` for stdin.
 
