@@ -15,7 +15,7 @@ Quick reference for every resource: what it is, key fields, and hard constraints
 | Resource | Purpose | Key Fields | Constraints |
 |----------|---------|------------|-------------|
 | **Agents** | AI system that talks to users via a channel | prompt_id, timezone, opening_message, session_variables, tool_headers, voice_group_id, bridge_phrases_id | One assigned agent per target; experiments can split traffic across variants. Test channel is auto-generated. `bridge_phrases_id` attaches a **Bridge Phrases** config; set it via `--file` (no dedicated flag). |
-| **Experiments** | Split a channel target's traffic across agent variants | name, target_id, variants (name, agent_id, weight, is_control), status | Two or more different agents, weights totaling 100, exactly one control. Only drafts can be updated/started; stop before deleting a running experiment. Variant updates replace the complete set. |
+| **Experiments** | Split a channel target's traffic across agent variants | name, target_id, variants (name, agent_id, weight, is_control), status | Two or more different agents, weights of at least 1 totaling 100, exactly one control. Only drafts can be updated/started; stop before deleting a running experiment. Variant updates replace the complete set. |
 | **Prompts** | Natural language instructions defining agent behavior, backed by an LLM | name, provider, model, temperature, seed, tools, version | Every edit auto-creates a new version. Previous versions can be previewed and restored via `prompts history`. |
 | **Tools** | APIs agents call during sessions (look up data, transfer calls, schedule, etc.) | endpoint_url, method, function definition (name, description, JSON Schema params), service_id, static_params, dynamic vars (`{{ vars.field }}`) | Requires a Service for auth. Three types: agent, step, system. `tools history <id>` lists past versions (version_number, operation, updated_by). |
 | **Services** | Centralized credential store for tool authentication | name, auth_type (basic/bearer/custom), credentials | Credentials are masked and not stored by Syllable after configuration. Multiple tools may share one service. |
@@ -287,7 +287,7 @@ syllable experiments stop <experiment-id>
 syllable experiments results <experiment-id>
 syllable experiments delete <experiment-id>
 ```
-Create uses `ExperimentCreateRequest` (`name`, `target_id`, `variants`); update uses `ExperimentUpdateRequest` (`name`, optional `description`, complete `variants`). Updates route by the URL ID, without a body ID. Start returns `{experiment, warnings}`; results returns per-variant `session_count`. `target_id` can be null on historical responses if the target was deleted.
+Create uses `ExperimentCreateRequest` (`name`, `target_id`, `variants`); update uses `ExperimentUpdateRequest` (`name`, optional `description`, complete `variants`). Both require at least two variants. Updates route by the URL ID, without a body ID. Start returns `{experiment, warnings}`; results returns per-variant `session_count`. `target_id` can be null on historical responses if the target was deleted.
 
 List flags also include `--order-by`, `--order-by-direction asc|desc`, `--start-date`, `--end-date`, and `--api-fields` (comma-separated API fields; distinct from table `--fields`). Default search field is `name`; use `ExperimentProperties` for supported fields. Sessions expose `experiment_id`, `experiment_variant_id`, `experiment_variant`, and `experiment_variant_is_control` in JSON.
 

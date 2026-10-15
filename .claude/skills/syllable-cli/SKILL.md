@@ -9,7 +9,9 @@ description: |
 
 A Go CLI for managing the Syllable AI platform. Source and releases: **https://github.com/asksyllable/syllable-cli**
 
-> **Docs synced to CLI v2.3.1** — bump this marker whenever these docs are updated for a new release.
+> **Docs synced to CLI v2.3.2** — bump this marker whenever these docs are updated for a new release.
+>
+> v2.3.2 (patch) highlights: field-only spec sync for `experiments`. `experiments create` and `experiments update` bodies must now include `variants` (at least two), and each variant weight must be at least 1. The CLI passes the `--file` body through unchanged; `--dry-run` now lists a missing `variants` field.
 >
 > v2.3.1 (patch) highlights: field-only spec sync for `insights tools-test`. The request body's `session_id` and `upload_file_id` now also accept strings, `tool_name` must be non-blank, and the API documents 502/504 responses. The CLI passes the `--file` body through unchanged.
 >
