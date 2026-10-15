@@ -7,6 +7,16 @@
 - `.goreleaser.yaml` and `.github/workflows/` — release pipeline config.
 - `scripts/syllable-cli/internal/spec/openapi.json` — embedded OpenAPI spec; the CLI's source of truth for endpoints and schemas.
 
+## Public repo hygiene
+
+This repository is public. Its files, history, issues, PRs, comments, release notes, and Actions logs are readable by anyone. People and automation follow the same rules:
+
+- **Orgs:** examples and reports use `cli-test` or the placeholder slugs (`acme`, `globex`). Never name a customer or any other org. Redact org lists from pasted `syllable status`/`envs` output.
+- **Internal details:** no internal ticket IDs or links, internal hostnames, people's emails, or real phone numbers. Fixture IDs live in Actions variables.
+- **Platform bugs:** describe them neutrally, as what the API does versus what the spec says, with a repro. Process commentary (ticket states, asks of other teams) belongs in the internal tracker.
+- **Security defects** (credential exposure, cross-user data): report them privately as a draft security advisory (`gh api -X POST repos/asksyllable/syllable-cli/security-advisories …`), never as a public issue.
+- **Automation:** comment at most once per real state change. Never repeat the same reminder.
+
 ## Build and test
 
 ```bash
@@ -43,26 +53,25 @@ Without `-tags integration` the suite's files are excluded from the build, so `g
 
 #### `cli-test` fixtures (full live run)
 
-`cli-test` on prod has standing resources for the fixture-gated tests. Run everything from `scripts/syllable-cli` against the binary you want to verify (here the Homebrew install; use a fresh `go build` for unreleased code):
+`cli-test` on prod has standing resources for the fixture-gated tests. Their IDs are stored as this repo's GitHub Actions **variables** (visible to collaborators via `gh variable list`, not published in the repo), and the phone number is looked up from the org at run time. Run everything from `scripts/syllable-cli` against the binary you want to verify (here the Homebrew install; use a fresh `go build` for unreleased code):
 
 ```bash
+export $(gh variable list --json name,value --jq '.[] | select(.name | startswith("SYLLABLE_TEST_") or . == "SYLLABLE_TOOL_SERVICE_ID") | "\(.name)=\(.value)"')
+export SYLLABLE_TEST_PHONE="$(syllable --org cli-test --env prod channels twilio numbers-list "$SYLLABLE_TEST_CHANNEL_ID" -o json | jq -r '.phone_numbers[0].phone_number')"
 env -u SYLLABLE_API_KEY SYLLABLE_ORG=cli-test SYLLABLE_ENV=prod \
   SYLLABLE_CLI_BINARY=/opt/homebrew/bin/syllable \
-  SYLLABLE_TEST_AGENT_ID=768 \
-  SYLLABLE_TOOL_SERVICE_ID=134 SYLLABLE_TEST_TOOL_ID=560 \
-  SYLLABLE_TEST_CHANNEL_ID=111 SYLLABLE_TEST_PHONE=+18087311842 \
   SYLLABLE_VOICE_SAMPLE_BODY_FILE=/path/to/voice-sample.json \
   go test -tags integration -count=1 -v ./integration
 ```
 
 `voice-sample.json` is `{"language_code":"en-US","voice_provider":"Google","voice_display_name":"Achernar (English)","text":"Integration test sample."}`. Sample synthesis incurs a little TTS usage.
 
-| Variable | `cli-test` value | What it is |
-|---|---|---|
-| `SYLLABLE_TEST_AGENT_ID` | `768` | Agent "test"; used for full-body test messages and card-click |
-| `SYLLABLE_TOOL_SERVICE_ID` | `134` | Service "default-v1"; tool CRUD creates and deletes a temporary tool under it |
-| `SYLLABLE_TEST_TOOL_ID` | `560` | Tool "greeting"; read-only history |
-| `SYLLABLE_TEST_CHANNEL_ID` / `SYLLABLE_TEST_PHONE` | `111` / `+18087311842` | Twilio channel and a number on its account; read-only A2P compliance check |
+| Variable | What it points at in `cli-test` |
+|---|---|
+| `SYLLABLE_TEST_AGENT_ID` | The test agent; used for full-body test messages and card-click |
+| `SYLLABLE_TOOL_SERVICE_ID` | A service that tool CRUD creates and deletes a temporary tool under |
+| `SYLLABLE_TEST_TOOL_ID` | A standing tool; read-only history |
+| `SYLLABLE_TEST_CHANNEL_ID` | A Twilio channel; `SYLLABLE_TEST_PHONE` is a number on its account, for the read-only A2P compliance check |
 
 Last full run (2026-10-14, v2.3.1): everything passed except these known gaps:
 
