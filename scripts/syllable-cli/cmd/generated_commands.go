@@ -84,6 +84,12 @@ type specContent struct {
 	Schema map[string]interface{} `json:"schema"`
 }
 
+// specParameter is a parameter as written in the spec, possibly a $ref.
+type specParameter struct {
+	sdkQueryParameter
+	Ref string `json:"$ref"`
+}
+
 type specOperation struct {
 	Method      string
 	Path        string
@@ -93,12 +99,18 @@ type specOperation struct {
 	Description string                 `json:"description"`
 	Deprecated  bool                   `json:"deprecated"`
 	Security    *[]map[string][]string `json:"security"`
-	Parameters  []sdkQueryParameter    `json:"parameters"`
-	RequestBody *struct {
+	Servers     []interface{}          `json:"servers"`
+	// Parameters merges the path item's parameters with the operation's own
+	// (which win), with local $refs resolved.
+	Parameters    []sdkQueryParameter `json:"-"`
+	RawParameters []specParameter     `json:"parameters"`
+	RequestBody   *struct {
+		Ref      string                 `json:"$ref"`
 		Required bool                   `json:"required"`
 		Content  map[string]specContent `json:"content"`
 	} `json:"requestBody"`
 	Responses map[string]struct {
+		Ref     string                 `json:"$ref"`
 		Content map[string]specContent `json:"content"`
 	} `json:"responses"`
 }
@@ -113,7 +125,10 @@ type specDocument struct {
 		In   string `json:"in"`
 		Name string `json:"name"`
 	}
-	index map[string]int
+	// Unsupported lists path items generation can't read (a $ref or a server
+	// override), so their operations can't be checked or generated.
+	Unsupported []string
+	index       map[string]int
 }
 
 func parseSpecDocument(data []byte) (*specDocument, error) {
@@ -126,6 +141,7 @@ func parseSpecDocument(data []byte) (*specDocument, error) {
 				In   string `json:"in"`
 				Name string `json:"name"`
 			} `json:"securitySchemes"`
+			Parameters map[string]sdkQueryParameter `json:"parameters"`
 		} `json:"components"`
 		Tags []struct {
 			Name        string `json:"name"`
@@ -146,8 +162,27 @@ func parseSpecDocument(data []byte) (*specDocument, error) {
 	for _, tag := range raw.Tags {
 		doc.Tags[tag.Name] = tag.Description
 	}
-	for path, methods := range raw.Paths {
-		for method, body := range methods {
+	resolve := func(p specParameter) sdkQueryParameter {
+		if p.Ref == "" {
+			return p.sdkQueryParameter
+		}
+		// An unresolvable reference has no name or location, which
+		// generationBlocker rejects.
+		return raw.Components.Parameters[strings.TrimPrefix(p.Ref, "#/components/parameters/")]
+	}
+	for path, item := range raw.Paths {
+		for _, key := range []string{"$ref", "servers"} {
+			if _, ok := item[key]; ok {
+				doc.Unsupported = append(doc.Unsupported, fmt.Sprintf("path %s has a %q the generator doesn't support", path, key))
+			}
+		}
+		var shared []specParameter
+		if data, ok := item["parameters"]; ok {
+			if err := json.Unmarshal(data, &shared); err != nil {
+				return nil, fmt.Errorf("parsing the parameters of %s: %w", path, err)
+			}
+		}
+		for method, body := range item {
 			switch method {
 			case "get", "post", "put", "patch", "delete", "head", "options", "trace":
 			default:
@@ -158,9 +193,21 @@ func parseSpecDocument(data []byte) (*specDocument, error) {
 				return nil, fmt.Errorf("parsing %s %s: %w", strings.ToUpper(method), path, err)
 			}
 			op.Method, op.Path = strings.ToUpper(method), path
+			own := map[string]bool{}
+			for _, p := range op.RawParameters {
+				r := resolve(p)
+				own[r.In+" "+r.Name] = true
+				op.Parameters = append(op.Parameters, r)
+			}
+			for _, p := range shared {
+				if r := resolve(p); !own[r.In+" "+r.Name] {
+					op.Parameters = append(op.Parameters, r)
+				}
+			}
 			doc.Operations = append(doc.Operations, op)
 		}
 	}
+	sort.Strings(doc.Unsupported)
 	sort.Slice(doc.Operations, func(i, j int) bool {
 		a, b := doc.Operations[i], doc.Operations[j]
 		if a.Path != b.Path {
@@ -268,6 +315,9 @@ func generationBlocker(op specOperation, doc *specDocument) string {
 	if !specPathPattern.MatchString(op.Path) {
 		return "has an unusual path"
 	}
+	if len(op.Servers) > 0 {
+		return "overrides the API server"
+	}
 	if !usesAPIKey(op, doc) {
 		return "does not authenticate with the Syllable API key"
 	}
@@ -279,6 +329,9 @@ func generationBlocker(op specOperation, doc *specDocument) string {
 	flags := map[string]string{}
 	probe := &cobra.Command{}
 	for _, p := range op.Parameters {
+		if p.Name == "" || p.In == "" {
+			return "has a parameter the generator can't resolve"
+		}
 		switch p.In {
 		case "path":
 		case "query":
@@ -298,6 +351,9 @@ func generationBlocker(op specOperation, doc *specDocument) string {
 		}
 	}
 	if body := op.RequestBody; body != nil {
+		if body.Ref != "" {
+			return "uses a referenced request body"
+		}
 		if _, ok := body.Content["application/json"]; !ok || len(body.Content) != 1 {
 			return "takes a " + mediaTypes(body.Content) + " request body"
 		}
@@ -305,6 +361,9 @@ func generationBlocker(op specOperation, doc *specDocument) string {
 	for status, response := range op.Responses {
 		if !strings.HasPrefix(status, "2") {
 			continue
+		}
+		if response.Ref != "" {
+			return "uses a referenced response"
 		}
 		for contentType := range response.Content {
 			if contentType != "application/json" {
@@ -327,29 +386,35 @@ func mediaTypes(content map[string]specContent) string {
 	return strings.Join(types, ", ")
 }
 
-// usesAPIKey reports whether every way to call the operation includes the
-// Syllable-API-Key header, which is what the CLI sends.
+// usesAPIKey reports whether the Syllable-API-Key header alone, which is what
+// the CLI sends, satisfies one of the operation's security requirements.
+// (Each requirement lists schemes that are all needed; any one requirement
+// will do.) Operations that also allow anonymous calls keep a hand-written
+// command, like the one that sends a user email.
 func usesAPIKey(op specOperation, doc *specDocument) bool {
 	security := op.Security
 	if security == nil {
 		security = doc.Security
 	}
-	if security == nil || len(*security) == 0 {
+	if security == nil {
 		return false
 	}
+	satisfied := false
 	for _, requirement := range *security {
-		found := false
+		if len(requirement) == 0 {
+			return false
+		}
+		if len(requirement) != 1 {
+			continue
+		}
 		for name := range requirement {
 			scheme, ok := doc.SecuritySchemes[name]
 			if ok && scheme.Type == "apiKey" && scheme.In == "header" && strings.EqualFold(scheme.Name, "Syllable-API-Key") {
-				found = true
+				satisfied = true
 			}
 		}
-		if !found {
-			return false
-		}
 	}
-	return true
+	return satisfied
 }
 
 // --- naming ---
@@ -493,6 +558,7 @@ func planGeneratedCommands(root *cobra.Command, doc *specDocument, previous []ge
 		_, excluded := consoleOnlyOperations[op.OperationID]
 		return !mapped && !excluded
 	}
+	problems = append(problems, doc.Unsupported...)
 	frozen := map[string]bool{}
 	sorted := append([]generatedEntry(nil), previous...)
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Command < sorted[j].Command })
@@ -540,11 +606,11 @@ func planGeneratedCommands(root *cobra.Command, doc *specDocument, previous []ge
 // never stops the CLI from starting: an entry that no longer fits the spec is
 // skipped here, and the test suite reports it.
 func registerGeneratedCommands(root *cobra.Command) {
-	doc, err := embeddedSpecDocument()
-	if err != nil {
+	manifest, err := parseGeneratedManifest(generatedCommandsJSON)
+	if err != nil || len(manifest.Commands) == 0 {
 		return
 	}
-	manifest, err := parseGeneratedManifest(generatedCommandsJSON)
+	doc, err := embeddedSpecDocument()
 	if err != nil {
 		return
 	}
@@ -616,13 +682,16 @@ func newGeneratedCommand(op specOperation, verb string, doc *specDocument) (*cob
 	}
 	hasBody := op.RequestBody != nil
 	// Deletes, and changes made without a body (start, stop, send, ...), get
-	// the same confirmation as hand-written deletes.
-	confirm := op.Method == "DELETE" || op.Method != "GET" && !hasBody
+	// the same confirmation as hand-written deletes. Whether a change has a
+	// body depends on --file when the body is optional.
+	confirms := func(body interface{}) bool {
+		return op.Method == "DELETE" || op.Method != "GET" && body == nil
+	}
 	var file string
 	cmd := &cobra.Command{
 		Use:         use,
 		Short:       generatedShort(op),
-		Long:        generatedLong(op, params, confirm, doc),
+		Long:        generatedLong(op, params, doc),
 		Args:        cobra.ExactArgs(len(params)),
 		Annotations: map[string]string{generatedAnnotation: "true", generatedRouteAnnotation: op.Method + " " + op.Path},
 	}
@@ -643,7 +712,7 @@ func newGeneratedCommand(op specOperation, verb string, doc *specDocument) (*cob
 		} else if hasBody && op.RequestBody.Required {
 			return fmt.Errorf("use --file to provide the JSON request body (run with --help to see its fields)")
 		}
-		if confirm {
+		if confirms(body) {
 			warning := "This is destructive and cannot be undone."
 			if op.Method != "DELETE" {
 				warning = "This changes data on the platform."
@@ -703,7 +772,7 @@ func generatedShort(op specOperation) string {
 	return short + " [generated]"
 }
 
-func generatedLong(op specOperation, params []sdkQueryParameter, confirm bool, doc *specDocument) string {
+func generatedLong(op specOperation, params []sdkQueryParameter, doc *specDocument) string {
 	var b strings.Builder
 	summary := cleanSpecLine(op.Summary, 200)
 	if summary != "" {
@@ -743,8 +812,11 @@ func generatedLong(op specOperation, params []sdkQueryParameter, confirm bool, d
 		b.WriteString(" and any missing required body fields")
 	}
 	b.WriteString(".")
-	if confirm {
+	switch {
+	case op.Method == "DELETE" || op.Method != "GET" && op.RequestBody == nil:
 		b.WriteString("\nAsks for confirmation before it runs; pass --yes when running non-interactively.")
+	case op.Method != "GET" && !op.RequestBody.Required:
+		b.WriteString("\nWithout --file it asks for confirmation; pass --yes when running non-interactively.")
 	}
 	return stripUnsafeRunes(b.String())
 }

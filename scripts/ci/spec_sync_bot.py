@@ -43,6 +43,30 @@ DECIDERS = {u.strip() for u in os.environ.get("SPEC_DECIDERS", "yorkable").split
 ACCEPT_LABEL = "decision:accept"
 
 
+# A closing keyword only matters before an issue reference or URL.
+CLOSING_KEYWORD = re.compile(r"\b(clos|fix|resolv)(?=(e|es|ed|s)?\b:?\s+(#|https?://|[\w.-]+/[\w.-]+#))", re.I)
+MENTION_OR_REF = re.compile(r"([@#])(?=[A-Za-z0-9])")
+CONTROL = re.compile("[\x00-\x08\x0b-\x1f\x7f-\x9f\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]")
+
+
+def inert(text):
+    """Text from the upstream spec, made inert before the bot posts it on
+    GitHub: no control characters, @mentions, issue references, closing
+    keywords (a merged PR saying "fixes #12" would close #12), or HTML
+    comments. Line breaks are kept."""
+    text = CONTROL.sub(" ", text)
+    text = CLOSING_KEYWORD.sub(lambda m: m.group(1)[:2] + "\u200b" + m.group(1)[2:], text)
+    text = MENTION_OR_REF.sub("\\1\u200b", text)
+    return text.replace("<!--", "&lt;!--")
+
+
+def fenced(text):
+    """A code block that the text inside can't close."""
+    runs = re.findall(r"`+", text)
+    fence = "`" * max(3, max((len(r) for r in runs), default=0) + 1)
+    return f"{fence}\n{text}\n{fence}"
+
+
 def gh(*args, check=True):
     return subprocess.run(["gh", *args], check=check, capture_output=True, text=True).stdout
 
@@ -130,7 +154,12 @@ def main():
         except (OSError, ValueError):
             candidate = None
     result = classify(old, new, json.load(open(args.operations)), candidate)
-    if args.candidate_operations and candidate is None and result["has_changes"]:
+    for key in ("reconcile", "decisions", "release_notes", "ship_reasons"):
+        result[key] = [inert(line) for line in result[key]]
+    # A failed candidate build blocks the sync even when the contract diff is
+    # empty: an operationId rename alone breaks a hand-written mapping.
+    if args.candidate_operations and candidate is None and new != old:
+        result["has_changes"] = True
         result["verdict"] = "reconcile"
         result["reconcile"].append(
             "the CLI didn't build with the new spec, or `go generate ./cmd` couldn't name a command for every operation (see the bot's run log)")
@@ -196,6 +225,9 @@ def main():
     new_commands = result["new_commands"]
     version = next_tag(minor=bool(new_commands))
     notes = result["release_notes"] or ["Upstream spec refresh; no user-visible changes."]
+    if accepted_issue:
+        # Say plainly what an accepted breaking change does to existing usage.
+        notes = [f"Breaking, accepted in #{accepted_issue}: {d}." for d in result["decisions"]] + result["release_notes"]
     if not args.dry_run:
         with open(SPEC, "w") as f:
             f.write(open(args.upstream).read())
@@ -203,9 +235,9 @@ def main():
 
     old_path = os.path.join(args.out_dir, "embedded-before.json")
     json.dump(old, open(old_path, "w"))
-    diff_report = subprocess.run(
+    diff_report = inert(subprocess.run(
         ["python3", ".claude/skills/syllable-sync/scripts/diff_specs.py", old_path, args.upstream],
-        capture_output=True, text=True).stdout
+        capture_output=True, text=True).stdout.strip())
     drift = gh_json("issue", "list", "--repo", REPO, "--label", "spec-drift", "--state", "open", "--json", "number")
     closes = "\n".join(f"Closes #{i['number']}" for i in drift)
     if accepted_issue:
@@ -214,9 +246,7 @@ def main():
     body = f"""Automated spec sync to upstream SDK commit `{args.upstream_sha}` by the spec-sync bot (`.github/workflows/spec-sync-bot.yml`). The classifier rated it **{'accepted decision' if accepted_issue else 'safe to ship'}**, and the full test suite ran on this exact commit before merge.{accepted}
 
 ## diff_specs.py report
-```
-{diff_report.strip()}
-```
+{fenced(diff_report)}
 
 ## Breaking changes
 {'See the accepted decision above.' if accepted_issue else ' '.join(['None.'] + ['; '.join(result['ship_reasons'][:8])]).strip()}

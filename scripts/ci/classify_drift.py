@@ -279,7 +279,11 @@ class Classifier:
 
     def run(self, d):
         for p in d["added_paths"]:
-            for m in sorted(k for k in self.new["paths"][p] if k in HTTP_METHODS):
+            item = self.new["paths"][p]
+            if "$ref" in item or "servers" in item:
+                self.reconcile.append(f"new path {p} uses a path-level `$ref` or `servers`, which generation doesn't support")
+                continue
+            for m in sorted(k for k in item if k in HTTP_METHODS):
                 self.added_operation(m, p)
         for p in d["removed_paths"]:
             self.reconcile.append(f"removed path {p}")

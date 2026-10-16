@@ -219,6 +219,12 @@ class GeneratedCommands(unittest.TestCase):
         self.assertTrue(any("sprockets list" in n for n in r["release_notes"]))
 
 
+class PathItemReferences(unittest.TestCase):
+    def test_new_path_item_reference_reconciles(self):
+        r = with_candidate(lambda s: s["paths"].update({"/api/v1/shared/": {"$ref": "#/components/pathItems/Shared"}}), OPS)
+        self.assertEqual(r["verdict"], "reconcile", r)
+
+
 class DeltaBinding(unittest.TestCase):
     def test_delta_identifies_the_change(self):
         a = changed(lambda s: S(s, "WidgetCreate")["required"].append("size"))

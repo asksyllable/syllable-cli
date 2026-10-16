@@ -6,6 +6,7 @@ import (
 	"flag"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -134,7 +135,10 @@ const generatedFixtureSpec = `{
   "openapi": "3.1.0",
   "tags": [{"name": "widgets", "description": "Operations related to widgets.           A widget is a test fixture."}],
   "components": {
-    "securitySchemes": {"APIKeyHeader": {"type": "apiKey", "in": "header", "name": "Syllable-API-Key"}},
+    "securitySchemes": {"APIKeyHeader": {"type": "apiKey", "in": "header", "name": "Syllable-API-Key"},
+      "OAuth2": {"type": "oauth2", "flows": {}}},
+    "parameters": {"Page": {"name": "page", "in": "query", "schema": {"type": "integer"}}},
+    "responses": {"Binary": {"description": "bytes", "content": {"application/octet-stream": {"schema": {"type": "string"}}}}},
     "schemas": {
       "WidgetKind": {"type": "string", "enum": ["round", "square"], "description": "Shape of a widget."},
       "WidgetCreate": {"type": "object", "required": ["name", "kind", "parts"], "properties": {
@@ -154,7 +158,7 @@ const generatedFixtureSpec = `{
       "get": {"tags": ["widgets"], "operationId": "widget_list", "summary": "List widgets", "security": [{"APIKeyHeader": []}],
         "parameters": [
           {"name": "kind", "in": "query", "required": true, "schema": {"type": "string"}, "description": "Only this kind"},
-          {"name": "page", "in": "query", "schema": {"type": "integer"}},
+          {"$ref": "#/components/parameters/Page"},
           {"name": "search_fields", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}}],
         "responses": {"200": {"content": {"application/json": {"schema": {"type": "array", "items": {"$ref": "#/components/schemas/Widget"}}}}}}},
       "post": {"tags": ["widgets"], "operationId": "widget_create", "summary": "Create a widget | fast",
@@ -177,8 +181,9 @@ const generatedFixtureSpec = `{
         "responses": {"200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/Widget"}}}}}}
     },
     "/api/v1/widgets/{widget_id}/parts": {
+      "parameters": [{"name": "widget_id", "in": "path", "required": true, "schema": {"type": "integer"}},
+        {"name": "tenant", "in": "query", "required": true, "schema": {"type": "string"}}],
       "get": {"tags": ["widgets.parts"], "operationId": "widget_parts_list", "summary": "List a widget's parts", "security": [{"APIKeyHeader": []}],
-        "parameters": [{"name": "widget_id", "in": "path", "required": true, "schema": {"type": "integer"}}],
         "responses": {"200": {"content": {"application/json": {"schema": {"type": "array", "items": {"$ref": "#/components/schemas/WidgetPart"}}}}}}}
     },
     "/api/v1/agents/{agent_id}/notes": {
@@ -217,6 +222,19 @@ const generatedFixtureSpec = `{
     "/api/v1/widgets/collide": {
       "get": {"tags": ["widgets"], "operationId": "widget_collide", "summary": "Collide", "security": [{"APIKeyHeader": []}],
         "parameters": [{"name": "output", "in": "query", "schema": {"type": "string"}}],
+        "responses": {"200": {"content": {"application/json": {"schema": {"type": "object"}}}}}}
+    },
+    "/api/v1/widgets/shared": {"$ref": "#/components/pathItems/Shared"},
+    "/api/v1/widgets/binary": {
+      "get": {"tags": ["widgets"], "operationId": "widget_binary", "summary": "Binary", "security": [{"APIKeyHeader": []}],
+        "responses": {"200": {"$ref": "#/components/responses/Binary"}}}
+    },
+    "/api/v1/widgets/both-auth": {
+      "get": {"tags": ["widgets"], "operationId": "widget_both_auth", "summary": "Needs two credentials", "security": [{"APIKeyHeader": [], "OAuth2": ["x"]}],
+        "responses": {"200": {"content": {"application/json": {"schema": {"type": "object"}}}}}}
+    },
+    "/api/v1/widgets/either-auth": {
+      "get": {"tags": ["widgets"], "operationId": "widget_either_auth", "summary": "Either credential", "security": [{"OAuth2": ["x"]}, {"APIKeyHeader": []}],
         "responses": {"200": {"content": {"application/json": {"schema": {"type": "object"}}}}}}
     },
     "/api/v1/widgets/status": {
@@ -265,6 +283,7 @@ func TestGeneratedCommandNames(t *testing.T) {
 		"DELETE /api/v1/widgets/{widget_id}":                "widgets delete",
 		"POST /api/v1/widgets/{widget_id}/archive":          "widgets archive",
 		"GET /api/v1/widgets/{widget_id}/parts":             "widgets parts list",
+		"GET /api/v1/widgets/either-auth":                   "widgets either-auth",
 		"PUT /api/v1/agents/{agent_id}/notes":               "agents notes-update",
 		"GET /api/v1/agents/by-name/{name}":                 "agents agent-get",         // `agents get` is hand-written
 		"GET /api/v1/sessions/timeline/{session_id}/export": "sessions timeline-export", // `sessions timeline` is a leaf
@@ -278,12 +297,15 @@ func TestGeneratedCommandNames(t *testing.T) {
 		t.Errorf("generated %d commands, want %d: %v", len(got), len(want), got)
 	}
 	blocked := map[string]string{
-		"widget_upload":  "takes a multipart/form-data request body",
-		"widget_export":  "returns text/csv",
-		"widget_public":  "does not authenticate",
-		"widget_traced":  "takes a header parameter",
-		"widget_collide": "collide with the --output flag",
-		"(status)":       `"status" is reserved`,
+		"widget_upload":          "takes a multipart/form-data request body",
+		"widget_export":          "returns text/csv",
+		"widget_public":          "does not authenticate",
+		"widget_traced":          "takes a header parameter",
+		"widget_collide":         "collide with the --output flag",
+		"(status)":               `"status" is reserved`,
+		"widget_binary":          "uses a referenced response",
+		"widget_both_auth":       "does not authenticate",
+		"/api/v1/widgets/shared": `"$ref" the generator doesn't support`,
 	}
 	for id, reason := range blocked {
 		found := false
@@ -379,7 +401,8 @@ func TestGeneratedCommandRequests(t *testing.T) {
 		{"delete reason is a flag", []string{"widgets", "delete", "7", "--reason", "cleanup"}, capturedRequest{"DELETE", "/api/v1/widgets/7", "reason=cleanup", ""}},
 		{"body-less action sends no body", []string{"widgets", "archive", "7"}, capturedRequest{"POST", "/api/v1/widgets/7/archive", "", ""}},
 		{"optional body may be omitted", []string{"agents", "notes-update", "3"}, capturedRequest{"PUT", "/api/v1/agents/3/notes", "", ""}},
-		{"nested group", []string{"widgets", "parts", "list", "7"}, capturedRequest{"GET", "/api/v1/widgets/7/parts", "", ""}},
+		{"nested group, path-level parameters", []string{"widgets", "parts", "list", "7", "--tenant", "t1"}, capturedRequest{"GET", "/api/v1/widgets/7/parts", "tenant=t1", ""}},
+		{"optional body given, no confirmation needed", []string{"agents", "notes-update", "3", "--file", body}, capturedRequest{"PUT", "/api/v1/agents/3/notes", "", `{"kind":"round","name":"w","parts":[],"size":12345678901234567890}`}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -420,7 +443,15 @@ func TestGeneratedCommandGuards(t *testing.T) {
 			t.Fatalf("err %v, requests %v", err, *requests)
 		}
 	})
-	for _, args := range [][]string{{"widgets", "delete", "7"}, {"widgets", "archive", "7"}} {
+	t.Run("path-level required query flag", func(t *testing.T) {
+		requests := generatedServer(t, 200, `{}`)
+		_, _, err := runGenerated(t, "widgets", "parts", "list", "7")
+		if err == nil || !strings.Contains(err.Error(), `"tenant"`) || len(*requests) != 0 {
+			t.Fatalf("err %v, requests %v", err, *requests)
+		}
+	})
+	// The optional-body update counts as a body-less change without --file.
+	for _, args := range [][]string{{"widgets", "delete", "7"}, {"widgets", "archive", "7"}, {"agents", "notes-update", "3"}} {
 		t.Run("confirms "+args[1], func(t *testing.T) {
 			requests := generatedServer(t, 200, `{}`)
 			assumeYes = false
@@ -516,8 +547,11 @@ func TestGeneratedCommandHelp(t *testing.T) {
 			t.Errorf("get help lacks %q:\n%s", want, get.Long)
 		}
 	}
-	if !strings.Contains(find("widgets", "archive").Long, "pass --yes") || strings.Contains(get.Long, "pass --yes") {
+	if !strings.Contains(find("widgets", "archive").Long, "Asks for confirmation") || strings.Contains(get.Long, "pass --yes") || strings.Contains(create.Long, "pass --yes") {
 		t.Error("only changes made without a body should mention --yes")
+	}
+	if !strings.Contains(find("agents", "notes-update").Long, "Without --file it asks for confirmation") {
+		t.Error("an optional-body change should say it confirms without --file")
 	}
 	if usage := find("widgets", "list").Flags().Lookup("kind").Usage; usage != "Only this kind (required)" {
 		t.Errorf("kind usage %q", usage)
@@ -580,5 +614,82 @@ func TestGeneratedDocsHaveMarkers(t *testing.T) {
 		if _, err := replaceGeneratedDocsBlock(string(data), ""); err != nil {
 			t.Errorf("%s: %v", path, err)
 		}
+	}
+}
+
+// dryRunGenerated runs a generated command in dry-run mode with placeholder
+// arguments and checks the method and path it would call.
+func dryRunGenerated(t *testing.T, doc *specDocument, entry generatedEntry) {
+	t.Helper()
+	root := handWrittenRoot()
+	if err := addGeneratedCommand(root, doc, entry); err != nil {
+		t.Fatal(err)
+	}
+	op, _ := doc.operation(entry.Method, entry.Path)
+	args, want := strings.Fields(entry.Command), op.Path
+	for _, p := range op.pathParameters() {
+		args = append(args, "17")
+		want = strings.ReplaceAll(want, "{"+p.Name+"}", "17")
+	}
+	probe := &cobra.Command{}
+	for _, p := range op.Parameters {
+		if p.In != "query" || !p.Required {
+			continue
+		}
+		value := "x"
+		switch sdkSchemaType(p.Schema) {
+		case "integer", "number":
+			value = "1"
+		case "boolean":
+			value = "true"
+		}
+		args = append(args, "--"+sdkQueryFlagName(probe, p.Name)+"="+value)
+	}
+	if op.RequestBody != nil {
+		args = append(args, "--file", writeTempJSON(t, `{}`))
+	}
+	previous, previousDryRun := apiClient, dryRun
+	defer func() { apiClient, dryRun = previous, previousDryRun }()
+	apiClient = client.New("https://api.example.invalid", "unit-test")
+	apiClient.DryRun, dryRun = true, true
+	root.SetArgs(args)
+	var result *client.DryRunResult
+	if _, err := root.ExecuteC(); !errors.As(err, &result) {
+		t.Fatalf("%v did not produce a dry-run request: %v", args, err)
+	}
+	var request struct {
+		Method string `json:"method"`
+		URL    string `json:"url"`
+	}
+	if err := json.Unmarshal(result.Output, &request); err != nil {
+		t.Fatal(err)
+	}
+	u, err := url.Parse(request.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if request.Method != op.Method || u.Path != want {
+		t.Errorf("%v calls %s %s, want %s %s", args, request.Method, u.Path, op.Method, want)
+	}
+}
+
+// Every generated command in the real CLI calls its operation's method and
+// path. (The fixture run shows the check itself works.)
+func TestGeneratedCommandsCallTheirOperations(t *testing.T) {
+	doc, err := embeddedSpecDocument()
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := parseGeneratedManifest(generatedCommandsJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range manifest.Commands {
+		t.Run(entry.Command, func(t *testing.T) { dryRunGenerated(t, doc, entry) })
+	}
+	fixture := fixtureSpec(t, nil)
+	_, entries, _ := fixtureRoot(t)
+	for _, entry := range entries {
+		t.Run("fixture "+entry.Command, func(t *testing.T) { dryRunGenerated(t, fixture, entry) })
 	}
 }
