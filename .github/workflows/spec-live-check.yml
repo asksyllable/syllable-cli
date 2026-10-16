@@ -13,29 +13,33 @@ name: Spec Live Check
 # is deliberately left unset: CI has no ~/.syllable/config.yaml, so the keyless
 # SYLLABLE_API_KEY path is the only auth used, and there is no org slug to override.
 #
+# It runs only on trusted code (main), never on PR branches: the job holds the
+# API key while it builds and runs the code it checks out. The release step
+# requires a green run for the commit it releases.
+#
 # The integration tests create and delete real resources in the target org, so
-# the CI org is mutated on every run — that is expected and acceptable.
+# the CI org is mutated on every run — that is expected and acceptable. Runs
+# never overlap, so two runs can't fight over the same test resources.
 
 on:
   schedule:
     - cron: "0 14 * * *" # 14:00 UTC daily — offset one hour after spec-drift
   workflow_dispatch: {}
-  pull_request:
-    types: [labeled, synchronize, reopened]
+  push:
+    branches: [main]
+    paths:
+      - "scripts/syllable-cli/**"
 
 permissions:
   contents: read
 
 concurrency:
-  group: spec-live-check-${{ github.ref }}
-  cancel-in-progress: true
+  group: spec-live-check
+  cancel-in-progress: false
 
 jobs:
   live-check:
     runs-on: ubuntu-latest
-    # For PRs, only run when the PR carries the `spec-sync` label (reconciliation
-    # PRs). For schedule/manual runs, always proceed.
-    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'spec-sync')
     env:
       SYLLABLE_API_KEY: ${{ secrets.SYLLABLE_CI_API_KEY }}
     steps:
@@ -43,30 +47,54 @@ jobs:
         id: guard
         run: |
           if [ -z "${SYLLABLE_API_KEY}" ]; then
-            echo "::warning::SYLLABLE_CI_API_KEY is unset (or withheld, e.g. on a fork PR) — skipping live integration tests."
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "::error::SYLLABLE_CI_API_KEY is unset; the live check cannot run."
+            exit 1
           fi
 
       - name: Checkout
-        if: steps.guard.outputs.run == 'true'
         uses: actions/checkout@v6
 
       - name: Set up Go
-        if: steps.guard.outputs.run == 'true'
         uses: actions/setup-go@v6
         with:
           go-version-file: scripts/syllable-cli/go.mod
           cache-dependency-path: scripts/syllable-cli/go.sum
 
       - name: Build CLI
-        if: steps.guard.outputs.run == 'true'
         working-directory: scripts/syllable-cli
         run: go build -o syllable .
 
+      - name: Enable cli-test fixtures
+        # The fixture IDs (repo variables) belong to the cli-test org. Use them
+        # only if the CI key really is for that org; never print the org itself.
+        working-directory: scripts/syllable-cli
+        env:
+          EXPECTED_SLUG: ${{ vars.SYLLABLE_TEST_ORG_SLUG }}
+          AGENT_ID: ${{ vars.SYLLABLE_TEST_AGENT_ID }}
+          SERVICE_ID: ${{ vars.SYLLABLE_TOOL_SERVICE_ID }}
+          TOOL_ID: ${{ vars.SYLLABLE_TEST_TOOL_ID }}
+          CHANNEL_ID: ${{ vars.SYLLABLE_TEST_CHANNEL_ID }}
+        run: |
+          slug="$(./syllable --request-timeout 60s organizations get -o json | jq -r '.slug // empty')"
+          if [ -z "$EXPECTED_SLUG" ] || [ "$slug" != "$EXPECTED_SLUG" ]; then
+            echo "::warning::The CI key is not for the cli-test org; fixture-gated tests stay skipped."
+            exit 0
+          fi
+          phone="$(./syllable --request-timeout 60s channels twilio numbers-list "$CHANNEL_ID" -o json | jq -r '.phone_numbers[0].phone_number // empty')"
+          [ -n "$phone" ] && echo "::add-mask::$phone"
+          sample="$RUNNER_TEMP/voice-sample.json"
+          echo '{"language_code":"en-US","voice_provider":"Google","voice_display_name":"Achernar (English)","text":"Integration test sample."}' > "$sample"
+          {
+            echo "SYLLABLE_TEST_AGENT_ID=$AGENT_ID"
+            echo "SYLLABLE_TOOL_SERVICE_ID=$SERVICE_ID"
+            echo "SYLLABLE_TEST_TOOL_ID=$TOOL_ID"
+            echo "SYLLABLE_TEST_CHANNEL_ID=$CHANNEL_ID"
+            echo "SYLLABLE_TEST_PHONE=$phone"
+            echo "SYLLABLE_VOICE_SAMPLE_BODY_FILE=$sample"
+          } >> "$GITHUB_ENV"
+          echo "cli-test fixtures enabled."
+
       - name: Run live integration tests (CI org)
-        if: steps.guard.outputs.run == 'true'
         working-directory: scripts/syllable-cli
         env:
           SYLLABLE_CLI_BINARY: ${{ github.workspace }}/scripts/syllable-cli/syllable

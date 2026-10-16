@@ -25,7 +25,7 @@ go build -o syllable .
 go test ./...
 ```
 
-CI ([test.yml](.github/workflows/test.yml)) runs Go vet, race-enabled unit tests, Python spec-drift regressions, and the pinned SDK differential suite on pull requests and pushes to main. The live `integration` package is excluded from this job by its build tag because it requires platform credentials (see below).
+CI ([test.yml](.github/workflows/test.yml)) runs Go vet, race-enabled unit tests, Python spec-drift regressions, and the pinned SDK differential suite on pull requests and pushes to main. The live `integration` package is excluded from this job by its build tag because it requires platform credentials (see below). `main` requires two checks to merge: `test`, and `cask-verify` ([cask-verify.yml](.github/workflows/cask-verify.yml)), which passes when `Casks/` is untouched and otherwise verifies the cask mechanically.
 
 ## Test conventions
 
@@ -155,7 +155,7 @@ git push origin vX.Y.Z
   - Runs `go test ./...` as a pre-release hook.
   - Builds darwin/linux/windows binaries for amd64/arm64 (windows/arm64 excluded).
   - Publishes the GitHub release with tarballs, zip, checksums, and `install.sh`.
-  - Opens a PR titled `chore: update Homebrew cask for syllable vX.Y.Z` that updates `Casks/syllable.rb`. `/Casks/` is CODEOWNERS-gated, so this bot-authored PR needs a code-owner approval before it can merge: verify the diff touches only the version and the four sha256 values and that each sha matches the release's `checksums.txt`, then approve and merge (the spec-sync routine does this in its step H).
+  - Opens a PR titled `chore: update Homebrew cask for syllable vX.Y.Z` that updates `Casks/syllable.rb`. The same release run then verifies and merges it ([`scripts/ci/merge_cask_pr.sh`](scripts/ci/merge_cask_pr.sh)). [`verify_cask.py`](scripts/ci/verify_cask.py) checks that the PR changes only the cask, that every url/sha256 pair matches the release's checksums file for all four platforms, and that nothing else in the cask changed (block reordering by a GoReleaser upgrade is tolerated). GitHub runs no workflows on a PR opened with `GITHUB_TOKEN`, so the script records `cask-verify` and `test` as commit statuses before merging. To retry for a tag, run the **Cask Merge** workflow (`gh workflow run cask-merge.yml -f tag=vX.Y.Z`). Nobody approves cask PRs by hand.
 
 ## Spec sync
 
@@ -177,7 +177,7 @@ Drift is **detected automatically**, and reconciliation is assisted — but the 
 
 **Cross-repo contract — keeping the docs in sync, safely.** A second routine lives in `asksyllable/ai-specialist` and maintains that repo's `syllable-cli` skill docs. The two are wired as a **straight line, not a loop**: this repo's routine produces **GitHub releases**; the ai-specialist routine consumes them (its cursor is a `Docs synced to CLI vX.Y.Z` marker in its `SKILL.md`, and it processes every release since). The docs routine never changes this repo's code — it only **files issues** here, in the **`prod-drift`** queue, when it live-tests a shipped field on the `cli-test` org and finds prod silently ignores it (e.g. #100). Those issues are owned by a human / the backend, are deduped by command + field so the same drift isn't re-filed daily, and the docs routine drops its own caveat once a re-test passes. The system converges because **this repo's routine only ever watches the upstream SDK spec** — an ai-specialist issue is invisible to it, so the only path from an issue back to a CLI change runs through a human. No autonomous cycle exists.
 
-**Live validation — [`spec-live-check.yml`](.github/workflows/spec-live-check.yml).** Catches spec-vs-reality drift by building the CLI and running the integration suite against a **dedicated, non-customer CI org**, authenticating with the `SYLLABLE_CI_API_KEY` repo secret. Runs daily, on demand, and on any PR labeled `spec-sync` (so reconciliation PRs are live-validated). **The secret must be a key for that CI org, never a customer key** — the key itself is the org boundary (`SYLLABLE_ORG` is left unset; CI has no `~/.syllable/config.yaml`). Fork PRs don't receive secrets, so the job skips there automatically.
+**Live validation — [`spec-live-check.yml`](.github/workflows/spec-live-check.yml).** Catches spec-vs-reality drift by building the CLI and running the integration suite against a **dedicated, non-customer CI org**, authenticating with the `SYLLABLE_CI_API_KEY` repo secret. Runs daily, on demand, and on every push to `main` that touches `scripts/syllable-cli/**`, never on PR branches: the job holds the API key while it runs the code it checks out, so it only runs trusted code. Reconciliation PRs carry a local `cli-test` live-suite summary instead, and the routine won't tag a release until the live check passed for that `main` commit. The run uses no overlapping concurrency, and enables the `cli-test` fixtures (repo variables) only after confirming the key belongs to that org (`SYLLABLE_TEST_ORG_SLUG`). **The secret must be a key for that CI org, never a customer key** — the key itself is the org boundary (`SYLLABLE_ORG` is left unset; CI has no `~/.syllable/config.yaml`). If the secret is missing the run fails rather than passing silently.
 
 **The diff script — [`diff_specs.py`](.claude/skills/syllable-sync/scripts/diff_specs.py)** (committed in the repo, so CI and the skill share one copy). Reports new/removed paths and methods, deep operation/schema contract changes, and enum members (a removed enum value is flagged as breaking). Deep comparison includes query/path parameters, request/response schemas, defaults, required fields, nullable types, validation constraints, servers, security schemes, and shared components; prose and irrelevant ordering are ignored. The earlier shallow field-type comparison could miss changes inside unions and parameters on existing operations. Regression tests run in CI via `python3 -m unittest discover -s .claude/skills/syllable-sync/scripts -p 'test_*.py'`. For CI/scripting it takes `--exit-code` (1 = structural differences, 0 = equivalent, 2 = usage error) and `--format json`:
 
@@ -191,14 +191,14 @@ python3 .claude/skills/syllable-sync/scripts/diff_specs.py --exit-code \
 The workflows ship in the repo, but a few one-time setup steps are required (until then `spec-drift.yml` works, but the live check and the routine's labeling don't):
 
 1. **Add the CI-org secret.** Create repository secret `SYLLABLE_CI_API_KEY` (Settings → Secrets and variables → Actions) holding the API key for a **dedicated, non-customer CI org** — never a customer key. Until it exists, `spec-live-check.yml` skips with a warning rather than failing.
-2. **Create the labels.** Trigger `spec-drift.yml` once via **workflow_dispatch** — it creates both `spec-drift` and `spec-sync`. Or by hand: `gh label create spec-sync -c 0E8A16 -d "Reconciliation PR — run the live integration check"`. The `spec-sync` label must exist before the routine can apply it to a PR.
+2. **Create the labels.** Trigger `spec-drift.yml` once via **workflow_dispatch** — it creates both `spec-drift` and `spec-sync`. Or by hand: `gh label create spec-sync -c 0E8A16 -d "Reconciliation PR"`. The `spec-sync` label marks reconciliation PRs and must exist before the routine can apply it.
 3. **Set up the spec-sync routine** (recommended) — see *Reconciliation + release* above. Paste the pointer prompt from the top of [`full-cycle.md`](.claude/skills/syllable-sync/routines/full-cycle.md), not the whole file.
 4. **Allow the routine's commands on its machine.** Unattended, Claude Code's auto-mode permission check decides every command no allow rule covers, and it has denied this routine's merges, tag pushes, and live test calls. Add these to `permissions.allow` in this repo's `.claude/settings.local.json` (local only, never committed):
 
    ```json
    "Bash(git fetch *)", "Bash(git switch *)", "Bash(git pull *)", "Bash(git add *)",
    "Bash(git commit *)", "Bash(git tag *)", "Bash(git push *)", "Bash(git ls-remote *)",
-   "Bash(gh pr *)", "Bash(gh issue *)", "Bash(gh release *)", "Bash(gh run *)",
+   "Bash(gh pr *)", "Bash(gh issue *)", "Bash(gh release *)", "Bash(gh run *)", "Bash(gh workflow run *)",
    "Bash(go test *)", "Bash(go build *)", "Bash(go vet *)",
    "Bash(npm ci --prefix tests/sdk-parity *)", "Bash(npm test --prefix tests/sdk-parity)",
    "Bash(python3 .claude/skills/syllable-sync/scripts/diff_specs.py *)",

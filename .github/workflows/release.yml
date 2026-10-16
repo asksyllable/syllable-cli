@@ -8,6 +8,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  statuses: write
 
 jobs:
   release:
@@ -28,7 +29,14 @@ jobs:
         uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
-          version: "~> v2"
+          # Pinned: an unpinned upgrade (v2.17.1 -> v2.18.3) once reformatted the
+          # cask unannounced. Bump deliberately; cask-verify tolerates reordering.
+          version: "v2.18.3"
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify and merge the Homebrew cask PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/ci/merge_cask_pr.sh "${{ github.ref_name }}"

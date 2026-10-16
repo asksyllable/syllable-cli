@@ -1,0 +1,26 @@
+version: 2
+updates:
+  # Go modules: grouped weekly. Minor and patch bumps auto-merge once `test`
+  # passes (dependabot-auto-merge.yml); majors wait for review.
+  - package-ecosystem: gomod
+    directory: /scripts/syllable-cli
+    schedule:
+      interval: weekly
+    groups:
+      go-dependencies:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  # GitHub Actions: grouped monthly. These change .github/, which is
+  # owner-reviewed on purpose (workflows can read secrets), so they never
+  # auto-merge.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # tests/sdk-parity has one dependency, syllable-sdk, which must move together
+  # with the parity manifest, so the spec-sync process bumps it, not Dependabot.

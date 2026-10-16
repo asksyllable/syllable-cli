@@ -1,0 +1,37 @@
+name: Cask Verify
+
+# Required check on every PR. Passes when Casks/ is untouched; otherwise it
+# verifies the cask change mechanically (urls and sha256s against the release's
+# published checksums, no structural edits), replacing a human cask review.
+# GoReleaser's own cask PR gets the same verification from release.yml, which
+# records the result as a commit status because bot-opened PRs trigger no
+# workflows.
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  cask-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Verify Homebrew cask changes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE: origin/${{ github.base_ref }}
+        run: |
+          # Run the verifier from the base branch so a PR can't weaken the check
+          # that judges it. Fall back to the PR's copy only before it exists on base.
+          if git show "$BASE:scripts/ci/verify_cask.py" > "$RUNNER_TEMP/verify_cask.py" 2>/dev/null; then
+            verifier="$RUNNER_TEMP/verify_cask.py"
+          else
+            verifier=scripts/ci/verify_cask.py
+          fi
+          python3 "$verifier" --base "$BASE" --head HEAD

@@ -1,0 +1,30 @@
+name: Cask Merge
+
+# Manual recovery: re-run the release workflow's cask step for a tag, e.g. if
+# the cask PR was still open after a release. Same verification, same merge.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag, e.g. v2.3.3"
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  statuses: write
+
+jobs:
+  cask-merge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Verify and merge the Homebrew cask PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/ci/merge_cask_pr.sh "${{ inputs.tag }}"

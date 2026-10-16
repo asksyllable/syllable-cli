@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 // ---------------------------------------------------------------------------
@@ -91,7 +92,10 @@ func runCLI(args ...string) ([]byte, error) {
 	// --yes skips the destructive-action confirmation prompt; it's a persistent
 	// flag that non-destructive commands ignore, so injecting it unconditionally
 	// keeps delete steps and cleanup working in this non-interactive suite (#118/#139).
-	base := []string{"-o", "json", "--yes"}
+	// Prod occasionally takes longer than the 30s default; retry timeouts and
+	// retryable responses on reads (writes are never retried, so a slow create
+	// can't be duplicated).
+	base := []string{"-o", "json", "--yes", "--request-timeout", "60s", "--retries", "2", "--retry-connection-errors"}
 	if org != "" {
 		base = append(base, "--org", org)
 	}
@@ -176,11 +180,15 @@ func writeTempJSON(t *testing.T, v interface{}) string {
 // Misc
 // ---------------------------------------------------------------------------
 
+// runID distinguishes this test run's resources from any other run's. CI
+// runners start from identical images, so the PID alone repeats across runs.
+var runID = fmt.Sprintf("%d-%d", os.Getpid(), time.Now().UnixNano()%1_000_000)
+
 // testName returns a unique resource name with a test prefix.
 func testName(suffix string) string {
-	// Suffix with the PID so concurrent runs (e.g. a scheduled run overlapping a
-	// labeled-PR run) don't fight over identically-named resources (#139).
-	return fmt.Sprintf("[TEST-INTEG] %s %d", suffix, os.Getpid())
+	// Unique per run so overlapping runs don't fight over identically-named
+	// resources (#139).
+	return fmt.Sprintf("[TEST-INTEG] %s %s", suffix, runID)
 }
 
 // assertContains fails the test if sub is not found in s.
