@@ -44,8 +44,13 @@ def ships_code(sha):
     return False
 
 
+# The section ends at the next heading, a horizontal rule, or a PR footer
+# such as the "Generated with Claude Code" attribution.
+SECTION_END = r"^## |^---\s*$|^🤖 |\Z"
+
+
 def release_notes_section(body):
-    m = re.search(r"^## Release notes[ \t]*\n(.*?)(?=^## |\Z)", body or "", re.M | re.S)
+    m = re.search(r"^## Release notes[ \t]*\n(.*?)(?=" + SECTION_END + ")", body or "", re.M | re.S)
     return m.group(1).strip() if m else ""
 
 
