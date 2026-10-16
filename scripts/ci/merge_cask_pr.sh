@@ -17,6 +17,10 @@
 set -euo pipefail
 
 tag="${1:?usage: merge_cask_pr.sh vX.Y.Z}"
+if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "::error::not a release tag: $tag"
+  exit 1
+fi
 repo="${GITHUB_REPOSITORY:-asksyllable/syllable-cli}"
 branch="goreleaser/syllable-${tag}"
 here="$(cd "$(dirname "$0")" && pwd)"

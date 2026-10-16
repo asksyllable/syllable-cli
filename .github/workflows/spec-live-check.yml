@@ -39,6 +39,8 @@ concurrency:
 
 jobs:
   live-check:
+    # Only main's code may run with the API key, even on a manual dispatch.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     env:
       SYLLABLE_API_KEY: ${{ secrets.SYLLABLE_CI_API_KEY }}

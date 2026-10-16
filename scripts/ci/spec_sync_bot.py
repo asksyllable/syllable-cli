@@ -34,6 +34,8 @@ BOT_BRANCH = "spec-sync/bot"
 SPEC = "scripts/syllable-cli/internal/spec/openapi.json"
 SKILL = ".claude/skills/syllable-cli/SKILL.md"
 DECISION_LABEL = "spec-decision"
+# Only these GitHub users' decision:accept labels count (comma-separated).
+DECIDERS = {u.strip() for u in os.environ.get("SPEC_DECIDERS", "yorkable").split(",") if u.strip()}
 ACCEPT_LABEL = "decision:accept"
 
 
@@ -44,6 +46,13 @@ def gh(*args, check=True):
 def gh_json(*args):
     out = gh(*args)
     return json.loads(out) if out.strip() else []
+
+
+def accepted_by(number):
+    """Who most recently applied the accept label to this issue."""
+    logins = gh("api", "--paginate", f"repos/{REPO}/issues/{number}/events", "--jq",
+                f'.[] | select(.event == "labeled" and .label.name == "{ACCEPT_LABEL}") | .actor.login').split()
+    return logins[-1] if logins else ""
 
 
 def ensure_labels():
@@ -146,6 +155,10 @@ def main():
         if mine:
             issue = mine[0]
             if ACCEPT_LABEL not in {l["name"] for l in issue["labels"]}:
+                return emit("wait")
+            who = accepted_by(issue["number"])
+            if who not in DECIDERS:
+                print(f"#{issue['number']} was accepted by {who or 'unknown'}, who is not in SPEC_DECIDERS; waiting.", file=sys.stderr)
                 return emit("wait")
             accepted_issue = str(issue["number"])
         else:
