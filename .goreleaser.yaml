@@ -82,15 +82,14 @@ homebrew_casks:
     binaries:
       - syllable
     directory: Casks
-    url:
-      verified: github.com/asksyllable/syllable-cli
     repository:
       owner: asksyllable
       name: syllable-cli
       branch: "goreleaser/syllable-{{ .Tag }}"
       token: "{{ .Env.GITHUB_TOKEN }}"
       # Push to branch above and open a PR to default branch. Satisfies branch
-      # protection that requires changes via pull request.
+      # protection that requires changes via pull request. release.yml then
+      # verifies the PR (scripts/ci/verify_cask.py) and merges it.
       pull_request:
         enabled: true
     commit_author:

@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"syscall"
 	"testing"
+	"time"
 )
 
 // ---------------------------------------------------------------------------
@@ -510,7 +511,9 @@ func TestSessionsTimeline(t *testing.T) {
 
 func TestOrganizationsSipIPRangesCRUD(t *testing.T) {
 	// TEST-NET-3 (RFC 5737) — reserved for documentation, safe to create/delete.
-	cidr := "203.0.113.0/24"
+	// A per-run /28 block, so an overlapping run can't collide on the same range.
+	block := time.Now().UnixNano() % 16 * 16
+	cidr := fmt.Sprintf("203.0.113.%d/28", block)
 
 	// Create
 	out := mustRunCLI(t, "organizations", "sip-ip-ranges", "create", "--type", "signaling", "--ip-range", cidr)
@@ -523,7 +526,7 @@ func TestOrganizationsSipIPRangesCRUD(t *testing.T) {
 	assertContains(t, string(out), cidr)
 
 	// Update the CIDR, then confirm via list
-	updated := "203.0.113.0/25"
+	updated := fmt.Sprintf("203.0.113.%d/29", block)
 	mustRunCLI(t, "organizations", "sip-ip-ranges", "update", id, "--ip-range", updated)
 	out = mustRunCLI(t, "organizations", "sip-ip-ranges", "list")
 	assertContains(t, string(out), updated)
