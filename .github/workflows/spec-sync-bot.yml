@@ -1,0 +1,186 @@
+name: Spec Sync Bot
+
+# Keeps the embedded OpenAPI spec in step with upstream, with no AI involved.
+# Daily (after spec-drift) and on demand, it fetches upstream at a pinned commit
+# and classifies the change (scripts/ci/classify_drift.py):
+#   - safe, or a breaking change accepted with the `decision:accept` label for
+#     exactly this delta: sync it on the bot branch, run the full test suite on
+#     that commit, merge, then run the live check and the release train;
+#   - breaking: open one plain-language decision issue for a human;
+#   - new or removed operations: leave it for the spec-sync routine or a person
+#     (commands must change first) and say so once on the drift issue.
+# PRs it opens with GITHUB_TOKEN trigger no workflows, so it runs the required
+# checks itself and records them as commit statuses before merging.
+
+on:
+  schedule:
+    - cron: "20 13 * * *" # 13:20 UTC daily, after spec-drift
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Classify and report only"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spec-sync-bot
+  cancel-in-progress: false
+
+env:
+  UPSTREAM_REPO: asksyllable/syllable-sdk-typescript
+  BOT_BRANCH: spec-sync/bot
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: read
+    outputs:
+      action: ${{ steps.plan.outputs.action }}
+      accepted_issue: ${{ steps.plan.outputs.accepted_issue }}
+      sha: ${{ steps.push.outputs.sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: scripts/syllable-cli/go.mod
+          cache-dependency-path: scripts/syllable-cli/go.sum
+
+      - name: Map operations to commands
+        working-directory: scripts/syllable-cli
+        run: go run . __operations > "$RUNNER_TEMP/operations.json"
+
+      - name: Fetch upstream spec at a pinned commit
+        id: upstream
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha="$(gh api "repos/$UPSTREAM_REPO/commits?path=openapi.json&per_page=1" --jq '.[0].sha')"
+          gh api "repos/$UPSTREAM_REPO/contents/openapi.json?ref=$sha" -H "Accept: application/vnd.github.raw" > "$RUNNER_TEMP/upstream.json"
+          python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$RUNNER_TEMP/upstream.json"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Classify and plan
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: |
+          flag=""
+          [ "$DRY_RUN" = "true" ] && flag="--dry-run"
+          python3 scripts/ci/spec_sync_bot.py --upstream "$RUNNER_TEMP/upstream.json" \
+            --upstream-sha "${{ steps.upstream.outputs.sha }}" --operations "$RUNNER_TEMP/operations.json" \
+            --out-dir "$RUNNER_TEMP/bot" $flag | tee -a "$GITHUB_OUTPUT"
+          {
+            echo "## Spec sync bot"
+            echo '```json'
+            cat "$RUNNER_TEMP/bot/classification.json"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit the sync to the bot branch
+        id: push
+        if: steps.plan.outputs.action == 'ship' && !(github.event_name == 'workflow_dispatch' && inputs.dry_run)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -C "$BOT_BRANCH"
+          git add scripts/syllable-cli/internal/spec/openapi.json .claude/skills/syllable-cli/SKILL.md
+          git commit -F "$RUNNER_TEMP/bot/commit-msg.txt"
+          git push --force origin "$BOT_BRANCH"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Keep the PR body for the merge job
+        if: steps.plan.outputs.action == 'ship'
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec-sync-bot
+          path: ${{ runner.temp }}/bot/pr-body.md
+
+  verify:
+    needs: prepare
+    if: needs.prepare.outputs.action == 'ship' && needs.prepare.outputs.sha != ''
+    uses: ./.github/workflows/test.yml
+    with:
+      ref: ${{ needs.prepare.outputs.sha }}
+
+  merge:
+    needs: [prepare, verify]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      statuses: write
+      issues: write
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SHA: ${{ needs.prepare.outputs.sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Download PR body
+        uses: actions/download-artifact@v4
+        with:
+          name: spec-sync-bot
+
+      - name: Open or update the PR
+        id: pr
+        run: |
+          number="$(gh pr list --head "$BOT_BRANCH" --state open --json number --jq '.[0].number // empty')"
+          if [ -z "$number" ]; then
+            gh label create spec-sync --color 0E8A16 --description "Reconciliation PR" 2>/dev/null || true
+            url="$(gh pr create --head "$BOT_BRANCH" --base main --title "chore: sync CLI to OpenAPI spec" \
+                   --label spec-sync --body-file pr-body.md)"
+            number="${url##*/}"
+          else
+            gh pr edit "$number" --body-file pr-body.md
+          fi
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+
+      - name: Record the checks and merge
+        run: |
+          git fetch --quiet origin main "$BOT_BRANCH"
+          [ "$(git rev-parse "origin/$BOT_BRANCH")" = "$SHA" ] || { echo "::error::bot branch moved"; exit 1; }
+          python3 scripts/ci/verify_cask.py --base origin/main --head "$SHA"
+          gh api --silent "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state=success -f context=test \
+            -f description="Full test suite passed on this commit (spec-sync bot run ${{ github.run_id }})"
+          gh api --silent "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state=success -f context=cask-verify \
+            -f description="Casks/ untouched"
+          gh pr merge "${{ steps.pr.outputs.number }}" --squash --delete-branch --match-head-commit "$SHA"
+
+      - name: Close the accepted decision
+        if: needs.prepare.outputs.accepted_issue != ''
+        run: |
+          gh issue close "${{ needs.prepare.outputs.accepted_issue }}" \
+            --comment "Shipped in #${{ steps.pr.outputs.number }}." || true
+
+      - name: Live-check main, then release
+        # A merge made with GITHUB_TOKEN triggers no workflows, so start the
+        # live check explicitly, wait for it, and run the release train.
+        run: |
+          since="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          gh workflow run spec-live-check.yml --ref main
+          run_id=""
+          for _ in $(seq 1 20); do
+            run_id="$(gh run list --workflow=spec-live-check.yml --event workflow_dispatch --limit 5 \
+                      --json databaseId,createdAt --jq "[.[] | select(.createdAt >= \"$since\")][0].databaseId // empty")"
+            [ -n "$run_id" ] && break
+            sleep 6
+          done
+          [ -n "$run_id" ] || { echo "::error::live check run did not start"; exit 1; }
+          gh run watch "$run_id" --exit-status
+          gh workflow run release-train.yml --ref main -f dry_run=false

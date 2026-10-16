@@ -4,12 +4,18 @@ on:
   push:
     branches: [main]
   pull_request:
+  # The spec-sync bot calls this on its own commit before recording `test`.
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        required: true
 
 permissions:
   contents: read
 
 concurrency:
-  group: test-${{ github.ref }}
+  group: test-${{ inputs.ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -18,6 +24,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Test CI automation scripts
+        run: python3 -m unittest discover -s scripts/ci -p 'test_*.py'
 
       - name: Set up Go
         uses: actions/setup-go@v6
