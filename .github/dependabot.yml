@@ -1,26 +1,50 @@
 version: 2
+
+# Kept quiet on purpose: every ecosystem batches its updates into one grouped
+# PR, on a fixed day, and only GitHub Actions changes (which can read secrets)
+# wait for a human. Go modules and the test-only npm dependencies auto-merge
+# once the required checks pass (dependabot-auto-merge.yml), majors excepted.
+
 updates:
-  # Go modules: grouped weekly. Minor and patch bumps auto-merge once `test`
-  # passes (dependabot-auto-merge.yml); majors wait for review.
   - package-ecosystem: gomod
     directory: /scripts/syllable-cli
     schedule:
       interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: America/Los_Angeles
     groups:
       go-dependencies:
+        applies-to: version-updates
         patterns: ["*"]
         update-types: [minor, patch]
+      go-security:
+        applies-to: security-updates
+        patterns: ["*"]
 
-  # GitHub Actions: grouped monthly. These change .github/, which is
-  # owner-reviewed on purpose (workflows can read secrets), so they never
-  # auto-merge.
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
+      time: "09:00"
+      timezone: America/Los_Angeles
     groups:
       actions:
+        applies-to: version-updates
+        patterns: ["*"]
+      actions-security:
+        applies-to: security-updates
         patterns: ["*"]
 
-  # tests/sdk-parity has one dependency, syllable-sdk, which must move together
-  # with the parity manifest, so the spec-sync process bumps it, not Dependabot.
+  # tests/sdk-parity is test-only. Its one direct dependency, syllable-sdk, must
+  # move together with the parity manifest, so the spec-sync process bumps it:
+  # no version-update PRs here (limit 0), only grouped security fixes.
+  - package-ecosystem: npm
+    directory: /tests/sdk-parity
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 0
+    groups:
+      parity-test-security:
+        applies-to: security-updates
+        patterns: ["*"]
