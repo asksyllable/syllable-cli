@@ -1,8 +1,8 @@
 name: Dependabot auto-merge
 
-# Turns on auto-merge for Dependabot's Go module minor/patch PRs, so they merge
-# by themselves once the required checks pass. Majors and GitHub Actions bumps
-# are left for review.
+# Turns on auto-merge for Dependabot's Go module and test-only npm PRs (version
+# and security updates, minor/patch), so they merge by themselves once the
+# required checks pass. Majors and GitHub Actions bumps are left for review.
 
 on: pull_request
 
@@ -20,7 +20,12 @@ jobs:
         uses: dependabot/fetch-metadata@v3
 
       - name: Enable auto-merge
-        if: steps.meta.outputs.package-ecosystem == 'go_modules' && steps.meta.outputs.update-type != 'version-update:semver-major'
+        # Go modules and the test-only npm dependencies (tests/sdk-parity),
+        # version or security updates, majors excepted. GitHub Actions bumps
+        # always wait for owner review.
+        if: >-
+          (steps.meta.outputs.package-ecosystem == 'go_modules' || steps.meta.outputs.package-ecosystem == 'npm_and_yarn') &&
+          steps.meta.outputs.update-type != 'version-update:semver-major'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
