@@ -42,10 +42,7 @@ func TestSDKOperationCoverage(t *testing.T) {
 		"outbound": outboundCmd, "language-groups": languageGroupsCmd, "voice-groups": voiceGroupsCmd,
 		"takeouts": takeoutsCmd, "users": usersCmd,
 	}
-	excluded := map[string]string{
-		"organizations_create": "Organization provisioning is intentionally console-only (AGENTS.md).",
-		"organizations_delete": "Organization deletion is intentionally console-only (AGENTS.md).",
-	}
+	excluded := consoleOnlyOperations
 	values := map[string]string{
 		"tool_name": "audit", "test_id": "audit-test", "job_id": "audit-job", "file_name": "audit.bin",
 		"user_email": "audit@example.invalid", "channel_manager_service": "twilio", "channel_manager_sid": "audit-sid", "tool_call_id": "audit-call",
@@ -76,7 +73,12 @@ func TestSDKOperationCoverage(t *testing.T) {
 			}
 			argv, ok := sdkOperationCommands[id]
 			if !ok {
-				t.Errorf("unmapped SDK operation: %s %s (%s)", method, path, id)
+				// Generated commands get their own dry-run checks in
+				// generated_commands_test.go.
+				if generatedCommandFor(rootCmd, id) == nil {
+					t.Errorf("SDK operation has neither a hand-written nor a generated command: %s %s (%s)", method, path, id)
+				}
+				covered++
 				continue
 			}
 			covered++

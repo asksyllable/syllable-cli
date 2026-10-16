@@ -7,8 +7,11 @@ name: Spec Sync Bot
 #     exactly this delta: sync it on the bot branch, run the full test suite on
 #     that commit, merge, then run the live check and the release train;
 #   - breaking: open one plain-language decision issue for a human;
-#   - new or removed operations: leave it for the spec-sync routine or a person
-#     (commands must change first) and say so once on the drift issue.
+#   - a new operation the CLI can't generate a command for, or a removed one:
+#     leave it for the spec-sync routine or a person (commands must change
+#     first) and say so once on the drift issue.
+# New operations usually get generated commands: before classifying, it builds
+# the CLI with the upstream spec and runs `go generate ./cmd`, which names them.
 # PRs it opens with GITHUB_TOKEN trigger no workflows, so it runs the required
 # checks itself and records them as commit statuses before merging.
 
@@ -73,6 +76,17 @@ jobs:
           python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$RUNNER_TEMP/upstream.json"
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
+      - name: Build the CLI with the upstream spec
+        # Names commands for new operations and maps the result. If this fails,
+        # the planner leaves the change for a person. Only the commit step below
+        # keeps these working-tree changes.
+        continue-on-error: true
+        working-directory: scripts/syllable-cli
+        run: |
+          cp "$RUNNER_TEMP/upstream.json" internal/spec/openapi.json
+          go generate ./cmd
+          go run . __operations > "$RUNNER_TEMP/candidate-operations.json"
+
       - name: Classify and plan
         id: plan
         env:
@@ -85,6 +99,7 @@ jobs:
           [ "$DRY_RUN" = "true" ] && flag="--dry-run"
           python3 scripts/ci/spec_sync_bot.py --upstream "$RUNNER_TEMP/upstream.json" \
             --upstream-sha "$UPSTREAM_SHA" --operations "$RUNNER_TEMP/operations.json" \
+            --candidate-operations "$RUNNER_TEMP/candidate-operations.json" \
             --out-dir "$RUNNER_TEMP/bot" $flag | tee -a "$GITHUB_OUTPUT"
           {
             echo "## Spec sync bot"
@@ -100,7 +115,14 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git switch -C "$BOT_BRANCH"
-          git add scripts/syllable-cli/internal/spec/openapi.json .claude/skills/syllable-cli/SKILL.md
+          git add scripts/syllable-cli/internal/spec/openapi.json scripts/syllable-cli/cmd/generated_commands.json \
+            .claude/skills/syllable-cli/SKILL.md .claude/skills/syllable-cli/references/commands.md AGENTS.md
+          # Anything else changed means something unexpected ran; don't ship it.
+          if [ -n "$(git status --porcelain --untracked-files=no | grep -v '^M  ')" ]; then
+            git status --short
+            echo "::error::unexpected working-tree changes"
+            exit 1
+          fi
           git commit -F "$RUNNER_TEMP/bot/commit-msg.txt"
           git push --force origin "$BOT_BRANCH"
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
@@ -110,7 +132,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: spec-sync-bot
-          path: ${{ runner.temp }}/bot/pr-body.md
+          path: |
+            ${{ runner.temp }}/bot/pr-body.md
+            ${{ runner.temp }}/bot/pr-title.txt
 
   verify:
     needs: prepare
@@ -145,14 +169,17 @@ jobs:
       - name: Open or update the PR
         id: pr
         run: |
+          # The squash commit takes the PR title, which tells the release train
+          # whether this is a feature (new commands) or a patch.
+          title="$(head -n1 pr-title.txt)"
           number="$(gh pr list --head "$BOT_BRANCH" --state open --json number --jq '.[0].number // empty')"
           if [ -z "$number" ]; then
             gh label create spec-sync --color 0E8A16 --description "Reconciliation PR" 2>/dev/null || true
-            url="$(gh pr create --head "$BOT_BRANCH" --base main --title "chore: sync CLI to OpenAPI spec" \
+            url="$(gh pr create --head "$BOT_BRANCH" --base main --title "$title" \
                    --label spec-sync --body-file pr-body.md)"
             number="${url##*/}"
           else
-            gh pr edit "$number" --body-file pr-body.md
+            gh pr edit "$number" --title "$title" --body-file pr-body.md
           fi
           echo "number=$number" >> "$GITHUB_OUTPUT"
 

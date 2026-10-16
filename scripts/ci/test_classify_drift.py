@@ -173,6 +173,58 @@ class Reconcile(unittest.TestCase):
         self.assertEqual(changed(mutate)["verdict"], "reconcile")
 
 
+SPROCKETS = {"/api/v1/sprockets/": {"get": {"operationId": "sprockets_list", "summary": "List `sprockets`\x1b[31m\n now",
+                                            "responses": {"200": {"description": "ok"}}}}}
+SPROCKETS_OP = {"sprockets_list": {"command": "sprockets list", "method": "GET", "path": "/api/v1/sprockets/",
+                                   "flags": [], "generated": True}}
+
+
+def with_candidate(mutate, candidate):
+    new = copy.deepcopy(BASE)
+    mutate(new)
+    return classify(BASE, new, OPS, candidate)
+
+
+class GeneratedCommands(unittest.TestCase):
+    def test_new_operation_with_a_generated_command_ships(self):
+        r = with_candidate(lambda s: s["paths"].update(copy.deepcopy(SPROCKETS)), {**OPS, **SPROCKETS_OP})
+        self.assertEqual(r["verdict"], "ship", r)
+        self.assertEqual(r["new_commands"], ["sprockets list"])
+        self.assertIn("New command `syllable sprockets list`: List 'sprockets' [31m now. It's generated from the API spec;",
+                      " ".join(r["release_notes"]))
+
+    def test_new_operation_without_one_reconciles(self):
+        r = with_candidate(lambda s: s["paths"].update(copy.deepcopy(SPROCKETS)), OPS)
+        self.assertEqual(r["verdict"], "reconcile", r)
+        self.assertIn("needs a hand-written one", r["reconcile"][0])
+
+    def test_new_method_on_an_existing_path(self):
+        def mutate(s):
+            s["paths"]["/api/v1/gadgets/"]["get"] = {"operationId": "gadgets_list", "responses": {}}
+        entry = {"gadgets_list": {"command": "gadgets list", "method": "GET", "path": "/api/v1/gadgets/", "flags": [], "generated": True}}
+        self.assertEqual(with_candidate(mutate, {**OPS, **entry})["verdict"], "ship")
+
+    def test_a_generated_command_that_can_no_longer_be_generated_reconciles(self):
+        candidate = {k: v for k, v in OPS.items() if k != "gadgets_create"}
+        r = with_candidate(lambda s: S(s, "Gadget")["properties"].update(weight={"type": "integer"}), candidate)
+        self.assertEqual(r["verdict"], "reconcile", r)
+        self.assertIn("`gadgets create` (POST /api/v1/gadgets/) can no longer be generated", r["reconcile"][0])
+
+    def test_new_command_rides_along_with_a_decision(self):
+        def mutate(s):
+            s["paths"].update(copy.deepcopy(SPROCKETS))
+            S(s, "WidgetCreate")["properties"].pop("size")
+        r = with_candidate(mutate, {**OPS, **SPROCKETS_OP})
+        self.assertEqual(r["verdict"], "decision", r)
+        self.assertTrue(any("sprockets list" in n for n in r["release_notes"]))
+
+
+class PathItemReferences(unittest.TestCase):
+    def test_new_path_item_reference_reconciles(self):
+        r = with_candidate(lambda s: s["paths"].update({"/api/v1/shared/": {"$ref": "#/components/pathItems/Shared"}}), OPS)
+        self.assertEqual(r["verdict"], "reconcile", r)
+
+
 class DeltaBinding(unittest.TestCase):
     def test_delta_identifies_the_change(self):
         a = changed(lambda s: S(s, "WidgetCreate")["required"].append("size"))

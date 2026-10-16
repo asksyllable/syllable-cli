@@ -21,8 +21,12 @@ func TestOperationsDump(t *testing.T) {
 	if err := json.Unmarshal(out.Bytes(), &entries); err != nil {
 		t.Fatalf("parse dump: %v\n%s", err, out.String())
 	}
-	if len(entries) != len(sdkOperationCommands) {
-		t.Fatalf("dump has %d operations, mapping has %d", len(entries), len(sdkOperationCommands))
+	manifest, err := parseGeneratedManifest(generatedCommandsJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := len(sdkOperationCommands) + len(manifest.Commands); len(entries) != want {
+		t.Fatalf("dump has %d operations, want %d hand-written plus generated", len(entries), want)
 	}
 
 	// A command that builds its body from inline flags lists them...
