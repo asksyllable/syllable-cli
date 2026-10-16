@@ -29,8 +29,9 @@ concurrency:
 
 jobs:
   plan:
+    # Only main's code may tag and release, even on a manual dispatch.
     if: >-
-      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     permissions:
@@ -91,7 +92,8 @@ jobs:
           path: ${{ runner.temp }}/notes.md
 
       - name: Tag the live-checked commit
-        if: steps.plan.outputs.release == 'true' && !(github.event_name == 'workflow_dispatch' && inputs.dry_run)
+        # Skipped when resuming a tag whose release never got published.
+        if: steps.plan.outputs.release == 'true' && steps.plan.outputs.resume != 'true' && !(github.event_name == 'workflow_dispatch' && inputs.dry_run)
         env:
           TAG: ${{ steps.plan.outputs.tag }}
           SHA: ${{ steps.candidate.outputs.sha }}

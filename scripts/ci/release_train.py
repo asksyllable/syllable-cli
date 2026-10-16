@@ -14,7 +14,11 @@ majors stay a human decision.
 Release notes come from each releasable PR's `## Release notes` section, or
 fall back to its title and number.
 
-Prints `key=value` lines for $GITHUB_OUTPUT: release, breaking, tag, last_tag.
+A tag whose GitHub release never got published (the release run failed after
+tagging) is resumed rather than treated as shipped: the train re-runs the
+release for that tag instead of tagging anything new.
+
+Prints `key=value` lines for $GITHUB_OUTPUT: release, resume, breaking, tag, last_tag.
 Usage: release_train.py --candidate SHA [--since TAG] [--notes-out FILE]
 """
 import argparse
@@ -52,20 +56,43 @@ def pr_info(number):
         return None
 
 
+def has_release(tag):
+    return subprocess.run(["gh", "release", "view", tag, "--repo", REPO, "--json", "tagName"],
+                          capture_output=True).returncode == 0
+
+
+def semver_tags(candidate):
+    tags = run("git", "tag", "--merged", candidate, "--list", "v*", "--sort=-v:refname").split()
+    return [t for t in tags if re.fullmatch(r"v\d+\.\d+\.\d+", t)]
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--candidate", required=True)
-    ap.add_argument("--since", help="previous tag (default: latest v* tag reachable from the candidate)")
+    ap.add_argument("--since", help="previous tag (default: latest released v* tag reachable from the candidate)")
     ap.add_argument("--notes-out")
     args = ap.parse_args()
 
-    last = args.since or run("git", "describe", "--tags", "--abbrev=0", "--match", "v[0-9]*", args.candidate).strip()
+    resume_tag = ""
+    if args.since:
+        last = args.since
+    else:
+        tags = semver_tags(args.candidate)
+        if not tags:
+            sys.exit("no v* tag reachable from the candidate")
+        last = tags[0]
+        if not has_release(last):
+            # Tagged but never released: resume it, with notes since the last real release.
+            resume_tag = last
+            last = next((t for t in tags[1:] if has_release(t)), tags[-1])
+            print(f"{resume_tag} is tagged but has no published release; resuming it.", file=sys.stderr)
     m = re.fullmatch(r"v(\d+)\.(\d+)\.(\d+)", last)
     if not m:
         sys.exit(f"cannot parse previous tag {last!r}")
     major, minor, patch = map(int, m.groups())
 
-    log = run("git", "log", "--format=%H%x1f%s%x1f%b%x1e", f"{last}..{args.candidate}")
+    upto = resume_tag or args.candidate
+    log = run("git", "log", "--format=%H%x1f%s%x1f%b%x1e", f"{last}..{upto}")
     releasable, breaking = [], False
     for entry in filter(None, (e.strip() for e in log.split("\x1e"))):
         sha, subject, body = (entry.split("\x1f") + ["", ""])[:3]
@@ -74,15 +101,16 @@ def main():
         if RELEASABLE.match(subject) and ships_code(sha):
             releasable.append((sha, subject))
 
-    out = {"last_tag": last, "breaking": str(breaking).lower(), "release": "false", "tag": ""}
-    if breaking:
+    out = {"last_tag": last, "breaking": str(breaking).lower(), "release": "false", "tag": "",
+           "resume": str(bool(resume_tag)).lower()}
+    if breaking and not resume_tag:
         print("Breaking change since the last release; majors stay a human decision.", file=sys.stderr)
-    elif releasable:
+    elif releasable or resume_tag:
         if any(s.startswith("feat") for _, s in releasable):
             minor, patch = minor + 1, 0
         else:
             patch += 1
-        out["release"], out["tag"] = "true", f"v{major}.{minor}.{patch}"
+        out["release"], out["tag"] = "true", resume_tag or f"v{major}.{minor}.{patch}"
 
         parts, refs = [], []
         for _, subject in reversed(releasable):  # oldest first
@@ -98,6 +126,8 @@ def main():
                 parts.append(f"- {title} ({ref})" if ref else f"- {title}")
             if ref:
                 refs.append(ref)
+        if not parts:
+            parts = [f"- Release {out['tag']}."]
         notes = "## Release notes\n\n" + "\n\n".join(parts) + "\n"
         if args.notes_out:
             open(args.notes_out, "w").write(notes)

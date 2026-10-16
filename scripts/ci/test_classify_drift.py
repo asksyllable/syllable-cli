@@ -102,6 +102,28 @@ class Ship(unittest.TestCase):
         self.assertEqual(r["verdict"], "ship", r)
 
 
+class Responses(unittest.TestCase):
+    def route(self, s):
+        return s["paths"]["/api/v1/gadgets/"]["post"]["responses"]
+
+    def test_new_error_response_ships(self):
+        r = changed(lambda s: self.route(s).update({"502": {"description": "bad gateway"}}))
+        self.assertEqual(r["verdict"], "ship", r)
+
+    def test_json_to_binary_needs_decision(self):  # the case Codex found
+        def mutate(s):
+            self.route(s)["200"]["content"] = {"application/octet-stream": {"schema": {"type": "string", "format": "binary"}}}
+        self.assertEqual(changed(mutate)["verdict"], "decision")
+
+    def test_extra_success_media_type_needs_decision(self):
+        def mutate(s):
+            self.route(s)["200"]["content"]["text/csv"] = {"schema": {"type": "string"}}
+        self.assertEqual(changed(mutate)["verdict"], "decision")
+
+    def test_removed_success_response_needs_decision(self):
+        self.assertEqual(changed(lambda s: self.route(s).pop("200"))["verdict"], "decision")
+
+
 class Decision(unittest.TestCase):
     def test_tightening_inline_body(self):
         r = changed(lambda s: S(s, "WidgetCreate")["required"].append("size"))

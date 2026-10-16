@@ -17,6 +17,7 @@ permissions:
 
 jobs:
   cask-merge:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -27,4 +28,5 @@ jobs:
       - name: Verify and merge the Homebrew cask PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: scripts/ci/merge_cask_pr.sh "${{ inputs.tag }}"
+          TAG: ${{ inputs.tag }}
+        run: scripts/ci/merge_cask_pr.sh "$TAG"

@@ -191,7 +191,17 @@ class Classifier:
         cmd = self.ops_by_route.get(route, {}).get("command", f"{method.upper()} {path}")
         parts = tokens(change["path"])
         head = parts[0] if parts else ""
-        if head == "responses" or (head == "deprecated" and change["kind"] != "removed"):
+        if head == "deprecated" and change["kind"] != "removed":
+            return
+        if head == "responses":
+            # Error responses and additions inside an existing success body are
+            # safe. A success response that is removed or changed, or gains a
+            # media type (which also changes the CLI's Accept header), changes
+            # what users get back, so a human decides.
+            code = parts[1] if len(parts) > 1 else ""
+            new_media = len(parts) == 4 and parts[2] == "content" and change["kind"] == "added"
+            if len(parts) == 1 or (code.startswith("2") and (change["kind"] != "added" or new_media)):
+                self.decisions.append(f"`{cmd}`: success response changed ({change['kind']} at `{change['path']}`)")
             return
         if head in {"parameters", "path_parameters"}:
             if len(parts) == 1 and change["kind"] == "changed":

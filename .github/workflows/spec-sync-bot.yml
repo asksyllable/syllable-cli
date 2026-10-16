@@ -35,6 +35,8 @@ env:
 
 jobs:
   prepare:
+    # Only main's code may run the bot, even on a manual dispatch.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -66,6 +68,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           sha="$(gh api "repos/$UPSTREAM_REPO/commits?path=openapi.json&per_page=1" --jq '.[0].sha')"
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::unexpected upstream sha"; exit 1; }
           gh api "repos/$UPSTREAM_REPO/contents/openapi.json?ref=$sha" -H "Accept: application/vnd.github.raw" > "$RUNNER_TEMP/upstream.json"
           python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$RUNNER_TEMP/upstream.json"
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
@@ -75,11 +78,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+          UPSTREAM_SHA: ${{ steps.upstream.outputs.sha }}
+          SPEC_DECIDERS: ${{ vars.SPEC_DECIDERS || 'yorkable' }}
         run: |
           flag=""
           [ "$DRY_RUN" = "true" ] && flag="--dry-run"
           python3 scripts/ci/spec_sync_bot.py --upstream "$RUNNER_TEMP/upstream.json" \
-            --upstream-sha "${{ steps.upstream.outputs.sha }}" --operations "$RUNNER_TEMP/operations.json" \
+            --upstream-sha "$UPSTREAM_SHA" --operations "$RUNNER_TEMP/operations.json" \
             --out-dir "$RUNNER_TEMP/bot" $flag | tee -a "$GITHUB_OUTPUT"
           {
             echo "## Spec sync bot"
@@ -152,25 +157,38 @@ jobs:
           echo "number=$number" >> "$GITHUB_OUTPUT"
 
       - name: Record the checks and merge
+        id: merge
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
         run: |
           git fetch --quiet origin main "$BOT_BRANCH"
           [ "$(git rev-parse "origin/$BOT_BRANCH")" = "$SHA" ] || { echo "::error::bot branch moved"; exit 1; }
+          # The tests ran on $SHA, which was built on main as it was then. If main
+          # has moved since, merging would combine changes never tested together:
+          # stop and let the next run rebuild on the new main.
+          if ! git merge-base --is-ancestor origin/main "$SHA"; then
+            echo "::warning::main moved after the bot's tests ran; not merging. The next run rebuilds on the new main."
+            exit 0
+          fi
           python3 scripts/ci/verify_cask.py --base origin/main --head "$SHA"
           gh api --silent "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state=success -f context=test \
             -f description="Full test suite passed on this commit (spec-sync bot run ${{ github.run_id }})"
           gh api --silent "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state=success -f context=cask-verify \
             -f description="Casks/ untouched"
-          gh pr merge "${{ steps.pr.outputs.number }}" --squash --delete-branch --match-head-commit "$SHA"
+          gh pr merge "$PR_NUMBER" --squash --delete-branch --match-head-commit "$SHA"
+          echo "merged=true" >> "$GITHUB_OUTPUT"
 
       - name: Close the accepted decision
-        if: needs.prepare.outputs.accepted_issue != ''
-        run: |
-          gh issue close "${{ needs.prepare.outputs.accepted_issue }}" \
-            --comment "Shipped in #${{ steps.pr.outputs.number }}." || true
+        if: needs.prepare.outputs.accepted_issue != '' && steps.merge.outputs.merged == 'true'
+        env:
+          ISSUE: ${{ needs.prepare.outputs.accepted_issue }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: gh issue close "$ISSUE" --comment "Shipped in #$PR_NUMBER." || true
 
       - name: Live-check main, then release
         # A merge made with GITHUB_TOKEN triggers no workflows, so start the
         # live check explicitly, wait for it, and run the release train.
+        if: steps.merge.outputs.merged == 'true'
         run: |
           since="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           gh workflow run spec-live-check.yml --ref main
