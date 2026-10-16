@@ -16,7 +16,7 @@ Quick reference for every resource: what it is, key fields, and hard constraints
 |----------|---------|------------|-------------|
 | **Agents** | AI system that talks to users via a channel | prompt_id, timezone, opening_message, session_variables, tool_headers, voice_group_id, bridge_phrases_id | One assigned agent per target; experiments can split traffic across variants. Test channel is auto-generated. `bridge_phrases_id` attaches a **Bridge Phrases** config; set it via `--file` (no dedicated flag). |
 | **Experiments** | Split a channel target's traffic across agent variants | name, target_id, variants (name, agent_id, weight, is_control), status | Two or more different agents, weights of at least 1 totaling 100, exactly one control. Only drafts can be updated/started; stop before deleting a running experiment. Variant updates replace the complete set. |
-| **Prompts** | Natural language instructions defining agent behavior, backed by an LLM | name, provider, model, temperature, seed, tools, version | Every edit auto-creates a new version. Previous versions can be previewed and restored via `prompts history`. |
+| **Prompts** | Natural language instructions defining agent behavior, backed by an LLM | name, provider, model, temperature, seed (deprecated), tools, version | Every edit auto-creates a new version. Previous versions can be previewed and restored via `prompts history`. |
 | **Tools** | APIs agents call during sessions (look up data, transfer calls, schedule, etc.) | endpoint_url, method, function definition (name, description, JSON Schema params), service_id, static_params, dynamic vars (`{{ vars.field }}`) | Requires a Service for auth. Three types: agent, step, system. `tools history <id>` lists past versions (version_number, operation, updated_by). |
 | **Services** | Centralized credential store for tool authentication | name, auth_type (basic/bearer/custom), credentials | Credentials are masked and not stored by Syllable after configuration. Multiple tools may share one service. |
 | **Channels** | Communication modes (voice, SMS, chat) | name, service, is_system | System channels include Freeswitch Twilio (voice) and Syllable Webchat (chat). Twilio channels configurable via CLI; others via SDK. |
@@ -332,7 +332,7 @@ syllable conversations list [--page N] [--limit N] [--search TEXT] [--start-date
 **Date format:** ISO 8601 (e.g. `2024-01-01T00:00:00Z`)
 
 ### Prompts
-Natural language instruction sets defining agent behavior. Backed by an LLM (Azure OpenAI, Google, or OpenAI). Key fields: provider, model (e.g., `gpt-4o`, `gpt-4.1`, `gemini-2.0-flash`), temperature (0=deterministic), seed (integer for reproducible outputs), tools list. **Every edit auto-creates a new version.** Use `history` to view and restore previous versions.
+Natural language instruction sets defining agent behavior. Backed by an LLM (Azure OpenAI, Google, or OpenAI). Key fields: provider, model (e.g., `gpt-4o`, `gpt-4.1`, `gemini-2.0-flash`), temperature (0=deterministic), seed (integer; deprecated upstream, avoid in new prompts), tools list. **Every edit auto-creates a new version.** Use `history` to view and restore previous versions.
 ```bash
 syllable prompts list [--page N] [--limit N] [--search TEXT]
 syllable prompts get <prompt-id>

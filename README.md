@@ -396,7 +396,7 @@ syllable conversations list [--start-date DATE] [--end-date DATE] [--search TEXT
 
 ### Prompts
 
-Prompts are natural language instruction sets that define agent behavior, backed by an LLM (Azure OpenAI, Google, or OpenAI). Key fields include the provider, model (e.g., `gpt-4o`, `gpt-4.1`, `gemini-2.0-flash`), temperature (0 = deterministic, higher = more creative), seed (for reproducible outputs), and the list of tools the agent may call. Every edit to a prompt creates a new version automatically — use `prompts history` to view past versions and restore them if needed.
+Prompts are natural language instruction sets that define agent behavior, backed by an LLM (Azure OpenAI, Google, or OpenAI). Key fields include the provider, model (e.g., `gpt-4o`, `gpt-4.1`, `gemini-2.0-flash`), temperature (0 = deterministic, higher = more creative), seed (deprecated upstream; avoid in new prompts), and the list of tools the agent may call. Every edit to a prompt creates a new version automatically — use `prompts history` to view past versions and restore them if needed.
 
 ```bash
 syllable prompts list [--search TEXT]

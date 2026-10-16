@@ -9,7 +9,9 @@ description: |
 
 A Go CLI for managing the Syllable AI platform. Source and releases: **https://github.com/asksyllable/syllable-cli**
 
-> **Docs synced to CLI v2.3.2** — bump this marker whenever these docs are updated for a new release.
+> **Docs synced to CLI v2.3.3** — bump this marker whenever these docs are updated for a new release.
+>
+> v2.3.3 (patch) highlights: field-only spec sync. The prompt `llm_config.seed` field is now marked deprecated by the API; existing prompts keep working, but avoid it in new ones. No commands or flags changed.
 >
 > v2.3.2 (patch) highlights: field-only spec sync for `experiments`. `experiments create` and `experiments update` bodies must now include `variants` (at least two), and each variant weight must be at least 1. The CLI passes the `--file` body through unchanged; `--dry-run` now lists a missing `variants` field.
 >
