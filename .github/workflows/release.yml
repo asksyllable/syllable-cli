@@ -1,9 +1,20 @@
 name: Release
 
+# Builds and publishes a release for a tag, then verifies and merges its
+# Homebrew cask PR. Runs when a v* tag is pushed by hand, or is called by the
+# Release Train with the tag it just created (a tag pushed with GITHUB_TOKEN
+# triggers no workflows, so the train calls this directly).
+
 on:
   push:
     tags:
       - "v*"
+  workflow_call:
+    inputs:
+      tag:
+        description: "Release tag, e.g. v2.3.4"
+        type: string
+        required: true
 
 permissions:
   contents: write
@@ -13,10 +24,13 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
+          ref: ${{ inputs.tag || github.ref }}
           fetch-depth: 0
 
       - name: Set up Go
@@ -35,8 +49,9 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_CURRENT_TAG: ${{ env.TAG }}
 
       - name: Verify and merge the Homebrew cask PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: scripts/ci/merge_cask_pr.sh "${{ github.ref_name }}"
+        run: scripts/ci/merge_cask_pr.sh "$TAG"
