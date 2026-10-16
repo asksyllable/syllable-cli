@@ -3436,6 +3436,10 @@ func TestSpecPreflight(t *testing.T) {
 	}
 
 	// Unknown path / non-object body → no findings (best-effort).
+	// A concrete path resolves to its template.
+	if got := specPreflight("PUT", "/api/v1/experiments/42", []byte(`{}`)); len(got) == 0 {
+		t.Error("PUT /api/v1/experiments/42 with an empty body should report missing required fields")
+	}
 	if got := specPreflight("POST", "/api/v1/nonexistent/", []byte(`{}`)); got != nil {
 		t.Errorf("unknown path should yield nil, got %v", got)
 	}

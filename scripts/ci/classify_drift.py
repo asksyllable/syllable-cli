@@ -10,21 +10,29 @@ Verdicts:
              values, or schemas; tightening of a body the CLI builds from inline
              flags; changed or removed parameters; security and server changes;
              anything unrecognized.
-  reconcile  Operations were added or removed, so commands must change before
-             the spec can land (the CLI's coverage tests enforce this).
+  reconcile  Commands must change before the spec can land (the CLI's coverage
+             tests enforce this): an operation was removed, or an added one
+             couldn't get a generated command.
+
+An added operation ships when a build of the CLI with the new spec (and
+`go generate ./cmd`) gave it a generated command; pass that build's
+`syllable __operations` dump as the candidate. Without one, every added
+operation needs reconciling.
 
 The rules are the ones documented in CONTRIBUTING (Public repo hygiene aside):
 "Breaking changes" in .claude/skills/syllable-sync/routines/full-cycle.md.
 
 Usage:
-  classify_drift.py OLD.json NEW.json --operations OPS.json [--format json|text]
-OPS.json is the output of `syllable __operations` built from the current code.
+  classify_drift.py OLD.json NEW.json --operations OPS.json [--candidate CANDIDATE.json] [--format json|text]
+OPS.json is the output of `syllable __operations` built from the current code;
+CANDIDATE.json is the same, built with the new spec after `go generate ./cmd`.
 """
 import argparse
 import hashlib
 import importlib.util
 import json
 import os
+import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -37,6 +45,14 @@ CONSTRAINTS = {
 }
 UNION_KEYS = {"anyOf", "oneOf", "type"}
 WRITE_METHODS = {"post", "put", "patch", "delete"}
+HTTP_METHODS = {"get", "post", "put", "patch", "delete", "head", "options", "trace"}
+UNSAFE_TEXT = re.compile("[\x00-\x1f\x7f-\x9f\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]")
+
+
+def plain(text, limit=120):
+    """Upstream text, safe for one line of a public release note."""
+    text = " ".join(UNSAFE_TEXT.sub(" ", text or "").split()).replace("`", "'")
+    return text if len(text) <= limit else text[:limit - 1].rstrip() + "…"
 
 
 def load_diff_specs():
@@ -106,9 +122,12 @@ def as_list(v):
 
 
 class Classifier:
-    def __init__(self, old, new, operations):
+    def __init__(self, old, new, operations, candidate=None):
         self.old, self.new = old, new
         self.ops_by_route = {(e["method"].upper(), e["path"]): e for e in operations.values()}
+        self.candidate = None if candidate is None else {
+            (e["method"].upper(), e["path"]): e for e in candidate.values()}
+        self.new_commands = []
         users = request_users(old)
         for name, routes in request_users(new).items():
             users.setdefault(name, set()).update(routes)
@@ -233,16 +252,43 @@ class Classifier:
             return
         self.decisions.append(f"`{cmd}`: {head or 'operation'} changed ({change['kind']} at `{change['path']}`)")
 
+    def added_operation(self, method, path):
+        route = (method.upper(), path)
+        entry = (self.candidate or {}).get(route)
+        if self.candidate is None:
+            self.reconcile.append(f"new operation {route[0]} {path}")
+        elif not entry:
+            self.reconcile.append(f"new operation {route[0]} {path} can't get a generated command, so it needs a hand-written one")
+        else:
+            op = self.new["paths"][path][method.lower()]
+            summary = plain(op.get("summary"))
+            self.new_commands.append(entry["command"])
+            self.notes.append(f"New command `syllable {entry['command']}`" + (f": {summary}" if summary else "")
+                              + ". It's generated from the API spec; run it with `--help` for its arguments and request fields.")
+            self.ship_reasons.append(f"new operation {route[0]} {path} got a command (`{entry['command']}`)")
+
+    def lost_commands(self):
+        """A command main has that the candidate build doesn't, for an operation
+        that still exists: a generated command that can no longer be generated."""
+        if self.candidate is None:
+            return
+        paths = self.new.get("paths", {})
+        for (method, path), entry in sorted(self.ops_by_route.items()):
+            if method.lower() in paths.get(path, {}) and (method, path) not in self.candidate:
+                self.reconcile.append(f"`{entry['command']}` ({method} {path}) can no longer be generated, so it needs a hand-written command")
+
     def run(self, d):
         for p in d["added_paths"]:
-            self.reconcile.append(f"new path {p}")
+            for m in sorted(k for k in self.new["paths"][p] if k in HTTP_METHODS):
+                self.added_operation(m, p)
         for p in d["removed_paths"]:
             self.reconcile.append(f"removed path {p}")
         for entry in d["changed_paths"]:
             for m in entry["added_methods"]:
-                self.reconcile.append(f"new operation {m.upper()} {entry['path']}")
+                self.added_operation(m, entry["path"])
             for m in entry["removed_methods"]:
                 self.reconcile.append(f"removed operation {m.upper()} {entry['path']}")
+        self.lost_commands()
         for change in d["changed_global_contracts"]:
             self.decisions.append(f"global spec change ({change['kind']} at `{change['path']}`)")
         for name in d["removed_schemas"]:
@@ -262,7 +308,7 @@ class Classifier:
                 self.operation_change(entry["method"], entry["path"], change)
 
 
-def classify(old, new, operations):
+def classify(old, new, operations, candidate=None):
     ds = load_diff_specs()
     raw = ds.compute_diff(old, new)
     d = {
@@ -277,7 +323,7 @@ def classify(old, new, operations):
         "changed_global_contracts": raw["changed_global_contracts"],
         "changed_enums": [{"enum": l, "added": a, "removed": r} for l, a, r in raw["enum_changes"]],
     }
-    c = Classifier(old, new, operations)
+    c = Classifier(old, new, operations, candidate)
     c.run(d)
     verdict = "reconcile" if c.reconcile else "decision" if c.decisions else "ship"
     delta = hashlib.sha256(json.dumps(d, sort_keys=True).encode()).hexdigest()[:16]
@@ -289,6 +335,7 @@ def classify(old, new, operations):
         "decisions": c.decisions,
         "release_notes": notes,
         "ship_reasons": c.ship_reasons,
+        "new_commands": c.new_commands,
         "delta": delta,
     }
 
@@ -298,10 +345,12 @@ def main():
     ap.add_argument("old")
     ap.add_argument("new")
     ap.add_argument("--operations", required=True)
+    ap.add_argument("--candidate")
     ap.add_argument("--format", choices=("json", "text"), default="text")
     args = ap.parse_args()
     load = lambda p: json.load(open(p))
-    result = classify(load(args.old), load(args.new), load(args.operations))
+    result = classify(load(args.old), load(args.new), load(args.operations),
+                      load(args.candidate) if args.candidate else None)
     if args.format == "json":
         print(json.dumps(result, indent=2))
         return

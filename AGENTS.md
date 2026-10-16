@@ -669,6 +669,13 @@ syllable organizations sip-ip-ranges delete <sip-ip-range-id>
 ```
 **`sip-ip-ranges list` columns:** ID, TYPE, IP_RANGE, VERIFIED, CREATED_AT
 
+### Generated commands
+<!-- BEGIN GENERATED COMMANDS: written by `go generate ./cmd`; do not edit by hand -->
+Commands for API operations that don't have a hand-written command yet are generated from the API spec, so a new endpoint is usable as soon as the CLI syncs to it. They take a JSON request body through `--file` (`--file -` reads stdin), print the raw JSON response, and ask for confirmation on deletes and other changes made without a body (pass `--yes` when non-interactive). Run one with `--help` for its arguments, query flags, and request fields with an example body.
+
+_None right now: every API operation has a hand-written command._
+<!-- END GENERATED COMMANDS -->
+
 ### Schema
 Explores API data structures from the embedded OpenAPI spec (no API call made). Use before create/update operations to discover required fields and body structure.
 ```bash

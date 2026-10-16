@@ -8,8 +8,9 @@ import (
 )
 
 // specPreflight returns the names of top-level required fields — per the
-// embedded OpenAPI request schema for this path+method — that are absent from
-// the JSON body. It is wired into the client only to annotate --dry-run output
+// embedded OpenAPI request schema for this method and path (or the path
+// template it matches) — that are absent from the JSON body. It is wired into
+// the client only to annotate --dry-run output
 // (#143), so it never blocks a real request: the spec and prod can legitimately
 // differ, and the server's 422 plus hint422 already handle deep validation.
 //
@@ -25,6 +26,10 @@ func specPreflight(method, path string, body []byte) []string {
 		return nil
 	}
 	paths, _ := doc["paths"].(map[string]interface{})
+	// A concrete path like /api/v1/experiments/42 matches its template.
+	if operation, found := findSDKOperation(strings.ToUpper(method), path); found {
+		path = operation.Path
+	}
 	pathItem, _ := paths[path].(map[string]interface{})
 	op, _ := pathItem[strings.ToLower(method)].(map[string]interface{})
 	rb, _ := op["requestBody"].(map[string]interface{})

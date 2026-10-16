@@ -541,6 +541,13 @@ syllable organizations sip-ip-ranges delete <range-id>          # v1.7
 syllable --env prod --org <org> organizations get
 ```
 
+## Generated commands
+<!-- BEGIN GENERATED COMMANDS: written by `go generate ./cmd`; do not edit by hand -->
+Commands for API operations that don't have a hand-written command yet are generated from the API spec, so a new endpoint is usable as soon as the CLI syncs to it. They take a JSON request body through `--file` (`--file -` reads stdin), print the raw JSON response, and ask for confirmation on deletes and other changes made without a body (pass `--yes` when non-interactive). Run one with `--help` for its arguments, query flags, and request fields with an example body.
+
+_None right now: every API operation has a hand-written command._
+<!-- END GENERATED COMMANDS -->
+
 ## Schema
 Explore API data structures using the embedded OpenAPI spec. Uses local data only (no API calls), but the CLI still requires an API key to be configured.
 ```bash

@@ -16,6 +16,7 @@ import (
 type sdkQueryParameter struct {
 	Name        string                 `json:"name"`
 	In          string                 `json:"in"`
+	Required    bool                   `json:"required"`
 	Description string                 `json:"description"`
 	Schema      map[string]interface{} `json:"schema"`
 }
@@ -124,94 +125,104 @@ func bindSDKQueryParameters(root *cobra.Command) error {
 		if !ok {
 			return fmt.Errorf("CLI mapping references unknown SDK operation %s", id)
 		}
-		if cmd.Annotations == nil {
-			cmd.Annotations = make(map[string]string)
+		if err := bindSDKOperation(cmd, id, operation); err != nil {
+			return err
 		}
-		if previous := cmd.Annotations["syllable.sdk.operation"]; previous != "" {
-			if previous != id {
-				return fmt.Errorf("command %s maps to both %s and %s", cmd.CommandPath(), previous, id)
-			}
+	}
+	return nil
+}
+
+// bindSDKOperation adds an operation's query parameters to its command as flags
+// and scopes the request's Accept header, delete reason, and query overrides to
+// that operation. Hand-written and generated commands share it.
+func bindSDKOperation(cmd *cobra.Command, id string, operation sdkOperation) error {
+	if cmd.Annotations == nil {
+		cmd.Annotations = make(map[string]string)
+	}
+	if previous := cmd.Annotations["syllable.sdk.operation"]; previous != "" {
+		if previous != id {
+			return fmt.Errorf("command %s maps to both %s and %s", cmd.CommandPath(), previous, id)
+		}
+		return nil
+	}
+	cmd.Annotations["syllable.sdk.operation"] = id
+	var parameters []sdkQueryParameter
+	for _, parameter := range operation.Parameters {
+		if parameter.In != "query" || sdkQueryIsPositional(operation.ID, parameter.Name) {
 			continue
 		}
-		cmd.Annotations["syllable.sdk.operation"] = id
-		var parameters []sdkQueryParameter
-		for _, parameter := range operation.Parameters {
-			if parameter.In != "query" || sdkQueryIsPositional(operation.ID, parameter.Name) {
-				continue
-			}
-			parameters = append(parameters, parameter)
-			name := sdkQueryFlagName(cmd, parameter.Name)
-			if cmd.Flags().Lookup(name) != nil {
-				continue
-			}
-			help := parameter.Description
-			if help == "" {
-				help = "SDK query parameter " + parameter.Name
-			}
-			switch sdkSchemaType(parameter.Schema) {
-			case "array":
-				if parameter.Name == "fields" {
-					cmd.Flags().StringSlice(name, nil, help+" (comma-separated; repeatable)")
-				} else {
-					cmd.Flags().StringArray(name, nil, help+" (repeat once per value; commas are literal)")
-				}
-			case "boolean":
-				cmd.Flags().Bool(name, false, help)
-			case "integer":
-				cmd.Flags().Int64(name, 0, help)
-			case "number":
-				cmd.Flags().Float64(name, 0, help)
-			default:
-				cmd.Flags().String(name, "", help)
-			}
+		parameters = append(parameters, parameter)
+		name := sdkQueryFlagName(cmd, parameter.Name)
+		if cmd.Flags().Lookup(name) != nil {
+			continue
 		}
-		run := cmd.RunE
-		cmd.RunE = func(cmd *cobra.Command, args []string) error {
-			overrides, err := sdkQueryOverrides(cmd, parameters)
-			if err != nil {
-				return err
+		help := parameter.Description
+		if help == "" {
+			help = "SDK query parameter " + parameter.Name
+		}
+		switch sdkSchemaType(parameter.Schema) {
+		case "array":
+			if parameter.Name == "fields" {
+				cmd.Flags().StringSlice(name, nil, help+" (comma-separated; repeatable)")
+			} else {
+				cmd.Flags().StringArray(name, nil, help+" (repeat once per value; commas are literal)")
 			}
-			if apiClient == nil {
-				return run(cmd, args)
-			}
-			previous := apiClient
-			scoped := *previous
-			scoped.DeleteReasonRequired = func(path string) bool {
-				if operation.Method == "DELETE" {
-					if u, err := url.Parse(path); err == nil && sdkOperationPathMatches(operation.Path, u.EscapedPath()) {
-						return sdkOperationHasQuery(operation, "reason")
-					}
-				}
-				if previous.DeleteReasonRequired != nil {
-					return previous.DeleteReasonRequired(path)
-				}
-				return true
-			}
-			scoped.RequestAccept = func(method, path string) string {
-				if operation.Method == method {
-					if u, err := url.Parse(path); err == nil && sdkOperationPathMatches(operation.Path, u.EscapedPath()) {
-						return operation.Accept
-					}
-				}
-				if previous.RequestAccept != nil {
-					return previous.RequestAccept(method, path)
-				}
-				return ""
-			}
-			scoped.RequestPath = func(method, path string) (string, error) {
-				if previous.RequestPath != nil {
-					var err error
-					path, err = previous.RequestPath(method, path)
-					if err != nil {
-						return "", err
-					}
-				}
-				return applySDKQueryOverrides(operation, method, path, overrides)
-			}
-			apiClient = &scoped
-			defer func() { apiClient = previous }()
+		case "boolean":
+			cmd.Flags().Bool(name, false, help)
+		case "integer":
+			cmd.Flags().Int64(name, 0, help)
+		case "number":
+			cmd.Flags().Float64(name, 0, help)
+		default:
+			cmd.Flags().String(name, "", help)
+		}
+	}
+	run := cmd.RunE
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+		overrides, err := sdkQueryOverrides(cmd, parameters)
+		if err != nil {
+			return err
+		}
+		if apiClient == nil {
 			return run(cmd, args)
 		}
+		previous := apiClient
+		scoped := *previous
+		scoped.DeleteReasonRequired = func(path string) bool {
+			if operation.Method == "DELETE" {
+				if u, err := url.Parse(path); err == nil && sdkOperationPathMatches(operation.Path, u.EscapedPath()) {
+					return sdkOperationHasQuery(operation, "reason")
+				}
+			}
+			if previous.DeleteReasonRequired != nil {
+				return previous.DeleteReasonRequired(path)
+			}
+			return true
+		}
+		scoped.RequestAccept = func(method, path string) string {
+			if operation.Method == method {
+				if u, err := url.Parse(path); err == nil && sdkOperationPathMatches(operation.Path, u.EscapedPath()) {
+					return operation.Accept
+				}
+			}
+			if previous.RequestAccept != nil {
+				return previous.RequestAccept(method, path)
+			}
+			return ""
+		}
+		scoped.RequestPath = func(method, path string) (string, error) {
+			if previous.RequestPath != nil {
+				var err error
+				path, err = previous.RequestPath(method, path)
+				if err != nil {
+					return "", err
+				}
+			}
+			return applySDKQueryOverrides(operation, method, path, overrides)
+		}
+		apiClient = &scoped
+		defer func() { apiClient = previous }()
+		return run(cmd, args)
 	}
 	return nil
 }

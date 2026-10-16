@@ -292,43 +292,50 @@ func init() {
 	viper.BindPFlag("env", rootCmd.PersistentFlags().Lookup("env"))
 	viper.BindPFlag("output", rootCmd.PersistentFlags().Lookup("output"))
 
-	// Register subcommands
-	rootCmd.AddCommand(setupCmd())
-	rootCmd.AddCommand(statusCmd())
-	rootCmd.AddCommand(envsCmd())
-	rootCmd.AddCommand(agentsCmd())
-	rootCmd.AddCommand(experimentsCmd())
-	rootCmd.AddCommand(channelsCmd())
-	rootCmd.AddCommand(conversationsCmd())
-	rootCmd.AddCommand(promptsCmd())
-	rootCmd.AddCommand(toolsCmd())
-	rootCmd.AddCommand(sessionsCmd())
-	rootCmd.AddCommand(outboundCmd())
-	rootCmd.AddCommand(usersCmd())
-	rootCmd.AddCommand(directoryCmd())
-	rootCmd.AddCommand(insightsCmd())
-	rootCmd.AddCommand(customMessagesCmd())
-	rootCmd.AddCommand(languageGroupsCmd())
-	rootCmd.AddCommand(organizationsCmd())
-	rootCmd.AddCommand(schemaCmd())
-	rootCmd.AddCommand(dataSourcesCmd())
-	rootCmd.AddCommand(voiceGroupsCmd())
-	rootCmd.AddCommand(servicesCmd())
-	rootCmd.AddCommand(rolesCmd())
-	rootCmd.AddCommand(incidentsCmd())
-	rootCmd.AddCommand(pronunciationsCmd())
-	rootCmd.AddCommand(sessionLabelsCmd())
-	rootCmd.AddCommand(sessionDebugCmd())
-	rootCmd.AddCommand(takeoutsCmd())
-	rootCmd.AddCommand(eventsCmd())
-	rootCmd.AddCommand(permissionsCmd())
-	rootCmd.AddCommand(conversationConfigCmd())
-	rootCmd.AddCommand(dashboardsCmd())
-	rootCmd.AddCommand(bridgePhrasesCmd())
-	rootCmd.AddCommand(operationsDumpCmd())
+	addHandWrittenCommands(rootCmd)
 	if err := bindSDKQueryParameters(rootCmd); err != nil {
 		panic(err)
 	}
+	// After the hand-written tree, so a hand-written command always wins a name.
+	registerGeneratedCommands(rootCmd)
+}
+
+// addHandWrittenCommands registers every reviewed command group. Tests reuse it
+// to build a fresh tree.
+func addHandWrittenCommands(root *cobra.Command) {
+	root.AddCommand(setupCmd())
+	root.AddCommand(statusCmd())
+	root.AddCommand(envsCmd())
+	root.AddCommand(agentsCmd())
+	root.AddCommand(experimentsCmd())
+	root.AddCommand(channelsCmd())
+	root.AddCommand(conversationsCmd())
+	root.AddCommand(promptsCmd())
+	root.AddCommand(toolsCmd())
+	root.AddCommand(sessionsCmd())
+	root.AddCommand(outboundCmd())
+	root.AddCommand(usersCmd())
+	root.AddCommand(directoryCmd())
+	root.AddCommand(insightsCmd())
+	root.AddCommand(customMessagesCmd())
+	root.AddCommand(languageGroupsCmd())
+	root.AddCommand(organizationsCmd())
+	root.AddCommand(schemaCmd())
+	root.AddCommand(dataSourcesCmd())
+	root.AddCommand(voiceGroupsCmd())
+	root.AddCommand(servicesCmd())
+	root.AddCommand(rolesCmd())
+	root.AddCommand(incidentsCmd())
+	root.AddCommand(pronunciationsCmd())
+	root.AddCommand(sessionLabelsCmd())
+	root.AddCommand(sessionDebugCmd())
+	root.AddCommand(takeoutsCmd())
+	root.AddCommand(eventsCmd())
+	root.AddCommand(permissionsCmd())
+	root.AddCommand(conversationConfigCmd())
+	root.AddCommand(dashboardsCmd())
+	root.AddCommand(bridgePhrasesCmd())
+	root.AddCommand(operationsDumpCmd())
 }
 
 func initConfig() {
@@ -619,6 +626,12 @@ func parseIDFlag(flagName, value string) (int64, error) {
 // from stdin. The target shown is derived from the command path and positional
 // args, e.g. "syllable agents delete 42".
 func confirmDelete(cmd *cobra.Command, args []string) error {
+	return confirmAction(cmd, args, "This is destructive and cannot be undone.")
+}
+
+// confirmAction is confirmDelete with the prompt's warning supplied by the
+// caller, for commands that change state without deleting anything.
+func confirmAction(cmd *cobra.Command, args []string, warning string) error {
 	if assumeYes || dryRun {
 		return nil
 	}
@@ -629,7 +642,7 @@ func confirmDelete(cmd *cobra.Command, args []string) error {
 	if !isStdinTTY() {
 		return fmt.Errorf("refusing to run %q without confirmation; pass --yes to confirm non-interactively", target)
 	}
-	fmt.Fprintf(os.Stderr, "About to run: %s\nThis is destructive and cannot be undone. Continue? [y/N]: ", target)
+	fmt.Fprintf(os.Stderr, "About to run: %s\n%s Continue? [y/N]: ", target, warning)
 	line, _ := bufio.NewReader(os.Stdin).ReadString('\n')
 	switch strings.ToLower(strings.TrimSpace(line)) {
 	case "y", "yes":

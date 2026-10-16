@@ -1,20 +1,24 @@
 #!/usr/bin/env python3
 """Plan one run of the spec-sync bot (no AI involved).
 
-Given the embedded spec, the upstream spec (fetched at a pinned commit), and
-the CLI's operation map, classify the change (classify_drift.py) and decide:
+Given the embedded spec, the upstream spec (fetched at a pinned commit), the
+CLI's operation map, and the map from a build with the upstream spec (where
+`go generate ./cmd` named commands for new operations), classify the change
+(classify_drift.py) and decide:
 
   none       Already in sync.
   busy       A reconciliation PR from someone else (the local routine or a
              person) is open; stay out of its way.
-  ship       Safe change, or a breaking change a human accepted for exactly
-             this delta: write the new spec and docs marker into the working
-             tree, plus the commit message and PR body files.
+  ship       Safe change (new operations included, when they got generated
+             commands), or a breaking change a human accepted for exactly this
+             delta: write the new spec and docs marker into the working tree,
+             plus the commit message, PR title, and PR body files.
   wait       A decision issue for this exact delta is open and not yet
              accepted. Nothing to do.
   decision   Breaking change: open a decision issue (superseding older ones).
-  reconcile  Operations were added or removed: commands must change first.
-             Note it once on the spec-drift issue.
+  reconcile  Commands must change first (an operation was removed, or an
+             added one can't be generated), or the CLI didn't build with the
+             new spec. Note it once on the spec-drift issue.
 
 Writes `action=...` (and `accepted_issue=`) to stdout for $GITHUB_OUTPUT.
 Issue text follows CONTRIBUTING's Public repo hygiene rules.
@@ -62,23 +66,24 @@ def ensure_labels():
        "--description", "Ship this exact spec change (spec-sync bot)", check=False)
 
 
-def next_patch_tag():
+def next_tag(minor):
     tags = subprocess.run(["git", "tag", "--list", "v*", "--sort=-v:refname"],
                           check=True, capture_output=True, text=True).stdout.split()
     for t in tags:
         m = re.fullmatch(r"v(\d+)\.(\d+)\.(\d+)", t)
         if m:
             a, b, c = map(int, m.groups())
-            return f"v{a}.{b}.{c + 1}"
-    return "v0.0.1"
+            return f"v{a}.{b + 1}.0" if minor else f"v{a}.{b}.{c + 1}"
+    return "v0.1.0" if minor else "v0.0.1"
 
 
-def bump_skill_marker(version, notes):
+def bump_skill_marker(version, notes, new_commands):
     text = open(SKILL).read()
     m = re.search(r"^> \*\*Docs synced to CLI v[0-9.]+\*\*(.*)$", text, re.M)
     if not m:
         return
-    highlight = f"> {version} (patch) highlights: field-only spec sync. " + " ".join(notes)
+    kind = "(minor) highlights: spec sync with new generated commands." if new_commands else "(patch) highlights: field-only spec sync."
+    highlight = f"> {version} {kind} " + " ".join(notes)
     replacement = f"> **Docs synced to CLI {version}**{m.group(1)}\n>\n{highlight}"
     text = text[:m.start()] + replacement + text[m.end():]
     open(SKILL, "w").write(text)
@@ -108,13 +113,27 @@ def main():
     ap.add_argument("--upstream", required=True)
     ap.add_argument("--upstream-sha", required=True)
     ap.add_argument("--operations", required=True)
+    ap.add_argument("--candidate-operations",
+                    help="`__operations` from a build with the upstream spec; missing or empty if that build failed")
     ap.add_argument("--out-dir", required=True)
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
-    old = json.load(open(SPEC))
+    # The working tree may already hold the upstream spec (the candidate build).
+    old = json.loads(subprocess.run(["git", "show", f"HEAD:{SPEC}"], check=True,
+                                    capture_output=True, text=True).stdout)
     new = json.load(open(args.upstream))
-    result = classify(old, new, json.load(open(args.operations)))
+    candidate = None
+    if args.candidate_operations:
+        try:
+            candidate = json.load(open(args.candidate_operations))
+        except (OSError, ValueError):
+            candidate = None
+    result = classify(old, new, json.load(open(args.operations)), candidate)
+    if args.candidate_operations and candidate is None and result["has_changes"]:
+        result["verdict"] = "reconcile"
+        result["reconcile"].append(
+            "the CLI didn't build with the new spec, or `go generate ./cmd` couldn't name a command for every operation (see the bot's run log)")
     os.makedirs(args.out_dir, exist_ok=True)
     json.dump(result, open(os.path.join(args.out_dir, "classification.json"), "w"), indent=2)
     print(f"Classification: {json.dumps(result, indent=2)}", file=sys.stderr)
@@ -143,8 +162,9 @@ def main():
             if marker not in comments:
                 items = "\n".join(f"- {r}" for r in result["reconcile"])
                 gh("issue", "comment", str(n), "--repo", REPO, "--body",
-                   f"This change adds or removes API operations, so CLI commands must change before the spec can land. "
-                   f"The spec-sync bot can't write commands; the local spec-sync routine (or a person) needs to reconcile it:\n\n{items}\n\n{marker}")
+                   f"CLI commands must change before this spec change can land. The spec-sync bot generates commands "
+                   f"only for JSON endpoints that use the API key and never removes one, so the local spec-sync routine "
+                   f"(or a person) needs to reconcile it:\n\n{items}\n\n{marker}")
         return emit("reconcile")
 
     if result["verdict"] == "decision":
@@ -173,12 +193,13 @@ def main():
             return emit("decision")
 
     # ship: a safe change, or exactly the change a human accepted.
-    version = next_patch_tag()
+    new_commands = result["new_commands"]
+    version = next_tag(minor=bool(new_commands))
     notes = result["release_notes"] or ["Upstream spec refresh; no user-visible changes."]
     if not args.dry_run:
         with open(SPEC, "w") as f:
             f.write(open(args.upstream).read())
-        bump_skill_marker(version, notes)
+        bump_skill_marker(version, notes, new_commands)
 
     old_path = os.path.join(args.out_dir, "embedded-before.json")
     json.dump(old, open(old_path, "w"))
@@ -205,9 +226,12 @@ def main():
 
 {closes}
 """
+    # New commands are a feature, so the release train makes it a minor release.
+    title = "feat: sync CLI to OpenAPI spec, with new commands" if new_commands else "chore: sync CLI to OpenAPI spec"
     open(os.path.join(args.out_dir, "pr-body.md"), "w").write(body)
+    open(os.path.join(args.out_dir, "pr-title.txt"), "w").write(title + "\n")
     open(os.path.join(args.out_dir, "commit-msg.txt"), "w").write(
-        f"chore: sync CLI to OpenAPI spec\n\nAutomated sync to upstream SDK commit {args.upstream_sha} (classifier delta {result['delta']}).\n")
+        f"{title}\n\nAutomated sync to upstream SDK commit {args.upstream_sha} (classifier delta {result['delta']}).\n")
     emit("ship", accepted_issue=accepted_issue)
 
 

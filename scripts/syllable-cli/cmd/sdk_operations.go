@@ -1,7 +1,14 @@
 package cmd
 
+// consoleOnlyOperations are API operations the CLI deliberately leaves out.
+var consoleOnlyOperations = map[string]string{
+	"organizations_create": "Organization provisioning is intentionally console-only (AGENTS.md).",
+	"organizations_delete": "Organization deletion is intentionally console-only (AGENTS.md).",
+}
+
 // Each entry is a reviewed CLI invocation, frozen independently of the spec. It also binds SDK query flags to resource commands.
-// New operations must be mapped here; do not derive these from the spec at test time.
+// An operation that isn't mapped here or console-only gets a generated command
+// (generated_commands.go); mapping it here retires the generated one.
 var sdkOperationCommands = map[string][]string{
 	"agent_create":                                 {"agents", "create", "--file", "$body"},
 	"agent_delete":                                 {"agents", "delete", "17"},

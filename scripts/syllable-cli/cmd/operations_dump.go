@@ -20,6 +20,8 @@ type operationEntry struct {
 	// treated as flags that build the body inline (an over-approximation, so
 	// automation errs toward asking a human).
 	Flags []string `json:"flags"`
+	// Generated marks a command generated from the spec (generated_commands.go).
+	Generated bool `json:"generated,omitempty"`
 }
 
 // operationsDumpCmd prints the SDK operation → command map as JSON. The
@@ -59,26 +61,45 @@ func operationEntries(root *cobra.Command) (map[string]operationEntry, error) {
 		if !ok {
 			return nil, fmt.Errorf("CLI mapping references unknown SDK operation %s", id)
 		}
-		query := map[string]bool{}
-		for _, parameter := range operation.Parameters {
-			if parameter.In == "query" {
-				query[sdkQueryFlagName(target, parameter.Name)] = true
-			}
+		out[id] = newOperationEntry(root, target, operation)
+	}
+	walkCommands(root, func(c *cobra.Command) {
+		if c.Annotations[generatedAnnotation] != "true" {
+			return
 		}
-		flags := []string{}
-		target.LocalNonPersistentFlags().VisitAll(func(f *pflag.Flag) {
-			if f.Name == "file" || f.Name == "help" || query[f.Name] {
-				return
-			}
-			flags = append(flags, f.Name)
-		})
-		sort.Strings(flags)
-		out[id] = operationEntry{
-			Command: strings.TrimPrefix(target.CommandPath(), root.Name()+" "),
-			Method:  operation.Method,
-			Path:    operation.Path,
-			Flags:   flags,
+		// Every flag of a generated command other than --file is a query
+		// parameter, so its body is always a pass-through.
+		method, path, _ := strings.Cut(c.Annotations[generatedRouteAnnotation], " ")
+		out[c.Annotations["syllable.sdk.operation"]] = operationEntry{
+			Command:   strings.TrimPrefix(c.CommandPath(), root.Name()+" "),
+			Method:    method,
+			Path:      path,
+			Flags:     []string{},
+			Generated: true,
+		}
+	})
+	return out, nil
+}
+
+func newOperationEntry(root, target *cobra.Command, operation sdkOperation) operationEntry {
+	query := map[string]bool{}
+	for _, parameter := range operation.Parameters {
+		if parameter.In == "query" {
+			query[sdkQueryFlagName(target, parameter.Name)] = true
 		}
 	}
-	return out, nil
+	flags := []string{}
+	target.LocalNonPersistentFlags().VisitAll(func(f *pflag.Flag) {
+		if f.Name == "file" || f.Name == "help" || query[f.Name] {
+			return
+		}
+		flags = append(flags, f.Name)
+	})
+	sort.Strings(flags)
+	return operationEntry{
+		Command: strings.TrimPrefix(target.CommandPath(), root.Name()+" "),
+		Method:  operation.Method,
+		Path:    operation.Path,
+		Flags:   flags,
+	}
 }

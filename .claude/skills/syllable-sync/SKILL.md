@@ -102,7 +102,15 @@ Present the summary to the user and ask them to confirm before making any change
 
 Based on the diff output, categorize the work into a checklist:
 
-**For each new path group (e.g., `/api/v1/widgets/`):**
+**For each new operation:** after Phase 4, run `go generate ./cmd` (from
+`scripts/syllable-cli`). It gives every new JSON operation that uses the API key a
+generated command (named from its tag and operationId, frozen in
+`cmd/generated_commands.json`) and refreshes the "Generated commands" blocks in
+`AGENTS.md` and `references/commands.md`. Hand-write a command only for an operation
+it reports it can't generate (uploads, downloads, form bodies, header parameters,
+anonymous calls). A generated command ships to users as soon as it's released, so a
+later hand-written replacement must keep its name, or it's a breaking rename. To
+hand-write one:
 - [ ] Create `scripts/syllable-cli/cmd/widgets.go` following the standard pattern
 - [ ] Register the new command in `scripts/syllable-cli/cmd/root.go`
 
@@ -117,7 +125,7 @@ Based on the diff output, categorize the work into a checklist:
 - [ ] Expose new query parameters, and check changed defaults, constraints, required fields, and nullable types
 - [ ] Verify response JSON preserves new fields and renamed response models
 - [ ] Preserve renamed schema lookups with aliases when appropriate; document actual removals
-- [ ] Add every new operation to `cmd/sdk_operations.go`; `cmd/api_surface_test.go` must show complete coverage with only documented policy exceptions
+- [ ] Add every hand-written operation to `cmd/sdk_operations.go` (that retires its generated command); `cmd/api_surface_test.go` must show complete coverage, by hand-written or generated commands, with only documented policy exceptions
 - [ ] Verify spec-backed flags through `TestSDKQueryParameterSerialization` and test new nested request fields through file input
 - [ ] Bump the pinned SDK in `tests/sdk-parity/` only when a **stable** `syllable-sdk` release on npm matches the embedded spec (`npm view syllable-sdk dist-tags`; upstream `main` usually sits on an `-rc`). Then update the exact dependency and lockfile, set the upstream source commit in `generate-manifest.cjs`, refresh the manifest with `npm run refresh-manifest --prefix tests/sdk-parity`, and review the diff against the actual SDK. Otherwise leave the pin alone: new commands the pinned SDK doesn't know are logged as "parity pending" (still gated by the Go coverage tests), so a sync never waits on an SDK release.
 
@@ -138,9 +146,11 @@ Replace the embedded spec first, before changing any code:
 cp /tmp/openapi_new.json scripts/syllable-cli/internal/spec/openapi.json
 ```
 
-Run the spec test to confirm it's valid:
+Run the spec test to confirm it's valid, then name commands for any new
+operations (this also refreshes the generated-commands docs blocks):
 ```bash
 cd scripts/syllable-cli && go test ./internal/spec/... -v
+cd scripts/syllable-cli && go generate ./cmd
 ```
 
 ---

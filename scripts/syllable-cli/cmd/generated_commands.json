@@ -1,0 +1,4 @@
+{
+  "_comment": "Frozen names of the commands generated from the API spec. Written by `go generate ./cmd`; do not edit by hand.",
+  "commands": []
+}

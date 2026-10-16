@@ -221,6 +221,8 @@ syllable <resource> delete <id> --yes            # destructive — see note belo
 
 **`<id>` for sessions is the numeric Syllable session ID** (e.g., `824`) — *not* the Twilio `CA<hex>` call SID. Any `session_id`-keyed call (`sessions get/transcript/summary`, `GET /sessions/full-summary/{session_id}`, `sdk.sessions.getById`) returns **400** on a `CA…` SID; that value is the session's `channel_manager_sid`. To resolve one from the other: `sessions list --search-field channel_manager_sid --search "CA…" -o json`. See [`references/sessions-and-debugging.md`](references/sessions-and-debugging.md).
 
+**Generated commands.** When the API adds an endpoint that has no hand-written command, the CLI generates one from its spec, often under a new group. They are marked `[generated]` in `--help` listings and listed in [`references/commands.md`](references/commands.md) § *Generated commands*. Each takes path parameters as arguments and query parameters as flags, reads a JSON body from `--file` (or `--file -`), and prints the raw JSON response. Its `--help` lists the request body's required and optional fields with an example, and `--dry-run` reports missing required fields. Deletes and other body-less changes need `--yes` when run non-interactively.
+
 For exact flag syntax, table-column listings, get-fields, inline-create flag sets, and resource-specific notes (e.g. `users get`/`update`/`delete`/`send-email` are keyed by **email address**, not a numeric ID), see [`references/commands.md`](references/commands.md).
 
 For send-test-message conversation flow details (greeting / follow-up / silence / DTMF), see `references/commands.md` § *Conversation Test API*.
