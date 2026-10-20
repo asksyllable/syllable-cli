@@ -170,8 +170,16 @@ func hintForError(cmd *cobra.Command, err error) string {
 			return fmt.Sprintf("A resource with this name already exists. Use `%s` to find it.", listPath)
 		}
 		return "A resource with this name already exists. Use the `list` subcommand to find it."
-	case 422, 400:
+	case 422:
 		return hint422(apiErr.Body)
+	case 400:
+		// A 400 is usually the server refusing a well-formed request (a platform
+		// error or a business rule), so its own message stands alone. Only a
+		// field-level validation body earns the schema hint (#212).
+		if len(validationFields(apiErr.Body)) > 0 {
+			return hint422(apiErr.Body)
+		}
+		return ""
 	case 500, 502, 503, 504:
 		return "Server error. This may be temporary — try again shortly."
 	}
@@ -222,32 +230,40 @@ func siblingListPath(cmd *cobra.Command) string {
 	return ""
 }
 
-// hint422 parses a FastAPI validation error body and returns a field-specific hint.
-func hint422(body []byte) string {
+// validationFields returns the fields a FastAPI validation error body names
+// ({"detail": [{"loc": [..., "field"], "msg": ...}]}), or nil for any other body.
+func validationFields(body []byte) []string {
 	var resp struct {
 		Detail []struct {
-			Loc []string `json:"loc"`
-			Msg string   `json:"msg"`
+			Loc []interface{} `json:"loc"`
 		} `json:"detail"`
 	}
-	if json.Unmarshal(body, &resp) == nil && len(resp.Detail) > 0 {
-		var fields []string
-		for _, d := range resp.Detail {
-			if len(d.Loc) > 0 {
-				fields = append(fields, d.Loc[len(d.Loc)-1])
-			}
+	if json.Unmarshal(body, &resp) != nil {
+		return nil
+	}
+	var fields []string
+	for _, d := range resp.Detail {
+		if len(d.Loc) > 0 {
+			fields = append(fields, fmt.Sprint(d.Loc[len(d.Loc)-1]))
 		}
-		if len(fields) > 0 {
-			return fmt.Sprintf("Validation failed on: %s. Use `syllable schema list` to find the schema, then `syllable schema get <TypeName>` to see required fields.", strings.Join(fields, ", "))
-		}
+	}
+	return fields
+}
+
+// hint422 returns the validation hint, naming the failing fields when the
+// body lists them.
+func hint422(body []byte) string {
+	if fields := validationFields(body); len(fields) > 0 {
+		return fmt.Sprintf("Validation failed on: %s. Use `syllable schema list` to find the schema, then `syllable schema get <TypeName>` to see required fields.", strings.Join(fields, ", "))
 	}
 	return "Validation failed. Use `syllable schema list` to find the schema for this resource, then `syllable schema get <TypeName>` to see required fields."
 }
 
-// noAuthCommandNames is the set of Cobra command names that run without API config.
+// noAuthCommandNames is the set of Cobra command names that run without API
+// config. schema reads only the embedded spec (#211).
 var noAuthCommandNames = map[string]struct{}{
 	"help": {}, "completion": {}, "version": {}, "setup": {}, "status": {}, "envs": {},
-	"__operations": {},
+	"__operations": {}, "schema": {},
 }
 
 // cmdRequiresNoAuth reports whether the command or any ancestor is a no-auth command
