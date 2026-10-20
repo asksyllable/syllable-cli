@@ -549,7 +549,7 @@ _None right now: every API operation has a hand-written command._
 <!-- END GENERATED COMMANDS -->
 
 ## Schema
-Explore API data structures using the embedded OpenAPI spec. Uses local data only (no API calls), but the CLI still requires an API key to be configured.
+Explore API data structures using the embedded OpenAPI spec. Uses local data only: no API call, and (since v2.4.1) no org or API key is needed.
 ```bash
 # List all schemas
 syllable schema list

@@ -3244,6 +3244,45 @@ func TestHint422NamesFields(t *testing.T) {
 	}
 }
 
+// A 400 gets the schema hint only when its body is a field-level validation
+// error; a server-side failure keeps its own message (#212). A 422 always does.
+func TestHint400OnlyForValidationBodies(t *testing.T) {
+	cases := []struct {
+		status int
+		body   string
+		want   string
+	}{
+		{400, `{"detail":{"detail":"There was an issue sending the message"}}`, ""},
+		{400, `{"detail":"Agent name already in use"}`, ""},
+		{400, `not json`, ""},
+		{400, `{"detail":[{"loc":["body","variants",0,"weight"],"msg":"too big"}]}`, "Validation failed on: weight"},
+		{422, `{"detail":[{"loc":["body","variants",1],"msg":"x"}]}`, "Validation failed on: 1"},
+		{422, `{"detail":"bad"}`, "Validation failed. Use"},
+	}
+	for _, tc := range cases {
+		h := hintForError(nil, &client.APIError{StatusCode: tc.status, Body: []byte(tc.body)})
+		if tc.want == "" && h != "" || tc.want != "" && !strings.Contains(h, tc.want) {
+			t.Errorf("%d %s: hint %q, want %q", tc.status, tc.body, h, tc.want)
+		}
+	}
+}
+
+// schema reads only the embedded spec, so it needs no org or API key (#211).
+func TestSchemaNeedsNoAuth(t *testing.T) {
+	for _, args := range [][]string{{"schema", "list"}, {"schema", "get", "AgentCreate"}} {
+		cmd, _, err := rootCmd.Find(args)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !cmdRequiresNoAuth(cmd) {
+			t.Errorf("%v should run without credentials", args)
+		}
+	}
+	if cmd, _, _ := rootCmd.Find([]string{"agents", "list"}); cmdRequiresNoAuth(cmd) {
+		t.Error("agents list must still require credentials")
+	}
+}
+
 func TestHintForErrorStatusCodes(t *testing.T) {
 	cases := map[int]string{
 		401: "API key",
