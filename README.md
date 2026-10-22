@@ -530,6 +530,8 @@ syllable custom-messages get <id>
 syllable custom-messages create --name NAME --text TEXT
 syllable custom-messages update <id> --file message.json
 syllable custom-messages delete <id>
+syllable custom-messages history <id> [--order-by-direction asc|desc]
+syllable custom-messages get-version <id> <version>
 ```
 
 ### Bridge Phrases

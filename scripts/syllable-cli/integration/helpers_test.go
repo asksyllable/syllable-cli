@@ -118,6 +118,48 @@ func mustRunCLI(t *testing.T, args ...string) []byte {
 	return out
 }
 
+// runCLIUnlessUndeployed runs a command for an endpoint the spec advertises but
+// prod may not serve yet. It skips the test when prod answers with the
+// router's bare 404, or when an older /{id} route captures the new path segment
+// (a 422 int_parsing error whose input is that segment). Any other failure
+// fails the test, so the check starts covering the endpoint once it deploys.
+func runCLIUnlessUndeployed(t *testing.T, segment string, args ...string) []byte {
+	t.Helper()
+	out, err := runCLI(args...)
+	if err == nil {
+		return out
+	}
+	var parsed struct {
+		Error struct {
+			StatusCode int             `json:"status_code"`
+			Detail     json.RawMessage `json:"detail"`
+		} `json:"error"`
+	}
+	if json.Unmarshal(out, &parsed) == nil {
+		var bare struct {
+			Detail string `json:"detail"`
+		}
+		if parsed.Error.StatusCode == 404 && json.Unmarshal(parsed.Error.Detail, &bare) == nil && bare.Detail == "Not Found" {
+			t.Skipf("endpoint not deployed on this environment yet (bare 404) for %v", args)
+		}
+		var shadowed struct {
+			Detail []struct {
+				Type  string `json:"type"`
+				Input string `json:"input"`
+			} `json:"detail"`
+		}
+		if parsed.Error.StatusCode == 422 && json.Unmarshal(parsed.Error.Detail, &shadowed) == nil {
+			for _, d := range shadowed.Detail {
+				if d.Type == "int_parsing" && d.Input == segment {
+					t.Skipf("endpoint not deployed on this environment yet (path captured by an /{id} route) for %v", args)
+				}
+			}
+		}
+	}
+	t.Fatalf("CLI error running %v:\n%s", args, string(out))
+	return nil
+}
+
 // ---------------------------------------------------------------------------
 // JSON helpers
 // ---------------------------------------------------------------------------

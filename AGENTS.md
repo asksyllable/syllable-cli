@@ -488,6 +488,8 @@ syllable custom-messages create --file message.json
 syllable custom-messages create --name NAME --text TEXT
 syllable custom-messages update <message-id> --file message.json
 syllable custom-messages delete <message-id>
+syllable custom-messages history <message-id> [--page N] [--limit N] [--order-by-direction asc|desc]
+syllable custom-messages get-version <message-id> <version>
 ```
 
 ### Language Groups
@@ -673,7 +675,10 @@ syllable organizations sip-ip-ranges delete <sip-ip-range-id>
 <!-- BEGIN GENERATED COMMANDS: written by `go generate ./cmd`; do not edit by hand -->
 Commands for API operations that don't have a hand-written command yet are generated from the API spec, so a new endpoint is usable as soon as the CLI syncs to it. They take a JSON request body through `--file` (`--file -` reads stdin), print the raw JSON response, and ask for confirmation on deletes and other changes made without a body (pass `--yes` when non-interactive). Run one with `--help` for its arguments, query flags, and request fields with an example body.
 
-_None right now: every API operation has a hand-written command._
+| Command | API | What it does |
+|---|---|---|
+| `syllable directory tag-key-exists` | `GET /api/v1/directory_members/tag-key-exists` | Directory Tag Key Exists |
+| `syllable prompts list-active-labels` | `GET /api/v1/prompts/labels` | List Active Prompt Labels |
 <!-- END GENERATED COMMANDS -->
 
 ### Schema
