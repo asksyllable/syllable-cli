@@ -41,6 +41,8 @@ var sdkOperationCommands = map[string][]string{
 	"channels_update":                              {"channels", "update", "17", "--file", "$body"},
 	"conversations_list":                           {"conversations", "list"},
 	"custom_message_get_by_id":                     {"custom-messages", "get", "17"},
+	"custom_message_history":                       {"custom-messages", "history", "17"},
+	"custom_message_version":                       {"custom-messages", "get-version", "17", "17"},
 	"custom_messages_create":                       {"custom-messages", "create", "--file", "$body"},
 	"custom_messages_delete":                       {"custom-messages", "delete", "17"},
 	"custom_messages_list":                         {"custom-messages", "list"},

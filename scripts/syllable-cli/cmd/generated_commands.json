@@ -1,4 +1,17 @@
 {
   "_comment": "Frozen names of the commands generated from the API spec. Written by `go generate ./cmd`; do not edit by hand.",
-  "commands": []
+  "commands": [
+    {
+      "command": "directory tag-key-exists",
+      "method": "GET",
+      "path": "/api/v1/directory_members/tag-key-exists",
+      "operation_id": "directory_tag_key_exists"
+    },
+    {
+      "command": "prompts list-active-labels",
+      "method": "GET",
+      "path": "/api/v1/prompts/labels",
+      "operation_id": "prompts_list_active_labels"
+    }
+  ]
 }
