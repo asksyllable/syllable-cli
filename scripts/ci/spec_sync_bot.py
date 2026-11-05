@@ -23,7 +23,7 @@ issues, which the local routine works through. If the test suite fails on the
 bot's commit, the workflow hands the sync to the routine the same way as a
 reconcile.
 
-Writes `action=...` and `delta=...` to stdout for $GITHUB_OUTPUT.
+Writes `action=...`, `delta=...`, and `spec=...` to stdout for $GITHUB_OUTPUT.
 Issue text follows CONTRIBUTING's Public repo hygiene rules.
 """
 import argparse
@@ -42,7 +42,8 @@ BOT_BRANCH = "spec-sync/bot"
 SPEC = "scripts/syllable-cli/internal/spec/openapi.json"
 SKILL = ".claude/skills/syllable-cli/SKILL.md"
 FOLLOWUP_LABEL = "cli-followup"
-RECONCILE_MARKER = "<!-- spec-sync-bot reconcile delta: {delta} -->"
+# The routine finds a hand-over by the upstream spec's sha256 (`shasum -a 256`).
+RECONCILE_MARKER = "<!-- spec-sync-bot reconcile delta: {delta} spec: {spec} -->"
 
 
 # A closing keyword only matters before an issue reference or URL.
@@ -78,16 +79,16 @@ def gh_json(*args):
     return json.loads(out) if out.strip() else []
 
 
-def reconcile_comment(delta, items, dry_run=False):
+def reconcile_comment(delta, spec, items, dry_run=False):
     """Ask the local spec-sync routine to reconcile, once per change, on the
     open spec-drift issue."""
     drift = gh_json("issue", "list", "--repo", REPO, "--label", "spec-drift", "--state", "open", "--json", "number")
-    marker = RECONCILE_MARKER.format(delta=delta)
+    marker = RECONCILE_MARKER.format(delta=delta, spec=spec)
     if not drift or dry_run:
         return
     n = drift[0]["number"]
     comments = gh("issue", "view", str(n), "--repo", REPO, "--json", "comments", "--jq", ".comments[].body")
-    if marker in comments:
+    if f"spec-sync-bot reconcile delta: {delta} " in comments:
         return
     lines = "\n".join(f"- {r}" for r in items)
     gh("issue", "comment", str(n), "--repo", REPO, "--body",
@@ -156,11 +157,12 @@ def main():
     ap.add_argument("--handover", metavar="DELTA",
                     help="the tests failed on the bot's commit: hand this change to the routine, then exit")
     ap.add_argument("--run-url", default="")
+    ap.add_argument("--spec", default="", help="with --handover: the upstream spec's sha256")
     args = ap.parse_args()
     if args.file_followups:
         return file_followups(json.load(open(args.file_followups)).get("followups", []), args.pr)
     if args.handover:
-        return reconcile_comment(args.handover, [
+        return reconcile_comment(args.handover, args.spec, [
             f"the test suite failed with the new spec{f' ({args.run_url})' if args.run_url else ''}, so CLI code or "
             f"tests must change first"])
     missing = [f"--{k.replace('_', '-')}" for k in ("upstream", "upstream_sha", "operations", "out_dir") if not getattr(args, k)]
@@ -171,6 +173,7 @@ def main():
     old = json.loads(subprocess.run(["git", "show", f"HEAD:{SPEC}"], check=True,
                                     capture_output=True, text=True).stdout)
     new = json.load(open(args.upstream))
+    spec_hash = hashlib.sha256(open(args.upstream, "rb").read()).hexdigest()
     candidate = None
     if args.candidate_operations:
         try:
@@ -206,8 +209,8 @@ def main():
         return emit("busy")
 
     if result["verdict"] == "reconcile":
-        reconcile_comment(result["delta"], result["reconcile"], args.dry_run)
-        return emit("reconcile", delta=result["delta"])
+        reconcile_comment(result["delta"], spec_hash, result["reconcile"], args.dry_run)
+        return emit("reconcile", delta=result["delta"], spec=spec_hash)
 
     # ship
     new_commands = result["new_commands"]
@@ -253,7 +256,7 @@ After the merge, the bot files these as `{FOLLOWUP_LABEL}` issues for the local 
     open(os.path.join(args.out_dir, "pr-title.txt"), "w").write(title + "\n")
     open(os.path.join(args.out_dir, "commit-msg.txt"), "w").write(
         f"{title}\n\nAutomated sync to upstream SDK commit {args.upstream_sha} (classifier delta {result['delta']}).\n")
-    emit("ship", delta=result["delta"])
+    emit("ship", delta=result["delta"], spec=spec_hash)
 
 
 if __name__ == "__main__":

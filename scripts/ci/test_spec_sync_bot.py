@@ -41,6 +41,27 @@ class Fenced(unittest.TestCase):
         self.assertTrue(block.endswith("\n" + fence))
 
 
+class Handover(unittest.TestCase):
+    def comment(self, existing):
+        calls = []
+
+        def fake_gh(*args, check=True):
+            calls.append(args)
+            return existing if args[:2] == ("issue", "view") else ""
+        with mock.patch.object(spec_sync_bot, "gh", fake_gh), \
+                mock.patch.object(spec_sync_bot, "gh_json", lambda *a: [{"number": 215}]):
+            spec_sync_bot.reconcile_comment("abc123", "f00d", ["the tests failed"])
+        return [c for c in calls if c[:2] == ("issue", "comment")]
+
+    def test_marker_names_the_change_and_the_spec(self):
+        posted = self.comment("")
+        self.assertEqual(len(posted), 1)
+        self.assertIn("<!-- spec-sync-bot reconcile delta: abc123 spec: f00d -->", posted[0][-1])
+
+    def test_once_per_change(self):
+        self.assertEqual(self.comment("<!-- spec-sync-bot reconcile delta: abc123 spec: f00d -->"), [])
+
+
 class Followups(unittest.TestCase):
     def file(self, followups, existing=""):
         calls = []

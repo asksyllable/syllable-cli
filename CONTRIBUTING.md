@@ -221,6 +221,7 @@ The workflows ship in the repo, but a few one-time setup steps are required (unt
    "Bash(gh pr *)", "Bash(gh issue *)", "Bash(gh release *)", "Bash(gh run *)", "Bash(gh workflow run *)",
    "Bash(go test *)", "Bash(go build *)", "Bash(go vet *)", "Bash(go generate ./cmd)", "Bash(go run . __operations *)",
    "Bash(python3 scripts/ci/classify_drift.py *)", "Bash(python3 ../../scripts/ci/classify_drift.py *)",
+   "Bash(git show origin/main:*)", "Bash(git stash push *)", "Bash(shasum -a 256 *)",
    "Bash(npm ci --prefix tests/sdk-parity *)", "Bash(npm test --prefix tests/sdk-parity)",
    "Bash(python3 .claude/skills/syllable-sync/scripts/diff_specs.py *)",
    "Bash(curl -fsSL https://raw.githubusercontent.com/asksyllable/syllable-sdk-typescript/*)",

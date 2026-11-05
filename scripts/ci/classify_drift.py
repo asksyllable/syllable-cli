@@ -116,7 +116,7 @@ def body_users(spec):
     return requests, responses
 
 
-IDENT_UNSAFE = re.compile(r"[^A-Za-z0-9_.\-\[\]{}/:~]")
+IDENT_UNSAFE = re.compile(r"[^A-Za-z0-9_.\-\[\]{}/:~$]")
 VALUE_UNSAFE = re.compile(r"[^A-Za-z0-9_.\-/:,+() ]")
 
 
@@ -133,6 +133,19 @@ def value(text, limit=64):
     may contain spaces, reduced the same way."""
     text = " ".join(VALUE_UNSAFE.sub("", str(text)).split())
     return text if len(text) <= limit else text[:limit - 1] + "…"
+
+
+def type_set(node):
+    """The types a schema node accepts: names, `ref:` targets, or "any"."""
+    if not isinstance(node, dict):
+        return {"any"}
+    if isinstance(node.get("$ref"), str):
+        return {"ref:" + node["$ref"]}
+    out = {str(t) for t in as_list(node.get("type"))}
+    for key in ("anyOf", "oneOf"):
+        for member in as_list(node.get(key)):
+            out |= type_set(member)
+    return out or {"any"}
 
 
 def tokens(path):
@@ -171,10 +184,22 @@ class Classifier:
         self.reconcile, self.notes, self.ship_reasons = [], [], []
         self.new_optional_headers = {}  # (in, name) -> commands
         self.flag_checks = {}  # command that builds its body from flags -> what changed
+        self.typed_fields = set()  # (schema, pointer) whose type change was judged
         self.output_checks = {}  # hand-written command that reads a response -> what changed
 
     def commands_for(self, routes):
         return sorted({self.ops_by_route[r]["command"] for r in routes if r in self.ops_by_route})
+
+    def node(self, spec, schema, pointer):
+        node = spec.get("components", {}).get("schemas", {}).get(schema)
+        for t in pointer:
+            if isinstance(node, dict):
+                node = node.get(t)
+            elif isinstance(node, list) and t.isdigit() and int(t) < len(node):
+                node = node[int(t)]
+            else:
+                return None
+        return node
 
     def check(self, bucket, cmd, item):
         items = bucket.setdefault(cmd, [])
@@ -193,9 +218,9 @@ class Classifier:
         responses = self.response_users.get(schema, set()) if shape else set()
         if requests:
             cmds = self.commands_for(requests)
-            where = f"`{'`, `'.join(cmds)}`: " if cmds else f"`{schema}`: "
+            where = f"`{'`, `'.join(cmds)}`: " if cmds else f"`{ident(schema)}`: "
             self.notes.append(f"{where}{what} (enforced by the API).")
-            self.ship_reasons.append(f"{schema}: {what} (server-enforced)")
+            self.ship_reasons.append(f"{ident(schema)}: {what} (server-enforced)")
             flag = field.replace("_", "-") if field and "." not in field else None
             for route in sorted(requests):
                 entry = self.ops_by_route.get(route)
@@ -216,14 +241,14 @@ class Classifier:
                 if not e.get("generated"):
                     self.check(self.output_checks, e["command"], what)
         if not requests and not readers:
-            self.ship_reasons.append(f"{schema}: {what} (response-only)")
+            self.ship_reasons.append(f"{ident(schema)}: {what} (response-only)")
 
     def schema_change(self, schema, change):
         path, kind = change["path"], change["kind"]
         parts = tokens(path)
         last = parts[-1] if parts else ""
         field = field_of(path)
-        label = f"`{schema}.{ident(field)}`" if field else f"`{schema}`"
+        label = f"`{ident(schema)}.{ident(field)}`" if field else f"`{ident(schema)}`"
 
         if len(parts) >= 2 and parts[-2] == "properties":
             if kind == "added":
@@ -248,18 +273,23 @@ class Classifier:
                 return
             self.changed(schema, f"{label} now has `{last}: {value(json.dumps(change.get('new')))}`")
             return
-        if last in UNION_KEYS or last == "enum":
-            before = [json.dumps(v, sort_keys=True) for v in as_list(change.get("old"))]
-            after = [json.dumps(v, sort_keys=True) for v in as_list(change.get("new"))]
+        if last == "enum":
             if kind == "added":
-                # A field that took anything now takes only some types or values.
-                self.changed(schema, f"{label} now only accepts listed {'values' if last == 'enum' else 'types'}",
-                             shape=last != "enum")
-            elif kind == "removed" or set(before) <= set(after):
-                if last != "enum":
-                    self.notes.append(f"{label} now accepts more types.")
-            elif last == "enum":
-                pass  # removed enum values are reported once, from changed_enums
+                self.changed(schema, f"{label} now only accepts listed values")
+            return  # removed enum values are reported once, from changed_enums
+        if last in UNION_KEYS:
+            # `type: X` becoming `anyOf: [X, null]` shows up as two changes, so
+            # judge the field's whole set of types, once.
+            pointer = tuple(parts[:-1])
+            if (schema, pointer) in self.typed_fields:
+                return
+            self.typed_fields.add((schema, pointer))
+            before = type_set(self.node(self.old, schema, pointer))
+            after = type_set(self.node(self.new, schema, pointer))
+            if before == after:
+                return
+            if "any" in after or after >= before:
+                self.notes.append(f"{label} now accepts more types.")
             else:
                 self.changed(schema, f"{label} accepts fewer types", shape=True)
             return
@@ -309,7 +339,7 @@ class Classifier:
     def operation_change(self, method, path, change):
         route = (method.upper(), path)
         entry = self.ops_by_route.get(route, {})
-        cmd = entry.get("command", f"{method.upper()} {path}")
+        cmd = entry.get("command", f"{method.upper()} {ident(path, 200)}")
         parts = tokens(change["path"])
         head = parts[0] if parts else ""
         if head == "deprecated" and change["kind"] != "removed":
@@ -327,7 +357,7 @@ class Classifier:
                 self.reconcile.append(f"`{cmd}`: success response changed ({change['kind']} at `{ident(change['path'], 200)}`); "
                                       f"check the command's output and Accept header")
             elif in_schema and code.startswith("2"):
-                self.ship_reasons.append(f"{cmd}: success response schema changed at {change['path']}")
+                self.ship_reasons.append(f"{cmd}: success response schema changed at {ident(change['path'], 200)}")
                 loosened = change["kind"] == "removed" and parts[-1] in CONSTRAINTS | UNION_KEYS
                 if entry and not entry.get("generated") and not loosened:
                     self.notes.append(f"`{cmd}`: the API changed its response.")
@@ -356,7 +386,7 @@ class Classifier:
                         self.notes.append(f"`{cmd}`: the API removed the {key[0]} parameter `{ident(key[1])}`.")
                     else:
                         # Optional: the CLI doesn't send it, so the API uses its default.
-                        self.ship_reasons.append(f"{cmd}: optional {key[0]} parameter {key[1]} added or changed")
+                        self.ship_reasons.append(f"{cmd}: optional {key[0]} parameter {ident(key[1])} added or changed")
                         if a is None:
                             self.new_optional_headers.setdefault(key, []).append(cmd)
                 return
@@ -367,7 +397,7 @@ class Classifier:
                 self.reconcile.append(f"`{cmd}`: request body contract changed at `{ident(change['path'], 200)}`, and the CLI "
                                       f"builds it from flags")
             else:
-                self.ship_reasons.append(f"{cmd}: pass-through request body changed at {change['path']}")
+                self.ship_reasons.append(f"{cmd}: pass-through request body changed at {ident(change['path'], 200)}")
             return
         self.reconcile.append(f"`{cmd}`: {head or 'operation'} changed ({change['kind']} at `{ident(change['path'], 200)}`)")
 
@@ -375,16 +405,16 @@ class Classifier:
         route = (method.upper(), path)
         entry = (self.candidate or {}).get(route)
         if self.candidate is None:
-            self.reconcile.append(f"new operation {route[0]} {path}")
+            self.reconcile.append(f"new operation {route[0]} {ident(path, 200)}")
         elif not entry:
-            self.reconcile.append(f"new operation {route[0]} {path} can't get a generated command, so it needs a hand-written one")
+            self.reconcile.append(f"new operation {route[0]} {ident(path, 200)} can't get a generated command, so it needs a hand-written one")
         else:
             op = self.new["paths"][path][method.lower()]
-            summary = plain(op.get("summary"))
+            summary = value(op.get("summary") or "", 60)
             self.new_commands.append(entry["command"])
             self.notes.append(f"New command `syllable {entry['command']}`" + (f": {summary}" if summary else "")
                               + ". It's generated from the API spec; run it with `--help` for its arguments and request fields.")
-            self.ship_reasons.append(f"new operation {route[0]} {path} got a command (`{entry['command']}`)")
+            self.ship_reasons.append(f"new operation {route[0]} {ident(path, 200)} got a command (`{entry['command']}`)")
 
     def lost_commands(self):
         """A command main has that the candidate build doesn't, for an operation
@@ -394,7 +424,7 @@ class Classifier:
         paths = self.new.get("paths", {})
         for (method, path), entry in sorted(self.ops_by_route.items()):
             if method.lower() in paths.get(path, {}) and (method, path) not in self.candidate:
-                self.reconcile.append(f"`{entry['command']}` ({method} {path}) can no longer be generated, so it needs a hand-written command")
+                self.reconcile.append(f"`{entry['command']}` ({method} {ident(path, 200)}) can no longer be generated, so it needs a hand-written command")
 
     def followups(self):
         """One follow-up per command whose flags or output may no longer fit
@@ -417,12 +447,12 @@ class Classifier:
         for p in d["added_paths"]:
             item = self.new["paths"][p]
             if "$ref" in item or "servers" in item:
-                self.reconcile.append(f"new path {p} uses a path-level `$ref` or `servers`, which generation doesn't support")
+                self.reconcile.append(f"new path {ident(p, 200)} uses a path-level `$ref` or `servers`, which generation doesn't support")
                 continue
             for m in sorted(k for k in item if k in HTTP_METHODS):
                 self.added_operation(m, p)
         for p in d["removed_paths"]:
-            self.reconcile.append(f"removed path {p}")
+            self.reconcile.append(f"removed path {ident(p, 200)}")
         for entry in d["changed_paths"]:
             for m in entry["added_methods"]:
                 self.added_operation(m, entry["path"])

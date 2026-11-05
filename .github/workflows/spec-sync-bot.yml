@@ -49,6 +49,7 @@ jobs:
     outputs:
       action: ${{ steps.plan.outputs.action }}
       delta: ${{ steps.plan.outputs.delta }}
+      spec: ${{ steps.plan.outputs.spec }}
       sha: ${{ steps.push.outputs.sha }}
     steps:
       - name: Checkout
@@ -162,6 +163,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           DELTA: ${{ needs.prepare.outputs.delta }}
+          SPEC: ${{ needs.prepare.outputs.spec }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           # An open bot PR from an earlier run now points at code that fails;
@@ -170,7 +172,7 @@ jobs:
           if [ -n "$number" ]; then
             gh pr close "$number" --comment "The test suite failed with the new spec ($RUN_URL), so the spec-sync routine takes this change over."
           fi
-          python3 scripts/ci/spec_sync_bot.py --handover "$DELTA" --run-url "$RUN_URL"
+          python3 scripts/ci/spec_sync_bot.py --handover "$DELTA" --spec "$SPEC" --run-url "$RUN_URL"
 
   merge:
     needs: [prepare, verify]
