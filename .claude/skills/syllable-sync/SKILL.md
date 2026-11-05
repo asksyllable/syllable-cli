@@ -310,11 +310,10 @@ git add README.md AGENTS.md
 git commit -m "docs: sync README and AGENTS with spec vX.Y.Z"
 ```
 
-If there are breaking changes, note them explicitly in the commit message body and
-flag them to the user; they may need a version bump. Breaking means a working CLI
-invocation or script stops working: removed commands, flags, or paths; removed enum
-values; removed or renamed response fields; or a newly-required field or narrowed type
-on a body the CLI builds from inline flags. A newly-required field or new constraint
-on a body that a command accepts only through `--file` is server-side validation, not
-a CLI break: list it in the release notes and ship it. The full rule is in
-`routines/full-cycle.md`, step B.
+Every change the API makes ships, removals and new requirements included: the
+server enforces its own rules whatever CLI version sends a request, so holding the
+CLI back protects nobody. List each change a user can notice in the PR's release
+notes (what the API removed and what to use instead, a new limit or required field),
+and keep commands working where the CLI can by adding or retiring flags. An
+API-driven removal is not a CLI major version, so never mark the commit `!` or
+`BREAKING CHANGE`. The full policy is at the top of `routines/full-cycle.md`.

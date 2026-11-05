@@ -110,51 +110,112 @@ class Responses(unittest.TestCase):
         r = changed(lambda s: self.route(s).update({"502": {"description": "bad gateway"}}))
         self.assertEqual(r["verdict"], "ship", r)
 
-    def test_json_to_binary_needs_decision(self):  # the case Codex found
+    def test_json_to_binary_reconciles(self):  # the case Codex found
         def mutate(s):
             self.route(s)["200"]["content"] = {"application/octet-stream": {"schema": {"type": "string", "format": "binary"}}}
-        self.assertEqual(changed(mutate)["verdict"], "decision")
+        self.assertEqual(changed(mutate)["verdict"], "reconcile")
 
-    def test_extra_success_media_type_needs_decision(self):
+    def test_extra_success_media_type_reconciles(self):
         def mutate(s):
             self.route(s)["200"]["content"]["text/csv"] = {"schema": {"type": "string"}}
-        self.assertEqual(changed(mutate)["verdict"], "decision")
+        self.assertEqual(changed(mutate)["verdict"], "reconcile")
 
-    def test_removed_success_response_needs_decision(self):
-        self.assertEqual(changed(lambda s: self.route(s).pop("200"))["verdict"], "decision")
+    def test_removed_success_response_reconciles(self):
+        self.assertEqual(changed(lambda s: self.route(s).pop("200"))["verdict"], "reconcile")
 
 
-class Decision(unittest.TestCase):
-    def test_tightening_inline_body(self):
+class ServerEnforced(unittest.TestCase):
+    """Rules the server enforces ship, whichever way the CLI builds the body."""
+
+    def test_new_required_field_on_an_inline_body(self):
         r = changed(lambda s: S(s, "WidgetCreate")["required"].append("size"))
-        self.assertEqual(r["verdict"], "decision", r)
-        self.assertTrue(any("widgets create" in d for d in r["decisions"]))
+        self.assertEqual(r["verdict"], "ship", r)
+        self.assertIn("`widgets create`: `size` is now required (enforced by the API).", r["release_notes"])
+        self.assertEqual(r["followups"], [])  # --size sets it
 
-    def test_removed_field(self):
+    def test_new_required_field_no_flag_sets(self):
+        r = changed(lambda s: S(s, "WidgetCreate")["required"].append("color"))
+        self.assertEqual(r["verdict"], "ship", r)
+        self.assertEqual(len(r["followups"]), 1, r["followups"])
+        self.assertIn("no flag sets `color`", r["followups"][0])
+
+    def test_new_constraint_on_an_inline_body(self):  # like CustomMessageCreateRequest.name in #217
+        r = changed(lambda s: S(s, "WidgetCreate")["properties"]["name"].update(maxLength=255))
+        self.assertEqual(r["verdict"], "ship", r)
+        self.assertIn("`widgets create`: `WidgetCreate.name` now has `maxLength: 255` (enforced by the API).",
+                      r["release_notes"])
+        self.assertEqual(r["followups"], [])
+
+    def test_removed_request_field_a_flag_sets(self):
+        r = changed(lambda s: S(s, "WidgetCreate")["properties"].pop("size"))
+        self.assertEqual(r["verdict"], "ship", r)
+        self.assertIn("still has `--size`", r["followups"][0])
+
+    def test_removed_response_field(self):
         r = changed(lambda s: S(s, "Gadget")["properties"].pop("label"))
-        self.assertEqual(r["verdict"], "decision")
+        self.assertEqual(r["verdict"], "ship", r)
+        self.assertEqual(r["followups"], [])
 
     def test_removed_enum_value(self):  # like AgentSttProvider in #177
         r = changed(lambda s: S(s, "WidgetCreate")["properties"]["color"]["enum"].remove("blue"))
-        self.assertEqual(r["verdict"], "decision")
-        self.assertEqual(len(r["decisions"]), 1, r["decisions"])
+        self.assertEqual(r["verdict"], "ship", r)
+        self.assertEqual([n for n in r["release_notes"] if "no longer accepts" in n],
+                         ["`WidgetCreate.color` no longer accepts: blue (enforced by the API)."])
 
     def test_removed_schema(self):
         r = changed(lambda s: s["components"]["schemas"].pop("Gadget"))
-        self.assertEqual(r["verdict"], "decision")
+        self.assertEqual(r["verdict"], "ship", r)
+        self.assertTrue(any("removed schema `Gadget`" in n for n in r["release_notes"]), r)
 
     def test_new_required_query_parameter(self):
         r = changed(lambda s: s["paths"]["/api/v1/widgets/"]["get"]["parameters"].append(
             {"name": "tenant", "in": "query", "required": True, "schema": {"type": "string"}}))
-        self.assertEqual(r["verdict"], "decision", r)
+        self.assertEqual(r["verdict"], "ship", r)
+        self.assertIn("`widgets list`: new required query parameter `tenant`.", r["release_notes"])
 
     def test_removed_query_parameter(self):
         r = changed(lambda s: s["paths"]["/api/v1/widgets/"]["get"]["parameters"].clear())
-        self.assertEqual(r["verdict"], "decision", r)
+        self.assertEqual(r["verdict"], "ship", r)
+        self.assertIn("`widgets list`: the API removed the query parameter `page`.", r["release_notes"])
 
+    def test_narrowed_query_parameter(self):  # like target_id string -> integer
+        r = changed(lambda s: s["paths"]["/api/v1/widgets/"]["get"]["parameters"][0]["schema"].update(maximum=1000))
+        self.assertEqual(r["verdict"], "ship", r)
+        self.assertIn("`widgets list`: query parameter `page` now has `maximum: 1000` (enforced by the API).",
+                      r["release_notes"])
+
+
+class Headers(unittest.TestCase):
+    def test_new_optional_header_ships_with_a_follow_up(self):  # like X-Insight-Workflow-Format-Version
+        r = changed(lambda s: s["paths"]["/api/v1/widgets/"]["get"]["parameters"].append(
+            {"name": "X-Format", "in": "header", "required": False, "schema": {"type": "integer"}}))
+        self.assertEqual(r["verdict"], "ship", r)
+        self.assertEqual(len(r["followups"]), 1, r)
+        self.assertIn("`widgets list`", r["followups"][0])
+
+    def test_loosened_success_schema_ships(self):  # like insights tools-test losing type: object
+        def mutate(s):
+            schema = s["paths"]["/api/v1/gadgets/"]["post"]["responses"]["200"]["content"]["application/json"]["schema"]
+            schema.clear()
+            schema["title"] = "Anything"
+        self.assertEqual(changed(mutate)["verdict"], "ship")
+
+
+class CodeMustChange(unittest.TestCase):
     def test_security_change(self):
         r = changed(lambda s: s.update(security=[{"ApiKey": []}]))
-        self.assertEqual(r["verdict"], "decision", r)
+        self.assertEqual(r["verdict"], "reconcile", r)
+
+    def test_header_parameter(self):
+        r = changed(lambda s: s["paths"]["/api/v1/widgets/"]["get"]["parameters"].append(
+            {"name": "X-Tenant", "in": "header", "required": True, "schema": {"type": "string"}}))
+        self.assertEqual(r["verdict"], "reconcile", r)
+
+    def test_inline_request_body_contract(self):
+        def mutate(s):
+            s["paths"]["/api/v1/widgets/"]["post"]["requestBody"]["content"] = {
+                "multipart/form-data": {"schema": {"$ref": "#/components/schemas/WidgetCreate"}}}
+        self.assertEqual(changed(mutate)["verdict"], "reconcile")
 
 
 class Reconcile(unittest.TestCase):
@@ -166,7 +227,7 @@ class Reconcile(unittest.TestCase):
         r = changed(lambda s: s["paths"]["/api/v1/gadgets/"].update(get={"operationId": "gadgets_list", "responses": {}}))
         self.assertEqual(r["verdict"], "reconcile")
 
-    def test_removed_path_outranks_decisions(self):
+    def test_removed_path_outranks_shipping(self):
         def mutate(s):
             s["paths"].pop("/api/v1/gadgets/")
             S(s, "Gadget")["properties"].pop("label")
@@ -210,12 +271,13 @@ class GeneratedCommands(unittest.TestCase):
         self.assertEqual(r["verdict"], "reconcile", r)
         self.assertIn("`gadgets create` (POST /api/v1/gadgets/) can no longer be generated", r["reconcile"][0])
 
-    def test_new_command_rides_along_with_a_decision(self):
+    def test_new_command_rides_along_with_a_removed_field(self):
         def mutate(s):
             s["paths"].update(copy.deepcopy(SPROCKETS))
             S(s, "WidgetCreate")["properties"].pop("size")
         r = with_candidate(mutate, {**OPS, **SPROCKETS_OP})
-        self.assertEqual(r["verdict"], "decision", r)
+        self.assertEqual(r["verdict"], "ship", r)
+        self.assertEqual(r["new_commands"], ["sprockets list"])
         self.assertTrue(any("sprockets list" in n for n in r["release_notes"]))
 
 

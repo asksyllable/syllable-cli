@@ -216,7 +216,7 @@ const generatedFixtureSpec = `{
     },
     "/api/v1/widgets/traced": {
       "get": {"tags": ["widgets"], "operationId": "widget_traced", "summary": "Traced", "security": [{"APIKeyHeader": []}],
-        "parameters": [{"name": "X-Trace", "in": "header", "schema": {"type": "string"}}],
+        "parameters": [{"name": "X-Trace", "in": "header", "required": true, "schema": {"type": "string"}}],
         "responses": {"200": {"content": {"application/json": {"schema": {"type": "object"}}}}}}
     },
     "/api/v1/widgets/collide": {
@@ -235,6 +235,7 @@ const generatedFixtureSpec = `{
     },
     "/api/v1/widgets/either-auth": {
       "get": {"tags": ["widgets"], "operationId": "widget_either_auth", "summary": "Either credential", "security": [{"OAuth2": ["x"]}, {"APIKeyHeader": []}],
+        "parameters": [{"name": "X-Format-Version", "in": "header", "schema": {"type": "integer"}}],
         "responses": {"200": {"content": {"application/json": {"schema": {"type": "object"}}}}}}
     },
     "/api/v1/widgets/status": {
@@ -287,6 +288,7 @@ func TestGeneratedCommandNames(t *testing.T) {
 		"PUT /api/v1/agents/{agent_id}/notes":               "agents notes-update",
 		"GET /api/v1/agents/by-name/{name}":                 "agents agent-get",         // `agents get` is hand-written
 		"GET /api/v1/sessions/timeline/{session_id}/export": "sessions timeline-export", // `sessions timeline` is a leaf
+		"GET /api/v1/widgets/status":                        "widgets get-status",       // `status` is reserved
 	}
 	for route, command := range want {
 		if got[route] != command {
@@ -300,9 +302,8 @@ func TestGeneratedCommandNames(t *testing.T) {
 		"widget_upload":          "takes a multipart/form-data request body",
 		"widget_export":          "returns text/csv",
 		"widget_public":          "does not authenticate",
-		"widget_traced":          "takes a header parameter",
+		"widget_traced":          "takes a required header parameter",
 		"widget_collide":         "collide with the --output flag",
-		"(status)":               `"status" is reserved`,
 		"widget_binary":          "uses a referenced response",
 		"widget_both_auth":       "does not authenticate",
 		"/api/v1/widgets/shared": `"$ref" the generator doesn't support`,

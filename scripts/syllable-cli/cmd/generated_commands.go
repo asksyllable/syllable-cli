@@ -301,8 +301,9 @@ var (
 
 // generationBlocker explains why an operation can't get a generated command,
 // or returns "" when it can. Generation covers JSON-in, JSON-out operations
-// that authenticate with the API key. Uploads, downloads, form bodies, header
-// parameters, and anonymous operations still need a hand-written command.
+// that authenticate with the API key. Uploads, downloads, form bodies, required
+// header or cookie parameters, and anonymous operations still need a
+// hand-written command.
 func generationBlocker(op specOperation, doc *specDocument) string {
 	switch op.Method {
 	case "GET", "POST", "PUT", "PATCH", "DELETE":
@@ -346,6 +347,11 @@ func generationBlocker(op specOperation, doc *specDocument) string {
 				return fmt.Sprintf("has query parameters %q and %q that would share the --%s flag", other, p.Name, name)
 			}
 			flags[name] = p.Name
+		case "header", "cookie":
+			// The command doesn't send optional ones, so the API uses its default.
+			if p.Required {
+				return fmt.Sprintf("takes a required %s parameter (%s)", p.In, p.Name)
+			}
 		default:
 			return fmt.Sprintf("takes a %s parameter (%s)", p.In, p.Name)
 		}
@@ -469,8 +475,9 @@ func validGeneratedWord(word string) error {
 // (agents.test is `agents test`), and its operationId, minus the words that
 // repeat the group, gives the verb (agent_list_active_labels under agents is
 // `list-active-labels`). A tag segment that is already a hand-written leaf
-// command becomes part of the verb instead (`sessions timeline-export`). On a
-// name collision the verb falls back to the whole operationId.
+// command becomes part of the verb instead (`sessions timeline-export`). A
+// reserved verb gets the method's verb in front (`get-version`). On a name
+// collision the verb falls back to the whole operationId.
 func generatedCommandWords(op specOperation, root *cobra.Command) ([]string, error) {
 	if len(op.Tags) == 0 {
 		return nil, fmt.Errorf("has no tag to group it under")
@@ -516,7 +523,7 @@ func generatedCommandWords(op specOperation, root *cobra.Command) ([]string, err
 	if len(verb) == 0 {
 		verb = []string{defaultGeneratedVerb(op)}
 	}
-	words := append(append([]string(nil), groups...), strings.Join(append(append([]string(nil), prefix...), verb...), "-"))
+	words := append(append([]string(nil), groups...), unreservedVerb(op, strings.Join(append(append([]string(nil), prefix...), verb...), "-")))
 	if commandExists(root, words) {
 		words[len(words)-1] = strings.Join(append(append([]string(nil), prefix...), idTokens...), "-")
 		if commandExists(root, words) {
@@ -529,6 +536,20 @@ func generatedCommandWords(op specOperation, root *cobra.Command) ([]string, err
 		}
 	}
 	return words, nil
+}
+
+// unreservedVerb puts the method's verb in front of a verb the CLI reserves:
+// a command named version would run without credentials, so the operation
+// custom_message_version is `custom-messages get-version`.
+func unreservedVerb(op specOperation, verb string) string {
+	if _, reserved := noAuthCommandNames[verb]; !reserved {
+		return verb
+	}
+	prefix := defaultGeneratedVerb(op)
+	if op.Method == "GET" {
+		prefix = "get"
+	}
+	return prefix + "-" + verb
 }
 
 func defaultGeneratedVerb(op specOperation) string {

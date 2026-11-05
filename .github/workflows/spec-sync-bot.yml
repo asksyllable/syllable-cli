@@ -2,14 +2,15 @@ name: Spec Sync Bot
 
 # Keeps the embedded OpenAPI spec in step with upstream, with no AI involved.
 # Daily (after spec-drift) and on demand, it fetches upstream at a pinned commit
-# and classifies the change (scripts/ci/classify_drift.py):
-#   - safe, or a breaking change accepted with the `decision:accept` label for
-#     exactly this delta: sync it on the bot branch, run the full test suite on
-#     that commit, merge, then run the live check and the release train;
-#   - breaking: open one plain-language decision issue for a human;
-#   - a new operation the CLI can't generate a command for, or a removed one:
-#     leave it for the spec-sync routine or a person (commands must change
-#     first) and say so once on the drift issue.
+# and classifies the change (scripts/ci/classify_drift.py). No change waits for
+# a person:
+#   - syncing is enough (anything additive, and any rule the API enforces
+#     whatever CLI version sends the request): sync it on the bot branch, run
+#     the full test suite on that commit, merge, file follow-ups for flags the
+#     change left behind, then run the live check and the release train;
+#   - CLI code must change first (an operation the CLI can't generate a command
+#     for, a removed one, or a failed test run): leave it for the local
+#     spec-sync routine and say so once on the drift issue.
 # New operations usually get generated commands: before classifying, it builds
 # the CLI with the upstream spec and runs `go generate ./cmd`, which names them.
 # PRs it opens with GITHUB_TOKEN trigger no workflows, so it runs the required
@@ -47,7 +48,7 @@ jobs:
       pull-requests: read
     outputs:
       action: ${{ steps.plan.outputs.action }}
-      accepted_issue: ${{ steps.plan.outputs.accepted_issue }}
+      delta: ${{ steps.plan.outputs.delta }}
       sha: ${{ steps.push.outputs.sha }}
     steps:
       - name: Checkout
@@ -93,7 +94,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
           UPSTREAM_SHA: ${{ steps.upstream.outputs.sha }}
-          SPEC_DECIDERS: ${{ vars.SPEC_DECIDERS || 'yorkable' }}
         run: |
           flag=""
           [ "$DRY_RUN" = "true" ] && flag="--dry-run"
@@ -135,6 +135,7 @@ jobs:
           path: |
             ${{ runner.temp }}/bot/pr-body.md
             ${{ runner.temp }}/bot/pr-title.txt
+            ${{ runner.temp }}/bot/classification.json
 
   verify:
     needs: prepare
@@ -142,6 +143,26 @@ jobs:
     uses: ./.github/workflows/test.yml
     with:
       ref: ${{ needs.prepare.outputs.sha }}
+
+  handover:
+    # The tests failed with the new spec, so CLI code or tests must change
+    # first: hand the sync to the local routine, once per change.
+    needs: [prepare, verify]
+    if: always() && needs.prepare.outputs.action == 'ship' && needs.verify.result == 'failure'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Hand the sync to the spec-sync routine
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DELTA: ${{ needs.prepare.outputs.delta }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: python3 scripts/ci/spec_sync_bot.py --handover "$DELTA" --run-url "$RUN_URL"
 
   merge:
     needs: [prepare, verify]
@@ -205,12 +226,11 @@ jobs:
           gh pr merge "$PR_NUMBER" --squash --delete-branch --match-head-commit "$SHA"
           echo "merged=true" >> "$GITHUB_OUTPUT"
 
-      - name: Close the accepted decision
-        if: needs.prepare.outputs.accepted_issue != '' && steps.merge.outputs.merged == 'true'
+      - name: File follow-ups for the spec-sync routine
+        if: steps.merge.outputs.merged == 'true'
         env:
-          ISSUE: ${{ needs.prepare.outputs.accepted_issue }}
           PR_NUMBER: ${{ steps.pr.outputs.number }}
-        run: gh issue close "$ISSUE" --comment "Shipped in #$PR_NUMBER." || true
+        run: python3 scripts/ci/spec_sync_bot.py --file-followups classification.json --pr "$PR_NUMBER"
 
       - name: Live-check main, then release
         # A merge made with GITHUB_TOKEN triggers no workflows, so start the
