@@ -246,7 +246,7 @@ None that holding the CLI back would prevent. The release notes list each change
 After the merge, the bot files these as `{FOLLOWUP_LABEL}` issues for the local spec-sync routine.
 
 ## Release notes
-{chr(10).join(notes)}
+{chr(10).join(f"- {n}" for n in notes)}
 
 {closes}
 """
