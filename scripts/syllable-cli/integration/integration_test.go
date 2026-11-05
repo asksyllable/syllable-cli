@@ -549,6 +549,47 @@ func TestToolsHistory(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// Custom message history, prompt labels, directory tag keys — spec-sync 2026-10
+// ---------------------------------------------------------------------------
+
+func TestCustomMessagesHistory(t *testing.T) {
+	name := testName("GreetingHistory")
+	out := mustRunCLI(t, "custom-messages", "create",
+		"--name", name,
+		"--text", "Hello, this is a test greeting.",
+	)
+	id := mustExtractField(t, out, "id")
+	registerDelete("custom-messages", "delete", id)
+
+	out = runCLIUnlessUndeployed(t, "history", "custom-messages", "history", id)
+	var history struct {
+		Items []struct {
+			VersionNumber json.Number `json:"version_number"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(out, &history); err != nil {
+		t.Fatalf("parse history: %v (raw: %s)", err, string(out))
+	}
+	if len(history.Items) == 0 {
+		t.Fatalf("expected at least one version for a new custom message, got: %s", string(out))
+	}
+
+	version := history.Items[0].VersionNumber.String()
+	out = mustRunCLI(t, "custom-messages", "get-version", id, version)
+	assertContains(t, string(out), name)
+}
+
+func TestPromptsListActiveLabels(t *testing.T) {
+	// Read-only listing; the org may have zero prompt labels.
+	runCLIUnlessUndeployed(t, "labels", "prompts", "list-active-labels")
+}
+
+func TestDirectoryTagKeyExists(t *testing.T) {
+	// Read-only lookup of a key no member should carry.
+	runCLIUnlessUndeployed(t, "tag-key-exists", "directory", "tag-key-exists", "--key", "test-integ-unused-key")
+}
+
+// ---------------------------------------------------------------------------
 // Twilio A2P compliance check (gated — needs a Twilio channel + number)
 // ---------------------------------------------------------------------------
 

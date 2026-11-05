@@ -9,7 +9,9 @@ description: |
 
 A Go CLI for managing the Syllable AI platform. Source and releases: **https://github.com/asksyllable/syllable-cli**
 
-> **Docs synced to CLI v2.3.3** — bump this marker whenever these docs are updated for a new release.
+> **Docs synced to CLI v2.5.0** — bump this marker whenever these docs are updated for a new release.
+>
+> v2.5.0 (minor) highlights: custom messages now keep a version history. New `custom-messages history <id>` lists saved versions and `custom-messages get-version <id> <version>` fetches one. Message create/update bodies accept `edit_comments`, and updates accept `expected_version` (reject the save if someone else changed the message first) and `restored_from_version`; responses add `version_number` and `type_config`. Message names are now limited to 255 characters (enforced by the API). Prompts gain `labels`, with a new generated `prompts list-active-labels` command; directories gain a generated `directory tag-key-exists --key KEY` command. At release time prod did not yet serve these four new endpoints; the commands start working once the backend deploys them.
 >
 > v2.3.3 (patch) highlights: field-only spec sync. The prompt `llm_config.seed` field is now marked deprecated by the API; existing prompts keep working, but avoid it in new ones. No commands or flags changed.
 >

@@ -30,7 +30,11 @@ func customMessagesCmd() *cobra.Command {
   syllable custom-messages update 7 --file message.json
 
   # Delete a custom message
-  syllable custom-messages delete 7`,
+  syllable custom-messages delete 7
+
+  # See the edit history for a custom message, then fetch one version
+  syllable custom-messages history 7
+  syllable custom-messages get-version 7 3`,
 	}
 
 	cmd.AddCommand(customMessagesListCmd())
@@ -38,6 +42,8 @@ func customMessagesCmd() *cobra.Command {
 	cmd.AddCommand(customMessagesCreateCmd())
 	cmd.AddCommand(customMessagesUpdateCmd())
 	cmd.AddCommand(customMessagesDeleteCmd())
+	cmd.AddCommand(customMessagesHistoryCmd())
+	cmd.AddCommand(customMessagesGetVersionCmd())
 
 	return cmd
 }
@@ -265,6 +271,130 @@ func customMessagesDeleteCmd() *cobra.Command {
 			} else {
 				fmt.Printf("Custom message %s deleted.\n", args[0])
 			}
+			return nil
+		},
+	}
+}
+
+func customMessagesHistoryCmd() *cobra.Command {
+	var page, limit int
+	var orderByDirection string
+
+	cmd := &cobra.Command{
+		Use:   "history <custom-message-id>",
+		Short: "List version history for a custom message",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			path := fmt.Sprintf("/api/v1/custom_messages/%s/history?page=%d&limit=%d", url.PathEscape(args[0]), page, limit)
+			if orderByDirection != "" {
+				path += "&order_by_direction=" + url.QueryEscape(orderByDirection)
+			}
+
+			data, _, err := apiClient.Get(path)
+			if err != nil {
+				return err
+			}
+
+			if getOutputFmt() == "json" {
+				output.PrintJSON(data)
+				return nil
+			}
+
+			var result struct {
+				Items []struct {
+					VersionNumber json.Number `json:"version_number"`
+					Operation     string      `json:"operation"`
+					UpdatedBy     *string     `json:"updated_by"`
+					CreatedAt     string      `json:"created_at"`
+					Comments      *string     `json:"comments"`
+				} `json:"items"`
+				TotalCount *int `json:"total_count"`
+			}
+			if err := json.Unmarshal(data, &result); err != nil {
+				output.PrintJSON(data)
+				return nil
+			}
+
+			headers := []string{"VERSION", "OPERATION", "UPDATED_BY", "CREATED_AT", "COMMENTS"}
+			rows := make([][]string, len(result.Items))
+			for i, h := range result.Items {
+				updatedBy, comments := "", ""
+				if h.UpdatedBy != nil {
+					updatedBy = *h.UpdatedBy
+				}
+				if h.Comments != nil {
+					comments = output.Truncate(*h.Comments, 40)
+				}
+				rows[i] = []string{h.VersionNumber.String(), h.Operation, updatedBy, h.CreatedAt, comments}
+			}
+			printTable(headers, rows)
+			if result.TotalCount != nil {
+				fmt.Printf("\nTotal: %d\n", *result.TotalCount)
+			}
+			return nil
+		},
+	}
+
+	cmd.Flags().IntVar(&page, "page", 0, "Page number (0-based)")
+	cmd.Flags().IntVar(&limit, "limit", 25, "Max items to return")
+	cmd.Flags().StringVar(&orderByDirection, "order-by-direction", "", "Sort direction: asc or desc")
+
+	return cmd
+}
+
+// Named get-version, not version: a command named version anywhere in the
+// tree runs without credentials (noAuthCommandNames).
+func customMessagesGetVersionCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "get-version <custom-message-id> <version>",
+		Short: "Get one saved version of a custom message",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			data, _, err := apiClient.Get("/api/v1/custom_messages/" + url.PathEscape(args[0]) + "/history/" + url.PathEscape(args[1]))
+			if err != nil {
+				return err
+			}
+
+			if getOutputFmt() == "json" {
+				output.PrintJSON(data)
+				return nil
+			}
+
+			var m struct {
+				ID            json.Number `json:"custom_message_id"`
+				VersionNumber json.Number `json:"version_number"`
+				Operation     string      `json:"operation"`
+				Name          string      `json:"name"`
+				Type          string      `json:"type"`
+				Text          string      `json:"text"`
+				UpdatedBy     *string     `json:"updated_by"`
+				CreatedAt     string      `json:"created_at"`
+				Comments      *string     `json:"comments"`
+			}
+			if err := json.Unmarshal(data, &m); err != nil {
+				output.PrintJSON(data)
+				return nil
+			}
+
+			updatedBy, comments := "", ""
+			if m.UpdatedBy != nil {
+				updatedBy = *m.UpdatedBy
+			}
+			if m.Comments != nil {
+				comments = output.Truncate(*m.Comments, 80)
+			}
+			rows := [][]string{
+				{"Custom Message ID", m.ID.String()},
+				{"Version", m.VersionNumber.String()},
+				{"Operation", m.Operation},
+				{"Name", m.Name},
+				{"Type", m.Type},
+				{"Text", output.Truncate(m.Text, 80)},
+				{"Updated By", updatedBy},
+				{"Created At", m.CreatedAt},
+				{"Comments", comments},
+			}
+			printTable([]string{"FIELD", "VALUE"}, rows)
 			return nil
 		},
 	}

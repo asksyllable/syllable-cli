@@ -2334,6 +2334,56 @@ func TestToolsHistory(t *testing.T) {
 	}
 }
 
+func TestCustomMessagesHistory(t *testing.T) {
+	var method, path, query string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		path = r.URL.Path
+		query = r.URL.RawQuery
+		json.NewEncoder(w).Encode(map[string]interface{}{"items": []interface{}{}, "page": 0, "page_size": 25})
+	})
+	defer server.Close()
+
+	cmd := customMessagesHistoryCmd()
+	cmd.SetArgs([]string{"5", "--order-by-direction", "asc"})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "GET" {
+		t.Errorf("expected GET, got %s", method)
+	}
+	if path != "/api/v1/custom_messages/5/history" {
+		t.Errorf("unexpected path: %s", path)
+	}
+	if query != "page=0&limit=25&order_by_direction=asc" {
+		t.Errorf("unexpected query: %s", query)
+	}
+}
+
+func TestCustomMessagesGetVersion(t *testing.T) {
+	var method, path string
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		path = r.URL.Path
+		json.NewEncoder(w).Encode(map[string]interface{}{"custom_message_id": 5, "version_number": 3})
+	})
+	defer server.Close()
+
+	cmd := customMessagesGetVersionCmd()
+	cmd.SetArgs([]string{"5", "3"})
+	captureStdout(func() {
+		cmd.Execute()
+	})
+
+	if method != "GET" {
+		t.Errorf("expected GET, got %s", method)
+	}
+	if path != "/api/v1/custom_messages/5/history/3" {
+		t.Errorf("unexpected path: %s", path)
+	}
+}
+
 func TestChannelsTwilioVerifyA2p(t *testing.T) {
 	var method, path string
 	var body map[string]interface{}
