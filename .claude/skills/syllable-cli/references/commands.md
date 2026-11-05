@@ -549,7 +549,14 @@ Commands for API operations that don't have a hand-written command yet are gener
 
 | Command | API | What it does |
 |---|---|---|
+| `syllable agents get-version <agent-id> <version>` | `GET /api/v1/agents/{agent_id}/history/{version}` | Agent Version |
+| `syllable agents history <agent-id>` | `GET /api/v1/agents/{agent_id}/history` | Agent History |
+| `syllable agents lifecycle-summary` | `GET /api/v1/agents/lifecycle-summary` | Agent Lifecycle Summary |
 | `syllable directory tag-key-exists` | `GET /api/v1/directory_members/tag-key-exists` | Directory Tag Key Exists |
+| `syllable experiments pause <experiment-id>` | `POST /api/v1/experiments/{experiment_id}/pause` | Pause Experiment |
+| `syllable insights current-workflow-results` | `GET /api/v1/insights/workflow-results` | Current Insight Workflow Results |
+| `syllable insights file-test-transcript <file-id>` | `GET /api/v1/insights/files/{file_id}/test-transcript` | Uploaded File Tester Transcript |
+| `syllable insights workflows condition-catalog` | `GET /api/v1/insights/workflows/condition-catalog` | Insight Workflow Condition Catalog |
 | `syllable prompts list-active-labels` | `GET /api/v1/prompts/labels` | List Active Prompt Labels |
 <!-- END GENERATED COMMANDS -->
 
