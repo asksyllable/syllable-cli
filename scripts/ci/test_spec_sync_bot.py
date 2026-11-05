@@ -2,11 +2,14 @@
 
 Run: python3 -m unittest discover -s scripts/ci -p 'test_*.py'
 """
+import hashlib
 import os
 import sys
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import spec_sync_bot  # noqa: E402
 from spec_sync_bot import fenced, inert  # noqa: E402
 
 
@@ -36,6 +39,56 @@ class Fenced(unittest.TestCase):
         fence = block.split("\n", 1)[0]
         self.assertGreater(len(fence), 4)
         self.assertTrue(block.endswith("\n" + fence))
+
+
+class Handover(unittest.TestCase):
+    def comment(self, existing):
+        calls = []
+
+        def fake_gh(*args, check=True):
+            calls.append(args)
+            return existing if args[:2] == ("issue", "view") else ""
+        with mock.patch.object(spec_sync_bot, "gh", fake_gh), \
+                mock.patch.object(spec_sync_bot, "gh_json", lambda *a: [{"number": 215}]):
+            spec_sync_bot.reconcile_comment("abc123", "f00d", ["the tests failed"])
+        return [c for c in calls if c[:2] == ("issue", "comment")]
+
+    def test_marker_names_the_change_and_the_spec(self):
+        posted = self.comment("")
+        self.assertEqual(len(posted), 1)
+        self.assertIn("<!-- spec-sync-bot reconcile delta: abc123 spec: f00d -->", posted[0][-1])
+
+    def test_once_per_change(self):
+        self.assertEqual(self.comment("<!-- spec-sync-bot reconcile delta: abc123 spec: f00d -->"), [])
+
+
+class Followups(unittest.TestCase):
+    def file(self, followups, existing=""):
+        calls = []
+
+        def fake_gh(*args, check=True):
+            calls.append(args)
+            return existing if args[:2] == ("issue", "list") else ""
+        with mock.patch.object(spec_sync_bot, "gh", fake_gh):
+            spec_sync_bot.file_followups(followups, pr="12")
+        return [c for c in calls if c[:2] == ("issue", "create")]
+
+    def test_each_follow_up_is_filed_once(self):
+        old = f"<!-- cli-followup: {hashlib.sha256(b'already filed').hexdigest()[:16]} -->"
+        created = self.file(["already filed", "`widgets create`: add a\nflag"], existing=old)
+        self.assertEqual(len(created), 1)
+        args = created[0]
+        self.assertEqual(args[args.index("--title") + 1], "Follow-up: widgets create: add a flag")
+        self.assertIn("in #12", args[args.index("--body") + 1])
+
+    def test_title_stays_inert_without_backticks(self):
+        created = self.file([inert("`widgets create`: `@octocat` and fixes `#12`")])
+        title = created[0][created[0].index("--title") + 1]
+        self.assertNotIn("@octocat", title)
+        self.assertNotIn("#12", title)
+
+    def test_nothing_to_file(self):
+        self.assertEqual(self.file([]), [])
 
 
 if __name__ == "__main__":

@@ -73,7 +73,7 @@ jobs:
             --notes-out "$RUNNER_TEMP/notes.md" | tee -a "$GITHUB_OUTPUT"
           [ -f "$RUNNER_TEMP/notes.md" ] && cat "$RUNNER_TEMP/notes.md" >> "$GITHUB_STEP_SUMMARY" || true
 
-      - name: Flag a breaking change for a human
+      - name: Flag a breaking change for the spec-sync routine
         if: steps.plan.outputs.breaking == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -81,7 +81,7 @@ jobs:
         run: |
           title="Release train held: breaking change since $LAST"
           if [ -z "$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number')" ]; then
-            gh issue create --title "$title" --assignee yorkable --body "The release train found a breaking-change marker (\`!:\` or \`BREAKING CHANGE\`) in the commits since $LAST, so it will not release automatically. Majors stay a human decision: tag the release by hand when ready, then close this issue."
+            gh issue create --title "$title" --body "The release train found a breaking-change marker (\`!:\` or \`BREAKING CHANGE\`) in the commits since $LAST, so it will not release automatically. Majors are tagged by hand. The local spec-sync routine checks the marked commit: if it only mirrors an API change, it tags the next minor; if the CLI itself broke something, it tags the next major. It closes this issue either way."
           fi
 
       - name: Upload release notes

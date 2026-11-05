@@ -9,21 +9,25 @@ CLI's operation map, and the map from a build with the upstream spec (where
   none       Already in sync.
   busy       A reconciliation PR from someone else (the local routine or a
              person) is open; stay out of its way.
-  ship       Safe change (new operations included, when they got generated
-             commands), or a breaking change a human accepted for exactly this
-             delta: write the new spec and docs marker into the working tree,
-             plus the commit message, PR title, and PR body files.
-  wait       A decision issue for this exact delta is open and not yet
-             accepted. Nothing to do.
-  decision   Breaking change: open a decision issue (superseding older ones).
-  reconcile  Commands must change first (an operation was removed, or an
-             added one can't be generated), or the CLI didn't build with the
-             new spec. Note it once on the spec-drift issue.
+  ship       Syncing the spec is enough (new operations included, when they
+             got generated commands): write the new spec and docs marker into
+             the working tree, plus the commit message, PR title, and PR body
+             files.
+  reconcile  CLI code must change first (see classify_drift.py), or the CLI
+             didn't build with the new spec. Note it once on the spec-drift
+             issue for the local spec-sync routine.
 
-Writes `action=...` (and `accepted_issue=`) to stdout for $GITHUB_OUTPUT.
+No change waits for a person. After a shipped sync merges, `--file-followups`
+files its follow-ups (flags the API's change left behind) as `cli-followup`
+issues, which the local routine works through. If the test suite fails on the
+bot's commit, the workflow hands the sync to the routine the same way as a
+reconcile.
+
+Writes `action=...`, `delta=...`, and `spec=...` to stdout for $GITHUB_OUTPUT.
 Issue text follows CONTRIBUTING's Public repo hygiene rules.
 """
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -37,10 +41,9 @@ REPO = os.environ.get("GITHUB_REPOSITORY", "asksyllable/syllable-cli")
 BOT_BRANCH = "spec-sync/bot"
 SPEC = "scripts/syllable-cli/internal/spec/openapi.json"
 SKILL = ".claude/skills/syllable-cli/SKILL.md"
-DECISION_LABEL = "spec-decision"
-# Only these GitHub users' decision:accept labels count (comma-separated).
-DECIDERS = {u.strip() for u in os.environ.get("SPEC_DECIDERS", "yorkable").split(",") if u.strip()}
-ACCEPT_LABEL = "decision:accept"
+FOLLOWUP_LABEL = "cli-followup"
+# The routine finds a hand-over by the upstream spec's sha256 (`shasum -a 256`).
+RECONCILE_MARKER = "<!-- spec-sync-bot reconcile delta: {delta} spec: {spec} -->"
 
 
 # A closing keyword only matters before an issue reference or URL.
@@ -76,18 +79,44 @@ def gh_json(*args):
     return json.loads(out) if out.strip() else []
 
 
-def accepted_by(number):
-    """Who most recently applied the accept label to this issue."""
-    logins = gh("api", "--paginate", f"repos/{REPO}/issues/{number}/events", "--jq",
-                f'.[] | select(.event == "labeled" and .label.name == "{ACCEPT_LABEL}") | .actor.login').split()
-    return logins[-1] if logins else ""
+def reconcile_comment(delta, spec, items, dry_run=False):
+    """Ask the local spec-sync routine to reconcile, once per change, on the
+    open spec-drift issue."""
+    drift = gh_json("issue", "list", "--repo", REPO, "--label", "spec-drift", "--state", "open", "--json", "number")
+    marker = RECONCILE_MARKER.format(delta=delta, spec=spec)
+    if not drift or dry_run:
+        return
+    n = drift[0]["number"]
+    comments = gh("issue", "view", str(n), "--repo", REPO, "--json", "comments", "--jq", ".comments[].body")
+    if f"spec-sync-bot reconcile delta: {delta} " in comments:
+        return
+    lines = "\n".join(f"- {r}" for r in items)
+    gh("issue", "comment", str(n), "--repo", REPO, "--body",
+       f"CLI code must change before this spec change can land, so the local spec-sync routine reconciles it:"
+       f"\n\n{lines}\n\n{marker}")
 
 
-def ensure_labels():
-    gh("label", "create", DECISION_LABEL, "--repo", REPO, "--color", "D93F0B",
-       "--description", "A breaking upstream API change waiting for a human decision", check=False)
-    gh("label", "create", ACCEPT_LABEL, "--repo", REPO, "--color", "0E8A16",
-       "--description", "Ship this exact spec change (spec-sync bot)", check=False)
+def file_followups(followups, pr=""):
+    """One `cli-followup` issue per follow-up, never filed twice (a closed one
+    means the routine already handled or declined it)."""
+    if not followups:
+        return
+    gh("label", "create", FOLLOWUP_LABEL, "--repo", REPO, "--color", "C5DEF5",
+       "--description", "CLI polish the spec-sync routine picks up", check=False)
+    existing = gh("issue", "list", "--repo", REPO, "--label", FOLLOWUP_LABEL, "--state", "all", "--limit", "500",
+                  "--json", "body", "--jq", ".[].body")
+    shipped = f" in #{pr}" if pr else ""
+    for text in followups:
+        marker = f"<!-- cli-followup: {hashlib.sha256(text.encode()).hexdigest()[:16]} -->"
+        if marker in existing:
+            continue
+        # Without backticks, text that was inert inside code spans could act as
+        # a mention or closing keyword again, so neutralize the title anew.
+        title = inert(re.sub(r"\s+", " ", text.replace("`", "")))
+        title = "Follow-up: " + (title if len(title) <= 100 else title[:99].rstrip() + "…")
+        gh("issue", "create", "--repo", REPO, "--label", FOLLOWUP_LABEL, "--title", title, "--body",
+           f"{text}\n\nThe spec sync{shipped} shipped this API change, but the CLI's flags haven't caught up. "
+           f"The local spec-sync routine works through open `{FOLLOWUP_LABEL}` issues.\n\n{marker}")
 
 
 def next_tag(minor):
@@ -113,40 +142,38 @@ def bump_skill_marker(version, notes, new_commands):
     open(SKILL, "w").write(text)
 
 
-def decision_body(result, upstream_sha):
-    lines = "\n".join(f"- {d}" for d in result["decisions"])
-    safe = "\n".join(f"- {n}" for n in result["release_notes"]) or "- (nothing else)"
-    return f"""The upstream API spec (SDK commit `{upstream_sha[:10]}`) contains changes that could break existing CLI invocations, so the spec-sync bot won't ship them on its own.
-
-**Needs a decision:**
-{lines}
-
-**Also in this change (safe on its own):**
-{safe}
-
-**Recommended: accept.** These changes already happened on the server, so syncing makes the CLI's help, `schema` output, and `--dry-run` checks match what the API enforces. Hold off only if users need a warning first, or if a command needs a new flag before the change ships.
-
-**To ship it:** add the `{ACCEPT_LABEL}` label. The bot's next run syncs exactly this change and closes this issue. If upstream changes again first, the bot opens a fresh issue and closes this one, because an acceptance only applies to the change it was given for.
-
-<!-- spec-decision delta: {result['delta']} upstream: {upstream_sha} -->
-"""
-
-
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--upstream", required=True)
-    ap.add_argument("--upstream-sha", required=True)
-    ap.add_argument("--operations", required=True)
+    ap.add_argument("--upstream")
+    ap.add_argument("--upstream-sha")
+    ap.add_argument("--operations")
     ap.add_argument("--candidate-operations",
                     help="`__operations` from a build with the upstream spec; missing or empty if that build failed")
-    ap.add_argument("--out-dir", required=True)
+    ap.add_argument("--out-dir")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--file-followups", metavar="CLASSIFICATION_JSON",
+                    help="after a merge: file the follow-ups from this run's classification.json, then exit")
+    ap.add_argument("--pr", default="", help="with --file-followups: the merged sync PR's number")
+    ap.add_argument("--handover", metavar="DELTA",
+                    help="the tests failed on the bot's commit: hand this change to the routine, then exit")
+    ap.add_argument("--run-url", default="")
+    ap.add_argument("--spec", default="", help="with --handover: the upstream spec's sha256")
     args = ap.parse_args()
+    if args.file_followups:
+        return file_followups(json.load(open(args.file_followups)).get("followups", []), args.pr)
+    if args.handover:
+        return reconcile_comment(args.handover, args.spec, [
+            f"the test suite failed with the new spec{f' ({args.run_url})' if args.run_url else ''}, so CLI code or "
+            f"tests must change first"])
+    missing = [f"--{k.replace('_', '-')}" for k in ("upstream", "upstream_sha", "operations", "out_dir") if not getattr(args, k)]
+    if missing:
+        ap.error("missing " + ", ".join(missing))
 
     # The working tree may already hold the upstream spec (the candidate build).
     old = json.loads(subprocess.run(["git", "show", f"HEAD:{SPEC}"], check=True,
                                     capture_output=True, text=True).stdout)
     new = json.load(open(args.upstream))
+    spec_hash = hashlib.sha256(open(args.upstream, "rb").read()).hexdigest()
     candidate = None
     if args.candidate_operations:
         try:
@@ -154,7 +181,7 @@ def main():
         except (OSError, ValueError):
             candidate = None
     result = classify(old, new, json.load(open(args.operations)), candidate)
-    for key in ("reconcile", "decisions", "release_notes", "ship_reasons"):
+    for key in ("reconcile", "release_notes", "followups", "ship_reasons"):
         result[key] = [inert(line) for line in result[key]]
     # A failed candidate build blocks the sync even when the contract diff is
     # empty: an operationId rename alone breaks a hand-written mapping.
@@ -181,53 +208,14 @@ def main():
         print(f"Open reconciliation PR(s) {[p['number'] for p in others]}; leaving drift to them.", file=sys.stderr)
         return emit("busy")
 
-    accepted_issue = ""
     if result["verdict"] == "reconcile":
-        drift = gh_json("issue", "list", "--repo", REPO, "--label", "spec-drift", "--state", "open", "--json", "number")
-        marker = f"<!-- spec-sync-bot reconcile delta: {result['delta']} -->"
-        if drift and not args.dry_run:
-            n = drift[0]["number"]
-            comments = gh("issue", "view", str(n), "--repo", REPO, "--json", "comments", "--jq", ".comments[].body")
-            if marker not in comments:
-                items = "\n".join(f"- {r}" for r in result["reconcile"])
-                gh("issue", "comment", str(n), "--repo", REPO, "--body",
-                   f"CLI commands must change before this spec change can land. The spec-sync bot generates commands "
-                   f"only for JSON endpoints that use the API key and never removes one, so the local spec-sync routine "
-                   f"(or a person) needs to reconcile it:\n\n{items}\n\n{marker}")
-        return emit("reconcile")
+        reconcile_comment(result["delta"], spec_hash, result["reconcile"], args.dry_run)
+        return emit("reconcile", delta=result["delta"], spec=spec_hash)
 
-    if result["verdict"] == "decision":
-        ensure_labels() if not args.dry_run else None
-        issues = gh_json("issue", "list", "--repo", REPO, "--label", DECISION_LABEL, "--state", "open",
-                         "--json", "number,body,labels")
-        mine = [i for i in issues if f"delta: {result['delta']} " in (i["body"] or "")]
-        if mine:
-            issue = mine[0]
-            if ACCEPT_LABEL not in {l["name"] for l in issue["labels"]}:
-                return emit("wait")
-            who = accepted_by(issue["number"])
-            if who not in DECIDERS:
-                print(f"#{issue['number']} was accepted by {who or 'unknown'}, who is not in SPEC_DECIDERS; waiting.", file=sys.stderr)
-                return emit("wait")
-            accepted_issue = str(issue["number"])
-        else:
-            if args.dry_run:
-                return emit("decision")
-            created = gh("issue", "create", "--repo", REPO, "--label", DECISION_LABEL, "--assignee", "yorkable",
-                         "--title", "Spec decision: upstream API change needs a yes or no",
-                         "--body", decision_body(result, args.upstream_sha)).strip()
-            for old_issue in issues:
-                gh("issue", "close", str(old_issue["number"]), "--repo", REPO, "--comment",
-                   f"Upstream changed again, so this decision no longer matches what would ship. Superseded by {created}.")
-            return emit("decision")
-
-    # ship: a safe change, or exactly the change a human accepted.
+    # ship
     new_commands = result["new_commands"]
     version = next_tag(minor=bool(new_commands))
     notes = result["release_notes"] or ["Upstream spec refresh; no user-visible changes."]
-    if accepted_issue:
-        # Say plainly what an accepted breaking change does to existing usage.
-        notes = [f"Breaking, accepted in #{accepted_issue}: {d}." for d in result["decisions"]] + result["release_notes"]
     if not args.dry_run:
         with open(SPEC, "w") as f:
             f.write(open(args.upstream).read())
@@ -240,16 +228,22 @@ def main():
         capture_output=True, text=True).stdout.strip())
     drift = gh_json("issue", "list", "--repo", REPO, "--label", "spec-drift", "--state", "open", "--json", "number")
     closes = "\n".join(f"Closes #{i['number']}" for i in drift)
-    if accepted_issue:
-        closes += f"\nCloses #{accepted_issue}"
-    accepted = (f"\n\n**Accepted in #{accepted_issue}:**\n" + "\n".join(f"- {d}" for d in result["decisions"])) if accepted_issue else ""
-    body = f"""Automated spec sync to upstream SDK commit `{args.upstream_sha}` by the spec-sync bot (`.github/workflows/spec-sync-bot.yml`). The classifier rated it **{'accepted decision' if accepted_issue else 'safe to ship'}**, and the full test suite ran on this exact commit before merge.{accepted}
+    followups = "\n".join(f"- {f}" for f in result["followups"]) or "None."
+    body = f"""Automated spec sync to upstream SDK commit `{args.upstream_sha}` by the spec-sync bot (`.github/workflows/spec-sync-bot.yml`). The classifier rated it **safe to ship**: every change is either additive or a rule the API enforces whatever CLI version sends the request. The full test suite ran on this exact commit before merge.
 
 ## diff_specs.py report
 {fenced(diff_report)}
 
 ## Breaking changes
-{'See the accepted decision above.' if accepted_issue else ' '.join(['None.'] + ['; '.join(result['ship_reasons'][:8])]).strip()}
+None that holding the CLI back would prevent. The release notes list each change a user can notice, including rules the API now enforces and anything it removed.
+
+## What the classifier found
+{chr(10).join(f"- {r}" for r in result["ship_reasons"][:40]) or "- Nothing beyond the release notes."}
+
+## Follow-ups
+{followups}
+
+After the merge, the bot files these as `{FOLLOWUP_LABEL}` issues for the local spec-sync routine.
 
 ## Release notes
 {chr(10).join(notes)}
@@ -262,7 +256,7 @@ def main():
     open(os.path.join(args.out_dir, "pr-title.txt"), "w").write(title + "\n")
     open(os.path.join(args.out_dir, "commit-msg.txt"), "w").write(
         f"{title}\n\nAutomated sync to upstream SDK commit {args.upstream_sha} (classifier delta {result['delta']}).\n")
-    emit("ship", accepted_issue=accepted_issue)
+    emit("ship", delta=result["delta"], spec=spec_hash)
 
 
 if __name__ == "__main__":
