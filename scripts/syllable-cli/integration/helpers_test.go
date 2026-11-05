@@ -108,6 +108,31 @@ func runCLI(args ...string) ([]byte, error) {
 	return out, err
 }
 
+// mustRunCLIUpdate runs an update command. Updates are PUTs that replace the
+// whole resource, so repeating one after a timeout is harmless: unlike other
+// writes, it also retries (a slow prompt update once failed the daily check).
+func mustRunCLIUpdate(t *testing.T, args ...string) []byte {
+	t.Helper()
+	return mustRunCLI(t, append([]string{"--retry-writes"}, args...)...)
+}
+
+// sendTestMessage runs agents send-test-message. Prod sometimes answers a valid
+// test message with 400 "There was an issue sending the message"; one retry
+// tells that apart from a real failure.
+func sendTestMessage(t *testing.T, args ...string) []byte {
+	t.Helper()
+	args = append([]string{"agents", "send-test-message"}, args...)
+	out, err := runCLI(args...)
+	if err != nil && strings.Contains(string(out), "There was an issue sending the message") {
+		t.Logf("retrying after an intermittent test-message error: %s", out)
+		out, err = runCLI(args...)
+	}
+	if err != nil {
+		t.Fatalf("CLI error running %v:\n%s", args, string(out))
+	}
+	return out
+}
+
 // mustRunCLI calls runCLI and fails the test on error.
 func mustRunCLI(t *testing.T, args ...string) []byte {
 	t.Helper()

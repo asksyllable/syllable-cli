@@ -87,7 +87,7 @@ func TestLanguageGroupsCRUD(t *testing.T) {
 		"skip_current_language_in_message": false,
 	}
 	f := writeTempJSON(t, updateBody)
-	out = mustRunCLI(t, "language-groups", "update", id, "--file", f)
+	out = mustRunCLIUpdate(t, "language-groups", "update", id, "--file", f)
 	assertContains(t, string(out), updName)
 
 	// Delete
@@ -132,7 +132,7 @@ func TestCustomMessagesCRUD(t *testing.T) {
 		"subject":  nil,
 	}
 	f := writeTempJSON(t, updateBody)
-	out = mustRunCLI(t, "custom-messages", "update", id, "--file", f)
+	out = mustRunCLIUpdate(t, "custom-messages", "update", id, "--file", f)
 	assertContains(t, string(out), updName)
 
 	// Delete
@@ -193,7 +193,7 @@ func TestPromptsCRUD(t *testing.T) {
 		"session_end_enabled": false,
 	}
 	uf := writeTempJSON(t, updateBody)
-	out = mustRunCLI(t, "prompts", "update", id, "--file", uf)
+	out = mustRunCLIUpdate(t, "prompts", "update", id, "--file", uf)
 	assertContains(t, string(out), updName)
 
 	// Delete
@@ -287,7 +287,7 @@ func TestAgentsCRUD(t *testing.T) {
 		"labels":               []interface{}{},
 	}
 	uf := writeTempJSON(t, updateBody)
-	out = mustRunCLI(t, "agents", "update", id, "--file", uf)
+	out = mustRunCLIUpdate(t, "agents", "update", id, "--file", uf)
 	assertContains(t, string(out), updName)
 
 	// Delete
@@ -328,7 +328,7 @@ func TestDirectoryCRUD(t *testing.T) {
 		"comments": "updated by integration test",
 	}
 	f := writeTempJSON(t, updateBody)
-	out = mustRunCLI(t, "directory", "update", id, "--file", f)
+	out = mustRunCLIUpdate(t, "directory", "update", id, "--file", f)
 	assertContains(t, string(out), updName)
 
 	// Delete
@@ -375,7 +375,7 @@ func TestToolsCRUD(t *testing.T) {
 	}
 	updateBody["id"] = id
 	uf := writeTempJSON(t, updateBody)
-	out = mustRunCLI(t, "tools", "update", name, "--file", uf)
+	out = mustRunCLIUpdate(t, "tools", "update", name, "--file", uf)
 	assertContains(t, string(out), name)
 
 	// Delete
@@ -458,7 +458,7 @@ func TestOutboundCampaignsCRUD(t *testing.T) {
 		"active_days":        []interface{}{},
 	}
 	uf := writeTempJSON(t, updateBody)
-	out = mustRunCLI(t, "outbound", "campaigns", "update", id, "--file", uf)
+	out = mustRunCLIUpdate(t, "outbound", "campaigns", "update", id, "--file", uf)
 	assertContains(t, string(out), updName)
 
 	// Delete
@@ -527,7 +527,7 @@ func TestOrganizationsSipIPRangesCRUD(t *testing.T) {
 
 	// Update the CIDR, then confirm via list
 	updated := fmt.Sprintf("203.0.113.%d/29", block)
-	mustRunCLI(t, "organizations", "sip-ip-ranges", "update", id, "--ip-range", updated)
+	mustRunCLIUpdate(t, "organizations", "sip-ip-ranges", "update", id, "--ip-range", updated)
 	out = mustRunCLI(t, "organizations", "sip-ip-ranges", "list")
 	assertContains(t, string(out), updated)
 
@@ -657,7 +657,7 @@ func TestBridgePhrasesCRUD(t *testing.T) {
 		"edit_comments": "updated by integration test",
 	}
 	f := writeTempJSON(t, updateBody)
-	out = mustRunCLI(t, "bridge-phrases", "update", id, "--file", f)
+	out = mustRunCLIUpdate(t, "bridge-phrases", "update", id, "--file", f)
 	assertContains(t, string(out), updName)
 
 	// Read back and assert on *typed* values. Every field written above is
