@@ -64,7 +64,7 @@ func TestExperimentsCRUD(t *testing.T) {
 	assertContains(t, string(mustRunCLI(t, "experiments", "list", "--search", name)), name)
 	updatedName := name + " Updated"
 	updateFile := writeTempJSON(t, map[string]interface{}{"name": updatedName, "variants": variants})
-	assertContains(t, string(mustRunCLI(t, "experiments", "update", id, "--file", updateFile)), updatedName)
+	assertContains(t, string(mustRunCLIUpdate(t, "experiments", "update", id, "--file", updateFile)), updatedName)
 	assertContains(t, string(mustRunCLI(t, "experiments", "results", id)), "session_count")
 	assertContains(t, string(mustRunCLI(t, "experiments", "start", id)), "running")
 	assertContains(t, string(mustRunCLI(t, "experiments", "stop", id)), "stopped")
@@ -112,7 +112,7 @@ func TestAgentCardClick(t *testing.T) {
 		t.Skip("known server-side failure (#192); set SYLLABLE_RUN_KNOWN_BROKEN=1 to run")
 	}
 	testID := fmt.Sprintf("cli-card-click-%d", os.Getpid())
-	mustRunCLI(t, "agents", "send-test-message", agentID, "--test-id", testID, "--session-start", "--text", "")
+	sendTestMessage(t, agentID, "--test-id", testID, "--session-start", "--text", "")
 	out := mustRunCLI(t, "agents", "card-click", testID, "--action-id", "test-action", "--action-type", "cta")
 	assertContains(t, string(out), "status")
 }

@@ -29,7 +29,7 @@ func TestAgentTestMessageFullBody(t *testing.T) {
 		"org_name":           nil,
 		"override_timestamp": nil,
 	}
-	out := mustRunCLI(t, "agents", "send-test-message", agentID, "--file", writeTempJSON(t, body))
+	out := sendTestMessage(t, agentID, "--file", writeTempJSON(t, body))
 	if !json.Valid(out) {
 		t.Fatalf("full-body test-message response is not JSON: %s", out)
 	}
