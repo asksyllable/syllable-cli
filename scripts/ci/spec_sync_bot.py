@@ -109,7 +109,9 @@ def file_followups(followups, pr=""):
         marker = f"<!-- cli-followup: {hashlib.sha256(text.encode()).hexdigest()[:16]} -->"
         if marker in existing:
             continue
-        title = re.sub(r"\s+", " ", text.replace("`", ""))
+        # Without backticks, text that was inert inside code spans could act as
+        # a mention or closing keyword again, so neutralize the title anew.
+        title = inert(re.sub(r"\s+", " ", text.replace("`", "")))
         title = "Follow-up: " + (title if len(title) <= 100 else title[:99].rstrip() + "…")
         gh("issue", "create", "--repo", REPO, "--label", FOLLOWUP_LABEL, "--title", title, "--body",
            f"{text}\n\nThe spec sync{shipped} shipped this API change, but the CLI's flags haven't caught up. "
@@ -231,6 +233,9 @@ def main():
 
 ## Breaking changes
 None that holding the CLI back would prevent. The release notes list each change a user can notice, including rules the API now enforces and anything it removed.
+
+## What the classifier found
+{chr(10).join(f"- {r}" for r in result["ship_reasons"][:40]) or "- Nothing beyond the release notes."}
 
 ## Follow-ups
 {followups}

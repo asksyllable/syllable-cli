@@ -153,6 +153,7 @@ jobs:
     permissions:
       contents: read
       issues: write
+      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -162,7 +163,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           DELTA: ${{ needs.prepare.outputs.delta }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: python3 scripts/ci/spec_sync_bot.py --handover "$DELTA" --run-url "$RUN_URL"
+        run: |
+          # An open bot PR from an earlier run now points at code that fails;
+          # close it so the routine's own PR is the only one.
+          number="$(gh pr list --head "$BOT_BRANCH" --state open --json number --jq '.[0].number // empty')"
+          if [ -n "$number" ]; then
+            gh pr close "$number" --comment "The test suite failed with the new spec ($RUN_URL), so the spec-sync routine takes this change over."
+          fi
+          python3 scripts/ci/spec_sync_bot.py --handover "$DELTA" --run-url "$RUN_URL"
 
   merge:
     needs: [prepare, verify]
@@ -228,6 +236,9 @@ jobs:
 
       - name: File follow-ups for the spec-sync routine
         if: steps.merge.outputs.merged == 'true'
+        # The merged PR's body lists them too, so a failure here never holds
+        # the release; the routine files any that went missing.
+        continue-on-error: true
         env:
           PR_NUMBER: ${{ steps.pr.outputs.number }}
         run: python3 scripts/ci/spec_sync_bot.py --file-followups classification.json --pr "$PR_NUMBER"

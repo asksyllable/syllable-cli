@@ -60,6 +60,12 @@ class Followups(unittest.TestCase):
         self.assertEqual(args[args.index("--title") + 1], "Follow-up: widgets create: add a flag")
         self.assertIn("in #12", args[args.index("--body") + 1])
 
+    def test_title_stays_inert_without_backticks(self):
+        created = self.file([inert("`widgets create`: `@octocat` and fixes `#12`")])
+        title = created[0][created[0].index("--title") + 1]
+        self.assertNotIn("@octocat", title)
+        self.assertNotIn("#12", title)
+
     def test_nothing_to_file(self):
         self.assertEqual(self.file([]), [])
 

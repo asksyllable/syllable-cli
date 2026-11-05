@@ -182,8 +182,10 @@ jobs:
           # An open, non-draft spec-sync PR with recent activity means the
           # pipeline is moving (probably waiting on checks or a merge) — no nag.
           # A parked DRAFT deliberately does NOT suppress the nag.
-          active="$(gh pr list --label spec-sync --state open --json isDraft,updatedAt \
-            --jq "[.[] | select(.isDraft | not) | select(.updatedAt > (now - ${STALL_HOURS}*3600 | todate))] | length")"
+          # The bot's own PR doesn't count: it is re-pushed daily, so it looks
+          # fresh even when it is stuck.
+          active="$(gh pr list --label spec-sync --state open --json isDraft,updatedAt,headRefName \
+            --jq "[.[] | select(.headRefName != \"spec-sync/bot\") | select(.isDraft | not) | select(.updatedAt > (now - ${STALL_HOURS}*3600 | todate))] | length")"
           if [ "$active" -gt 0 ]; then
             echo "An active non-draft spec-sync PR exists — no escalation."
             exit 0

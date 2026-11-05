@@ -95,20 +95,44 @@ def closure(names, schemas):
     return seen
 
 
-def request_users(spec):
-    """schema name -> set of (METHOD, path) whose request body reaches it."""
+def body_users(spec):
+    """Two maps, schema name -> set of (METHOD, path): operations whose request
+    body reaches the schema, and operations whose success response does."""
     schemas = spec.get("components", {}).get("schemas", {})
-    users = {}
+    requests, responses = {}, {}
     for path, item in spec.get("paths", {}).items():
         for method, op in item.items():
-            if method not in WRITE_METHODS or not isinstance(op, dict):
+            if method not in HTTP_METHODS or not isinstance(op, dict):
                 continue
+            route = (method.upper(), path)
             body = op.get("requestBody")
-            if not body:
-                continue
-            for name in closure(set(refs_in(body)), schemas):
-                users.setdefault(name, set()).add((method.upper(), path))
-    return users
+            if body and method in WRITE_METHODS:
+                for name in closure(set(refs_in(body)), schemas):
+                    requests.setdefault(name, set()).add(route)
+            for code, response in (op.get("responses") or {}).items():
+                if str(code).startswith("2"):
+                    for name in closure(set(refs_in(response)), schemas):
+                        responses.setdefault(name, set()).add(route)
+    return requests, responses
+
+
+IDENT_UNSAFE = re.compile(r"[^A-Za-z0-9_.\-\[\]{}/:~]")
+VALUE_UNSAFE = re.compile(r"[^A-Za-z0-9_.\-/:,+() ]")
+
+
+def ident(name, limit=64):
+    """A name from the upstream spec (a field, parameter, or JSON pointer),
+    reduced to the characters a name needs. The local routine acts on follow-up
+    text, so spec-controlled strings can't carry prose or markup into it."""
+    name = IDENT_UNSAFE.sub("", str(name))
+    return name if len(name) <= limit else name[:limit - 1] + "…"
+
+
+def value(text, limit=64):
+    """A value from the upstream spec (an enum member or a constraint), which
+    may contain spaces, reduced the same way."""
+    text = " ".join(VALUE_UNSAFE.sub("", str(text)).split())
+    return text if len(text) <= limit else text[:limit - 1] + "…"
 
 
 def tokens(path):
@@ -137,97 +161,133 @@ class Classifier:
         self.candidate = None if candidate is None else {
             (e["method"].upper(), e["path"]): e for e in candidate.values()}
         self.new_commands = []
-        users = request_users(old)
-        for name, routes in request_users(new).items():
-            users.setdefault(name, set()).update(routes)
-        self.request_users = users
-        self.reconcile, self.notes, self.ship_reasons, self.followups = [], [], [], []
+        self.request_users, self.response_users = {}, {}
+        for spec in (old, new):
+            requests, responses = body_users(spec)
+            for name, routes in requests.items():
+                self.request_users.setdefault(name, set()).update(routes)
+            for name, routes in responses.items():
+                self.response_users.setdefault(name, set()).update(routes)
+        self.reconcile, self.notes, self.ship_reasons = [], [], []
         self.new_optional_headers = {}  # (in, name) -> commands
+        self.flag_checks = {}  # command that builds its body from flags -> what changed
+        self.output_checks = {}  # hand-written command that reads a response -> what changed
 
     def commands_for(self, routes):
         return sorted({self.ops_by_route[r]["command"] for r in routes if r in self.ops_by_route})
 
-    def enforced(self, schema, what, field=None, removed=False):
-        """A request rule changed on `schema`. The server enforces it, so it
-        ships with a release note. `field` is a top-level field that became
-        required (or, with `removed`, was removed): a command that builds its
-        body from flags gets a follow-up when its flags no longer match."""
-        routes = self.request_users.get(schema, set())
-        if not routes:
+    def check(self, bucket, cmd, item):
+        items = bucket.setdefault(cmd, [])
+        if item not in items:
+            items.append(item)
+
+    def changed(self, schema, what, field=None, removed=False, shape=False):
+        """A rule changed on `schema`. Every rule the server enforces ships.
+        Users get a release note, and commands that build the body from flags
+        or parse the response get a follow-up for the routine to check.
+
+        field: the top-level field that became required (or, with removed, was
+        removed). shape: the change can break a reader of the schema (a removed
+        field or a changed type), not only a writer."""
+        requests = self.request_users.get(schema, set())
+        responses = self.response_users.get(schema, set()) if shape else set()
+        if requests:
+            cmds = self.commands_for(requests)
+            where = f"`{'`, `'.join(cmds)}`: " if cmds else f"`{schema}`: "
+            self.notes.append(f"{where}{what} (enforced by the API).")
+            self.ship_reasons.append(f"{schema}: {what} (server-enforced)")
+            flag = field.replace("_", "-") if field and "." not in field else None
+            for route in sorted(requests):
+                entry = self.ops_by_route.get(route)
+                if not entry or not entry["flags"]:
+                    continue
+                if flag and removed and flag in entry["flags"]:
+                    item = f"`--{ident(flag)}` sets `{ident(field)}`, which the API removed"
+                elif flag and not removed and flag not in entry["flags"]:
+                    item = f"`{ident(field)}` is now required, and no flag sets it"
+                else:
+                    item = what
+                self.check(self.flag_checks, entry["command"], item)
+        readers = [self.ops_by_route[r] for r in sorted(responses) if r in self.ops_by_route]
+        if readers:
+            cmds = sorted({e["command"] for e in readers})
+            self.notes.append(f"`{'`, `'.join(cmds)}`: responses changed: {what}.")
+            for e in readers:
+                if not e.get("generated"):
+                    self.check(self.output_checks, e["command"], what)
+        if not requests and not readers:
             self.ship_reasons.append(f"{schema}: {what} (response-only)")
-            return
-        cmds = self.commands_for(routes)
-        where = f"`{'`, `'.join(cmds)}`: " if cmds else f"`{schema}`: "
-        self.notes.append(f"{where}{what} (enforced by the API).")
-        self.ship_reasons.append(f"{schema}: {what} (server-enforced)")
-        if field is None or "." in field:
-            return
-        flag = field.replace("_", "-")
-        for route in sorted(routes):
-            entry = self.ops_by_route.get(route)
-            if not entry or not entry["flags"]:
-                continue
-            if removed and flag in entry["flags"]:
-                self.followups.append(
-                    f"`{entry['command']}` still has `--{flag}`, but the API removed `{field}` from the request body. "
-                    f"Retire the flag, or point it at the field that replaced it.")
-            elif not removed and flag not in entry["flags"]:
-                self.followups.append(
-                    f"`{entry['command']}` builds its request body from flags, and no flag sets `{field}`, which the API "
-                    f"now requires. Add a flag if the command should keep working without `--file`, or close this if it "
-                    f"already sends the field.")
 
     def schema_change(self, schema, change):
         path, kind = change["path"], change["kind"]
         parts = tokens(path)
         last = parts[-1] if parts else ""
         field = field_of(path)
-        label = f"`{schema}.{field}`" if field else f"`{schema}`"
+        label = f"`{schema}.{ident(field)}`" if field else f"`{schema}`"
 
+        if len(parts) >= 2 and parts[-2] == "properties":
+            if kind == "added":
+                self.notes.append(f"{label} is a new field.")
+            elif kind == "removed":
+                self.changed(schema, f"the API removed {label}", field=field, removed=True, shape=True)
+            else:
+                self.changed(schema, f"{label} changed shape", shape=True)
+            return
         if last == "deprecated":
             if kind != "removed" and change.get("new"):
                 self.notes.append(f"{label} is now deprecated.")
             return
-        if len(parts) >= 2 and parts[-2] == "properties":
-            if kind == "added":
-                self.notes.append(f"{label} is a new field.")
-                return
-            if kind == "removed":
-                self.enforced(schema, f"the API removed {label}", field=field, removed=True)
-                return
         if last == "required":
             before, after = set(as_list(change.get("old"))), set(as_list(change.get("new")))
             for name in sorted(after - before):
                 full = f"{field}.{name}" if field else name
-                self.enforced(schema, f"`{full}` is now required", field=full)
+                self.changed(schema, f"`{ident(full)}` is now required", field=full)
             return
         if last in CONSTRAINTS:
             if kind == "removed":
                 return
-            value = json.dumps(change.get("new"))
-            self.enforced(schema, f"{label} now has `{last}: {value}`")
+            self.changed(schema, f"{label} now has `{last}: {value(json.dumps(change.get('new')))}`")
             return
         if last in UNION_KEYS or last == "enum":
             before = [json.dumps(v, sort_keys=True) for v in as_list(change.get("old"))]
             after = [json.dumps(v, sort_keys=True) for v in as_list(change.get("new"))]
-            if kind == "added" and last == "enum":
-                self.enforced(schema, f"{label} now only accepts listed values")
-            elif set(before) <= set(after):
+            if kind == "added":
+                # A field that took anything now takes only some types or values.
+                self.changed(schema, f"{label} now only accepts listed {'values' if last == 'enum' else 'types'}",
+                             shape=last != "enum")
+            elif kind == "removed" or set(before) <= set(after):
                 if last != "enum":
                     self.notes.append(f"{label} now accepts more types.")
             elif last == "enum":
                 pass  # removed enum values are reported once, from changed_enums
             else:
-                self.enforced(schema, f"{label} accepts fewer types")
+                self.changed(schema, f"{label} accepts fewer types", shape=True)
             return
         if last in {"default", "additionalProperties", "nullable", "items"}:
-            self.enforced(schema, f"{label} changed `{last}`")
+            self.changed(schema, f"{label} changed `{last}`", shape=last != "default")
             return
-        self.reconcile.append(f"{label}: unrecognized change ({kind} at `{path}`); check whether the CLI needs to change")
+        self.reconcile.append(f"{label}: unrecognized change ({kind} at `{ident(path, 200)}`); check whether the CLI needs to change")
+
+    def enum_removed(self, label, values):
+        """Values an enum no longer accepts: for request bodies the API rejects
+        them, and a flag-built body may send one by default."""
+        schema = label.split(".", 1)[0]
+        shown = ", ".join(value(v) for v in values)
+        self.notes.append(f"`{ident(label)}` no longer accepts: {shown} (enforced by the API).")
+        for route in sorted(self.request_users.get(schema, set())):
+            entry = self.ops_by_route.get(route)
+            if entry and entry["flags"]:
+                self.check(self.flag_checks, entry["command"], f"`{ident(label)}` no longer accepts {shown}")
+
+    def resolve_parameter(self, p, spec):
+        ref = p.get("$ref") if isinstance(p, dict) else None
+        if isinstance(ref, str) and ref.startswith("#/components/parameters/"):
+            p = spec.get("components", {}).get("parameters", {}).get(ref.rsplit("/", 1)[-1])
+        return p if isinstance(p, dict) and p.get("in") and p.get("name") else None
 
     def parameter_note(self, cmd, key, old, new):
         """One release note for a query or path parameter that changed."""
-        where, name = key
+        where, name = key[0], ident(key[1])
         if old is None:
             req = "required" if new.get("required") else "optional"
             return f"`{cmd}`: new {req} {where} parameter `{name}`."
@@ -243,62 +303,73 @@ class Classifier:
         sa, sb = old.get("schema") or {}, new.get("schema") or {}
         for k in sorted(set(sa) | set(sb)):
             if sa.get(k) != sb.get(k) and k not in {"title", "description"}:
-                details.append(f"now has `{k}: {json.dumps(sb.get(k))}`" if k in sb else f"no longer has `{k}`")
+                details.append(f"now has `{ident(k)}: {value(json.dumps(sb.get(k)))}`" if k in sb else f"no longer has `{ident(k)}`")
         return f"`{cmd}`: {where} parameter `{name}` " + (", ".join(details) or "changed") + " (enforced by the API)."
 
     def operation_change(self, method, path, change):
         route = (method.upper(), path)
-        cmd = self.ops_by_route.get(route, {}).get("command", f"{method.upper()} {path}")
+        entry = self.ops_by_route.get(route, {})
+        cmd = entry.get("command", f"{method.upper()} {path}")
         parts = tokens(change["path"])
         head = parts[0] if parts else ""
         if head == "deprecated" and change["kind"] != "removed":
             return
         if head == "responses":
-            # Error responses and additions inside an existing success body are
-            # safe. A success response that is removed or changed, or gains a
-            # media type (which also changes the CLI's Accept header), may need
-            # the command's output handling to change.
-            # A change inside a success body's schema is a response-only change.
+            # Error responses are safe. A success response that is removed, or
+            # gains or loses a media type (which also changes the CLI's Accept
+            # header), may need the command's output handling to change. A
+            # change inside a success body's schema ships, and a hand-written
+            # command that parses that body gets a follow-up.
             code = parts[1] if len(parts) > 1 else ""
             in_schema = len(parts) >= 5 and parts[2] == "content" and parts[4] == "schema"
             new_media = len(parts) == 4 and parts[2] == "content" and change["kind"] == "added"
             if len(parts) == 1 or (code.startswith("2") and not in_schema and (change["kind"] != "added" or new_media)):
-                self.reconcile.append(f"`{cmd}`: success response changed ({change['kind']} at `{change['path']}`); "
+                self.reconcile.append(f"`{cmd}`: success response changed ({change['kind']} at `{ident(change['path'], 200)}`); "
                                       f"check the command's output and Accept header")
             elif in_schema and code.startswith("2"):
                 self.ship_reasons.append(f"{cmd}: success response schema changed at {change['path']}")
+                loosened = change["kind"] == "removed" and parts[-1] in CONSTRAINTS | UNION_KEYS
+                if entry and not entry.get("generated") and not loosened:
+                    self.notes.append(f"`{cmd}`: the API changed its response.")
+                    self.check(self.output_checks, cmd, f"its success response schema changed at `{ident(change['path'], 200)}`")
             return
         if head in {"parameters", "path_parameters"}:
             if len(parts) == 1 and change["kind"] == "changed":
-                old_p = {(p.get("in"), p.get("name")): p for p in as_list(change.get("old")) if isinstance(p, dict)}
-                new_p = {(p.get("in"), p.get("name")): p for p in as_list(change.get("new")) if isinstance(p, dict)}
-                for key in sorted(set(old_p) | set(new_p), key=lambda k: (str(k[0]), str(k[1]))):
+                old_p, new_p = {}, {}
+                for raw, spec, out in ((change.get("old"), self.old, old_p), (change.get("new"), self.new, new_p)):
+                    for p in as_list(raw):
+                        resolved = self.resolve_parameter(p, spec)
+                        if resolved is None:
+                            self.reconcile.append(f"`{cmd}`: a parameter the classifier can't resolve changed; check it by hand")
+                            return
+                        out[(resolved["in"], resolved["name"])] = resolved
+                for key in sorted(set(old_p) | set(new_p)):
                     a, b = old_p.get(key), new_p.get(key)
                     if a == b:
                         continue
                     if key[0] in {"query", "path"}:
                         self.notes.append(self.parameter_note(cmd, key, a, b))
                     elif b is not None and b.get("required") and not (a or {}).get("required"):
-                        self.reconcile.append(f"`{cmd}`: new required {key[0]} parameter `{key[1]}`; only "
+                        self.reconcile.append(f"`{cmd}`: new required {key[0]} parameter `{ident(key[1])}`; only "
                                               f"hand-written code can send it")
                     elif b is None:
-                        self.notes.append(f"`{cmd}`: the API removed the {key[0]} parameter `{key[1]}`.")
+                        self.notes.append(f"`{cmd}`: the API removed the {key[0]} parameter `{ident(key[1])}`.")
                     else:
                         # Optional: the CLI doesn't send it, so the API uses its default.
                         self.ship_reasons.append(f"{cmd}: optional {key[0]} parameter {key[1]} added or changed")
                         if a is None:
                             self.new_optional_headers.setdefault(key, []).append(cmd)
                 return
-            self.reconcile.append(f"`{cmd}`: unrecognized parameter change at `{change['path']}`")
+            self.reconcile.append(f"`{cmd}`: unrecognized parameter change at `{ident(change['path'], 200)}`")
             return
         if head == "requestBody":
-            if self.ops_by_route.get(route, {}).get("flags"):
-                self.reconcile.append(f"`{cmd}`: request body contract changed at `{change['path']}`, and the CLI builds "
-                                      f"it from flags")
+            if entry.get("flags"):
+                self.reconcile.append(f"`{cmd}`: request body contract changed at `{ident(change['path'], 200)}`, and the CLI "
+                                      f"builds it from flags")
             else:
                 self.ship_reasons.append(f"{cmd}: pass-through request body changed at {change['path']}")
             return
-        self.reconcile.append(f"`{cmd}`: {head or 'operation'} changed ({change['kind']} at `{change['path']}`)")
+        self.reconcile.append(f"`{cmd}`: {head or 'operation'} changed ({change['kind']} at `{ident(change['path'], 200)}`)")
 
     def added_operation(self, method, path):
         route = (method.upper(), path)
@@ -325,6 +396,23 @@ class Classifier:
             if method.lower() in paths.get(path, {}) and (method, path) not in self.candidate:
                 self.reconcile.append(f"`{entry['command']}` ({method} {path}) can no longer be generated, so it needs a hand-written command")
 
+    def followups(self):
+        """One follow-up per command whose flags or output may no longer fit
+        the API, plus one per new optional header."""
+        out = []
+        for cmd, items in sorted(self.flag_checks.items()):
+            out.append(f"`{cmd}` builds its request body from flags, and the API changed what it accepts: "
+                       f"{'; '.join(items)}. Check that the flags and their defaults still produce a body the API "
+                       f"accepts (`--dry-run` shows it), and fix them if not.")
+        for cmd, items in sorted(self.output_checks.items()):
+            out.append(f"`{cmd}` parses the API's response for its output, and the response changed: "
+                       f"{'; '.join(items)}. Check its table and `get` output against the new schema, and fix the "
+                       f"parsing if needed.")
+        for (where, name), cmds in sorted(self.new_optional_headers.items()):
+            out.append(f"The API accepts a new optional {where} parameter `{ident(name)}` on `{'`, `'.join(sorted(cmds))}`, "
+                       f"which the CLI doesn't send. Add a flag for it if users need it, or close this.")
+        return out
+
     def run(self, d):
         for p in d["added_paths"]:
             item = self.new["paths"][p]
@@ -342,26 +430,23 @@ class Classifier:
                 self.reconcile.append(f"removed operation {m.upper()} {entry['path']}")
         self.lost_commands()
         for change in d["changed_global_contracts"]:
-            self.reconcile.append(f"global spec change ({change['kind']} at `{change['path']}`): check the CLI's "
+            self.reconcile.append(f"global spec change ({change['kind']} at `{ident(change['path'], 200)}`): check the CLI's "
                                   f"auth and server handling")
         for name in d["removed_schemas"]:
-            self.notes.append(f"The API removed schema `{name}`, so `syllable schema get {name}` no longer finds it.")
+            self.notes.append(f"The API removed schema `{ident(name)}`, so `syllable schema get {ident(name)}` no longer finds it.")
         if d["added_schemas"]:
             self.ship_reasons.append(f"{len(d['added_schemas'])} new schema(s)")
         for e in d["changed_enums"]:
             if e["removed"]:
-                self.notes.append(f"`{e['enum']}` no longer accepts: {', '.join(e['removed'])} (enforced by the API).")
+                self.enum_removed(e["enum"], e["removed"])
             if e["added"]:
-                self.notes.append(f"`{e['enum']}` accepts new values: {', '.join(e['added'])}.")
+                self.notes.append(f"`{ident(e['enum'])}` accepts new values: {', '.join(value(v) for v in e['added'])}.")
         for entry in d["changed_schema_contracts"]:
             for change in entry["changes"]:
                 self.schema_change(entry["schema"], change)
         for entry in d["changed_operation_contracts"]:
             for change in entry["changes"]:
                 self.operation_change(entry["method"], entry["path"], change)
-        for (where, name), cmds in sorted(self.new_optional_headers.items()):
-            self.followups.append(f"The API accepts a new optional {where} parameter `{name}` on `{'`, `'.join(sorted(cmds))}`, "
-                                  f"which the CLI doesn't send. Add a flag for it if users need it, or close this.")
 
 
 def classify(old, new, operations, candidate=None):
@@ -389,7 +474,7 @@ def classify(old, new, operations, candidate=None):
         "verdict": verdict,
         "reconcile": c.reconcile,
         "release_notes": notes,
-        "followups": list(dict.fromkeys(c.followups)),
+        "followups": c.followups(),
         "ship_reasons": c.ship_reasons,
         "new_commands": c.new_commands,
         "delta": delta,
