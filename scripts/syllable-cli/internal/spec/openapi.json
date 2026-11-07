@@ -10188,6 +10188,27 @@
               }
             }
           },
+          "504": {
+            "description": "The request timed out",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "error": "Gateway Timeout"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad request, including malformed datetime query parameters",
             "content": {
@@ -17911,7 +17932,85 @@
           "Hua (CN)",
           "Liu (CN)",
           "Xia (VN)",
-          "Suda (TH)"
+          "Suda (TH)",
+          "Agathe",
+          "Agustina",
+          "Alvaro",
+          "Ama",
+          "Amalthea",
+          "Andromeda",
+          "Antonia",
+          "Apollo",
+          "Aquila",
+          "Arcas",
+          "Arcas (Aura 2)",
+          "Aries",
+          "Asteria",
+          "Asteria (Aura 2)",
+          "Athena",
+          "Athena (Aura 2)",
+          "Atlas",
+          "Aurora",
+          "Callista",
+          "Carina",
+          "Celeste",
+          "Cora",
+          "Cordelia",
+          "Delia",
+          "Diana",
+          "Draco",
+          "Ebisu",
+          "Electra",
+          "Estrella",
+          "Fujin",
+          "Gloria",
+          "Harmonia",
+          "Hector",
+          "Helena",
+          "Hera",
+          "Hera (Aura 2)",
+          "Hermes",
+          "Hyperion",
+          "Iris",
+          "Izanami",
+          "Janus",
+          "Javier",
+          "Juno",
+          "Jupiter",
+          "Luciano",
+          "Luna",
+          "Luna (Aura 2)",
+          "Mars",
+          "Minerva",
+          "Neptune",
+          "Nestor",
+          "Odysseus",
+          "Olivia",
+          "Ophelia",
+          "Orion",
+          "Orion (Aura 2)",
+          "Orpheus",
+          "Orpheus (Aura 2)",
+          "Pandora",
+          "Phoebe",
+          "Pluto",
+          "Saturn",
+          "Selena",
+          "Selene",
+          "Silvia",
+          "Sirio",
+          "Thalia",
+          "Theia",
+          "Uzume",
+          "Valentina",
+          "Valerio",
+          "Vesta",
+          "Zeus",
+          "Zeus (Aura 2)",
+          "Angus",
+          "Helios",
+          "Perseus",
+          "Stella"
         ],
         "title": "AgentVoiceDisplayName",
         "description": "Display names of voices that Syllable supports."
@@ -17936,7 +18035,9 @@
           "WaveNet",
           "tts-1",
           "gpt-4o-mini-tts",
-          "sonic-3.5"
+          "sonic-3.5",
+          "aura",
+          "aura-2"
         ],
         "title": "AgentVoiceModel",
         "description": "Model for an agent voice."
@@ -18139,7 +18240,85 @@
           "cartesia:Hua",
           "cartesia:Liu",
           "cartesia:Xia",
-          "cartesia:Suda"
+          "cartesia:Suda",
+          "deepgram:aura-2-agathe",
+          "deepgram:aura-2-agustina",
+          "deepgram:aura-2-alvaro",
+          "deepgram:aura-2-ama",
+          "deepgram:aura-2-amalthea",
+          "deepgram:aura-2-andromeda",
+          "deepgram:aura-2-antonia",
+          "deepgram:aura-2-apollo",
+          "deepgram:aura-2-aquila",
+          "deepgram:aura-2-arcas",
+          "deepgram:aura-2-aries",
+          "deepgram:aura-2-asteria",
+          "deepgram:aura-2-athena",
+          "deepgram:aura-2-atlas",
+          "deepgram:aura-2-aurora",
+          "deepgram:aura-2-callista",
+          "deepgram:aura-2-carina",
+          "deepgram:aura-2-celeste",
+          "deepgram:aura-2-cora",
+          "deepgram:aura-2-cordelia",
+          "deepgram:aura-2-delia",
+          "deepgram:aura-2-diana",
+          "deepgram:aura-2-draco",
+          "deepgram:aura-2-ebisu",
+          "deepgram:aura-2-electra",
+          "deepgram:aura-2-estrella",
+          "deepgram:aura-2-fujin",
+          "deepgram:aura-2-gloria",
+          "deepgram:aura-2-harmonia",
+          "deepgram:aura-2-hector",
+          "deepgram:aura-2-helena",
+          "deepgram:aura-2-hera",
+          "deepgram:aura-2-hermes",
+          "deepgram:aura-2-hyperion",
+          "deepgram:aura-2-iris",
+          "deepgram:aura-2-izanami",
+          "deepgram:aura-2-janus",
+          "deepgram:aura-2-javier",
+          "deepgram:aura-2-juno",
+          "deepgram:aura-2-jupiter",
+          "deepgram:aura-2-luciano",
+          "deepgram:aura-2-luna",
+          "deepgram:aura-2-mars",
+          "deepgram:aura-2-minerva",
+          "deepgram:aura-2-neptune",
+          "deepgram:aura-2-nestor",
+          "deepgram:aura-2-odysseus",
+          "deepgram:aura-2-olivia",
+          "deepgram:aura-2-ophelia",
+          "deepgram:aura-2-orion",
+          "deepgram:aura-2-orpheus",
+          "deepgram:aura-2-pandora",
+          "deepgram:aura-2-phoebe",
+          "deepgram:aura-2-pluto",
+          "deepgram:aura-2-saturn",
+          "deepgram:aura-2-selena",
+          "deepgram:aura-2-selene",
+          "deepgram:aura-2-silvia",
+          "deepgram:aura-2-sirio",
+          "deepgram:aura-2-thalia",
+          "deepgram:aura-2-theia",
+          "deepgram:aura-2-uzume",
+          "deepgram:aura-2-valentina",
+          "deepgram:aura-2-valerio",
+          "deepgram:aura-2-vesta",
+          "deepgram:aura-2-zeus",
+          "deepgram:aura-angus",
+          "deepgram:aura-arcas",
+          "deepgram:aura-asteria",
+          "deepgram:aura-athena",
+          "deepgram:aura-helios",
+          "deepgram:aura-hera",
+          "deepgram:aura-luna",
+          "deepgram:aura-orion",
+          "deepgram:aura-orpheus",
+          "deepgram:aura-perseus",
+          "deepgram:aura-stella",
+          "deepgram:aura-zeus"
         ],
         "title": "AgentVoiceVarName",
         "description": "The variable name of an agent voice (used when processing messages)."
@@ -18224,7 +18403,7 @@
             "title": "Batch Id",
             "description": "Unique ID for conversation batch",
             "examples": [
-              "20261106.9"
+              "20261107.9"
             ]
           },
           "campaign_id": {
@@ -18248,7 +18427,7 @@
             "title": "Expires On",
             "description": "Timestamp of batch expiration",
             "examples": [
-              "2026-11-07T00:00:00Z"
+              "2026-11-08T00:00:00Z"
             ]
           },
           "paused": {
@@ -18358,7 +18537,7 @@
             "title": "Created At",
             "description": "Timestamp of batch creation",
             "examples": [
-              "2026-11-06T00:00:00Z"
+              "2026-11-07T00:00:00Z"
             ]
           },
           "deleted_at": {
@@ -18374,7 +18553,7 @@
             "title": "Deleted At",
             "description": "Timestamp of batch deletion",
             "examples": [
-              "2026-11-06T00:00:00Z"
+              "2026-11-07T00:00:00Z"
             ]
           },
           "deleted_reason": {
@@ -18405,7 +18584,7 @@
             "title": "Last Updated At",
             "description": "Timestamp of last change to batch",
             "examples": [
-              "2026-11-06T00:00:00Z"
+              "2026-11-07T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -20077,7 +20256,7 @@
             "title": "Batch Id",
             "description": "Unique ID for conversation batch",
             "examples": [
-              "20261106.9"
+              "20261107.9"
             ]
           },
           "campaign_id": {
@@ -20101,7 +20280,7 @@
             "title": "Expires On",
             "description": "Timestamp of batch expiration",
             "examples": [
-              "2026-11-07T00:00:00Z"
+              "2026-11-08T00:00:00Z"
             ]
           },
           "paused": {
@@ -20211,7 +20390,7 @@
             "title": "Created At",
             "description": "Timestamp of batch creation",
             "examples": [
-              "2026-11-06T00:00:00Z"
+              "2026-11-07T00:00:00Z"
             ]
           },
           "deleted_at": {
@@ -20227,7 +20406,7 @@
             "title": "Deleted At",
             "description": "Timestamp of batch deletion",
             "examples": [
-              "2026-11-06T00:00:00Z"
+              "2026-11-07T00:00:00Z"
             ]
           },
           "deleted_reason": {
@@ -20258,7 +20437,7 @@
             "title": "Last Updated At",
             "description": "Timestamp of last change to batch",
             "examples": [
-              "2026-11-06T00:00:00Z"
+              "2026-11-07T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -20301,7 +20480,7 @@
             "title": "Batch Id",
             "description": "Unique ID for conversation batch",
             "examples": [
-              "20261106.9"
+              "20261107.9"
             ]
           },
           "campaign_id": {
@@ -20325,7 +20504,7 @@
             "title": "Expires On",
             "description": "Timestamp of batch expiration",
             "examples": [
-              "2026-11-07T00:00:00Z"
+              "2026-11-08T00:00:00Z"
             ]
           },
           "paused": {
@@ -20534,7 +20713,7 @@
             "title": "Created At",
             "description": "Timestamp of request creation",
             "examples": [
-              "2026-11-05T00:00:00Z"
+              "2026-11-06T00:00:00Z"
             ]
           },
           "sent_at": {
@@ -20550,7 +20729,7 @@
             "title": "Sent At",
             "description": "Timestamp at which request was sent",
             "examples": [
-              "2026-11-06T00:00:00Z"
+              "2026-11-07T00:00:00Z"
             ]
           },
           "attempt_count": {
@@ -25592,7 +25771,7 @@
             "title": "Created At",
             "description": "Timestamp at which insight upload folder was created",
             "examples": [
-              "2026-11-05T00:00:00Z"
+              "2026-11-06T00:00:00Z"
             ]
           },
           "updated_at": {
@@ -25601,7 +25780,7 @@
             "title": "Updated At",
             "description": "Timestamp at which insight upload folder was last updated",
             "examples": [
-              "2026-11-06T00:00:00Z"
+              "2026-11-07T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -26807,7 +26986,7 @@
             "title": "Created At",
             "description": "Timestamp of at which insight tool configuration was created",
             "examples": [
-              "2026-11-05T00:00:00Z"
+              "2026-11-06T00:00:00Z"
             ]
           },
           "updated_at": {
@@ -26816,7 +26995,7 @@
             "title": "Updated At",
             "description": "Timestamp at which insight tool configuration was last updated",
             "examples": [
-              "2026-11-06T00:00:00Z"
+              "2026-11-07T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -26923,7 +27102,7 @@
             "title": "Created At",
             "description": "Timestamp of at which insight tool configuration was created",
             "examples": [
-              "2026-11-05T00:00:00Z"
+              "2026-11-06T00:00:00Z"
             ]
           },
           "updated_at": {
@@ -26932,7 +27111,7 @@
             "title": "Updated At",
             "description": "Timestamp at which insight tool configuration was last updated",
             "examples": [
-              "2026-11-06T00:00:00Z"
+              "2026-11-07T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -27425,7 +27604,7 @@
             "title": "Started At",
             "description": "Timestamp at which the most recent processing attempt started",
             "examples": [
-              "2026-11-06T00:00:00Z"
+              "2026-11-07T00:00:00Z"
             ]
           },
           "created_at": {
@@ -27434,7 +27613,7 @@
             "title": "Created At",
             "description": "Timestamp at which the execution row was created (i.e. when the work was queued)",
             "examples": [
-              "2026-11-05T00:00:00Z"
+              "2026-11-06T00:00:00Z"
             ]
           },
           "event_type": {
@@ -27636,7 +27815,7 @@
             "title": "Start Datetime",
             "description": "Target session timestamp the workflow (backfill) should start. An empty value indicates start on activation - live sessions only",
             "examples": [
-              "2026-11-05T00:00:00Z"
+              "2026-11-06T00:00:00Z"
             ]
           },
           "end_datetime": {
@@ -27652,7 +27831,7 @@
             "title": "End Datetime",
             "description": "Target session timestamp the workflow (backfill) should end. An empty value indicates no end, i.e., include live sessions until deactivation",
             "examples": [
-              "2026-11-06T00:00:00Z"
+              "2026-11-07T00:00:00Z"
             ]
           }
         },
@@ -27765,7 +27944,7 @@
             "title": "Start Datetime",
             "description": "Target session timestamp the workflow (backfill) should start. An empty value indicates start on activation - live sessions only",
             "examples": [
-              "2026-11-05T00:00:00Z"
+              "2026-11-06T00:00:00Z"
             ]
           },
           "end_datetime": {
@@ -27781,7 +27960,7 @@
             "title": "End Datetime",
             "description": "Target session timestamp the workflow (backfill) should end. An empty value indicates no end, i.e., include live sessions until deactivation",
             "examples": [
-              "2026-11-06T00:00:00Z"
+              "2026-11-07T00:00:00Z"
             ]
           },
           "id": {
@@ -27849,7 +28028,7 @@
             "title": "Created At",
             "description": "Timestamp at which the insight workflow was created",
             "examples": [
-              "2026-11-05T00:00:00Z"
+              "2026-11-06T00:00:00Z"
             ]
           },
           "updated_at": {
@@ -27858,7 +28037,7 @@
             "title": "Updated At",
             "description": "Timestamp of most recent update to the insight workflow",
             "examples": [
-              "2026-11-06T00:00:00Z"
+              "2026-11-07T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -27882,7 +28061,7 @@
             "title": "Last Folder Upload At",
             "description": "Timestamp of the most recent file upload to any folder associated with this workflow (null for non-upload workflows or until a file has been uploaded)",
             "examples": [
-              "2026-11-06T00:00:00Z"
+              "2026-11-07T00:00:00Z"
             ]
           }
         },
@@ -28015,7 +28194,7 @@
             "title": "Start Datetime",
             "description": "Target session timestamp the workflow (backfill) should start. An empty value indicates start on activation - live sessions only",
             "examples": [
-              "2026-11-05T00:00:00Z"
+              "2026-11-06T00:00:00Z"
             ]
           },
           "end_datetime": {
@@ -28031,7 +28210,7 @@
             "title": "End Datetime",
             "description": "Target session timestamp the workflow (backfill) should end. An empty value indicates no end, i.e., include live sessions until deactivation",
             "examples": [
-              "2026-11-06T00:00:00Z"
+              "2026-11-07T00:00:00Z"
             ]
           },
           "id": {
@@ -28099,7 +28278,7 @@
             "title": "Created At",
             "description": "Timestamp at which the insight workflow was created",
             "examples": [
-              "2026-11-05T00:00:00Z"
+              "2026-11-06T00:00:00Z"
             ]
           },
           "updated_at": {
@@ -28108,7 +28287,7 @@
             "title": "Updated At",
             "description": "Timestamp of most recent update to the insight workflow",
             "examples": [
-              "2026-11-06T00:00:00Z"
+              "2026-11-07T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -28132,7 +28311,7 @@
             "title": "Last Folder Upload At",
             "description": "Timestamp of the most recent file upload to any folder associated with this workflow (null for non-upload workflows or until a file has been uploaded)",
             "examples": [
-              "2026-11-06T00:00:00Z"
+              "2026-11-07T00:00:00Z"
             ]
           }
         },
@@ -28253,7 +28432,7 @@
             "title": "Created At",
             "description": "Timestamp at which insight upload folder was created",
             "examples": [
-              "2026-11-05T00:00:00Z"
+              "2026-11-06T00:00:00Z"
             ]
           },
           "updated_at": {
@@ -28262,7 +28441,7 @@
             "title": "Updated At",
             "description": "Timestamp at which insight upload folder was last updated",
             "examples": [
-              "2026-11-06T00:00:00Z"
+              "2026-11-07T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -28512,7 +28691,7 @@
             "title": "Created At",
             "description": "Timestamp at which insight tool result was created",
             "examples": [
-              "2026-11-05T00:00:00Z"
+              "2026-11-06T00:00:00Z"
             ]
           },
           "updated_at": {
@@ -28521,7 +28700,7 @@
             "title": "Updated At",
             "description": "Timestamp at which insight tool result was last updated",
             "examples": [
-              "2026-11-06T00:00:00Z"
+              "2026-11-07T00:00:00Z"
             ]
           },
           "upload_file_metadata": {
@@ -28666,7 +28845,7 @@
             "title": "Start Time",
             "description": "Start time of the uploaded file",
             "examples": [
-              "2026-11-05T00:00:00Z"
+              "2026-11-06T00:00:00Z"
             ]
           },
           "end_time": {
@@ -28682,7 +28861,7 @@
             "title": "End Time",
             "description": "End time of the uploaded file",
             "examples": [
-              "2026-11-06T00:00:00Z"
+              "2026-11-07T00:00:00Z"
             ]
           },
           "error_message": {
@@ -28737,7 +28916,7 @@
             "title": "Created At",
             "description": "Timestamp at which insight upload file was created",
             "examples": [
-              "2026-11-05T00:00:00Z"
+              "2026-11-06T00:00:00Z"
             ]
           }
         },
@@ -33122,7 +33301,7 @@
             "title": "Created At",
             "description": "Timestamp of campaign creation",
             "examples": [
-              "2026-11-06T00:00:00Z"
+              "2026-11-07T00:00:00Z"
             ]
           },
           "updated_at": {
@@ -33131,7 +33310,7 @@
             "title": "Updated At",
             "description": "Timestamp of campaign update",
             "examples": [
-              "2026-11-06T00:00:00Z"
+              "2026-11-07T00:00:00Z"
             ]
           },
           "last_updated_by": {
@@ -40020,7 +40199,8 @@
           "OpenAI",
           "ElevenLabs",
           "Google",
-          "Cartesia"
+          "Cartesia",
+          "Deepgram"
         ],
         "title": "TtsProvider",
         "description": "TTS provider for an agent voice."
@@ -41497,7 +41677,7 @@
             "title": "Analyzed At",
             "description": "When the workflow execution started processing this file; null while the row is still PENDING",
             "examples": [
-              "2026-11-06T00:00:00Z"
+              "2026-11-07T00:00:00Z"
             ]
           },
           "queued_at": {
@@ -41506,7 +41686,7 @@
             "title": "Queued At",
             "description": "When the file was queued for this workflow",
             "examples": [
-              "2026-11-06T00:00:00Z"
+              "2026-11-07T00:00:00Z"
             ]
           },
           "status": {
@@ -41624,7 +41804,7 @@
             "title": "Analyzed At",
             "description": "When the workflow execution started processing this session; null while the row is still PENDING",
             "examples": [
-              "2026-11-06T00:00:00Z"
+              "2026-11-07T00:00:00Z"
             ]
           },
           "queued_at": {
@@ -41633,7 +41813,7 @@
             "title": "Queued At",
             "description": "When the session was queued for this workflow",
             "examples": [
-              "2026-11-06T00:00:00Z"
+              "2026-11-07T00:00:00Z"
             ]
           },
           "status": {
