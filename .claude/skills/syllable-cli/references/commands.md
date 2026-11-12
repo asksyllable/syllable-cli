@@ -75,7 +75,7 @@ One turn at a time against the agent under test, no phone number or channel requ
 | Silence | `--test-id <id> --text "" -o json` |
 | DTMF | `--test-id <id> --text "9" -o json` |
 
-**Always pass `--text`** — even `--text ""`. Omitting it on `--session-start` returns 500 ([cli#50](https://github.com/asksyllable/syllable-cli/issues/50)).
+**`text` is required by the API on every turn.** The CLI sends `--text ""` when you leave `--text` out, so a turn without it is a silence turn. Pass `--text` explicitly to make intent clear. With `--file`, your JSON body must include `text` (an empty string is fine).
 
 **Pin the clock for date-sensitive tests** — add `--override-timestamp <iso8601>` to any turn to fix the agent's perceived "now" (drives `get_current_datetime` and time-based greeting/message rules), so relative-date scenarios ("two weeks from today") stay deterministic instead of drifting daily.
 
