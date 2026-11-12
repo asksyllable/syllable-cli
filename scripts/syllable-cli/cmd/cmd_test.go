@@ -3353,6 +3353,30 @@ func TestHintForErrorStatusCodes(t *testing.T) {
 	}
 }
 
+// A stale-version 409 must not be reported as a duplicate name (#240).
+func TestHintFor409(t *testing.T) {
+	update, _, err := rootCmd.Find([]string{"custom-messages", "update"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		name, body, want, notWant string
+	}{
+		{"stale version", `{"detail":"This Message has changed. Confirm saving your edits as a new version."}`, "`syllable custom-messages get`", "already exists"},
+		{"duplicate name", `{"detail":"A message with this name already exists"}`, "`syllable custom-messages list`", "newer version"},
+		{"unexplained", `{}`, "current state", "already exists."},
+	}
+	for _, tc := range cases {
+		h := hintForError(update, &client.APIError{StatusCode: 409, Body: []byte(tc.body)})
+		if !strings.Contains(h, tc.want) || strings.Contains(h, tc.notWant) {
+			t.Errorf("%s: hint = %q, want %q and not %q", tc.name, h, tc.want, tc.notWant)
+		}
+	}
+	if h := hintForError(nil, &client.APIError{StatusCode: 409, Body: []byte(`{}`)}); !strings.Contains(h, "the `list` subcommand") {
+		t.Errorf("nil command 409 hint = %q", h)
+	}
+}
+
 func TestResolveBaseURL(t *testing.T) {
 	saveEnv, saveDef := viper.GetString("env"), viper.GetString("default_env")
 	defer func() {

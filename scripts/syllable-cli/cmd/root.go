@@ -166,10 +166,7 @@ func hintForError(cmd *cobra.Command, err error) string {
 	case 404:
 		return hint404(cmd)
 	case 409:
-		if listPath := siblingListPath(cmd); listPath != "" {
-			return fmt.Sprintf("A resource with this name already exists. Use `%s` to find it.", listPath)
-		}
-		return "A resource with this name already exists. Use the `list` subcommand to find it."
+		return hint409(cmd, apiErr.Body)
 	case 422:
 		return hint422(apiErr.Body)
 	case 400:
@@ -219,15 +216,42 @@ func hint404(cmd *cobra.Command) string {
 // siblingListPath returns the full command path of the `list` sibling of cmd
 // (e.g. "syllable tools list"), or "" when cmd has no list sibling.
 func siblingListPath(cmd *cobra.Command) string {
+	return siblingPath(cmd, "list")
+}
+
+// siblingPath returns the full path of the named sibling command, or "".
+func siblingPath(cmd *cobra.Command, name string) string {
 	if cmd == nil || cmd.Parent() == nil {
 		return ""
 	}
 	for _, sib := range cmd.Parent().Commands() {
-		if sib.Name() == "list" {
+		if sib.Name() == name {
 			return sib.CommandPath()
 		}
 	}
 	return ""
+}
+
+// hint409 tells a stale edit apart from a duplicate name. Both are 409s, but a
+// save with an outdated expected_version ("This Message has changed") is not a
+// name clash, so only a body that reads like one gets the name hint (#240).
+// The server's own detail is printed with the error either way.
+func hint409(cmd *cobra.Command, body []byte) string {
+	detail := strings.ToLower(string(body))
+	list, get := "the `list` subcommand", "`get`"
+	if p := siblingPath(cmd, "list"); p != "" {
+		list = "`" + p + "`"
+	}
+	if p := siblingPath(cmd, "get"); p != "" {
+		get = "`" + p + "`"
+	}
+	switch {
+	case strings.Contains(detail, "changed") || strings.Contains(detail, "version"):
+		return fmt.Sprintf("Someone saved a newer version since you fetched it. Fetch it again with %s, reapply your edit, and retry (send the current `version_number` as `expected_version` where the body has one).", get)
+	case strings.Contains(detail, "exist") || strings.Contains(detail, "duplicate") || strings.Contains(detail, "unique") || strings.Contains(detail, "in use"):
+		return fmt.Sprintf("A resource with this name already exists. Use %s to find it.", list)
+	}
+	return fmt.Sprintf("The request conflicts with the resource's current state, such as a name already in use or a newer saved edit. Check %s for a duplicate, or fetch it again with %s and retry.", list, get)
 }
 
 // validationFields returns the fields a FastAPI validation error body names
