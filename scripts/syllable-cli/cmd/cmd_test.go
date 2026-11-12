@@ -535,7 +535,7 @@ func TestAgentsSendTestMessageRequiresAgentID(t *testing.T) {
 	}
 }
 
-func TestAgentsSendTestMessageNoTextOmitsField(t *testing.T) {
+func TestAgentsSendTestMessageNoTextSendsEmpty(t *testing.T) {
 	var receivedBody map[string]interface{}
 	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
@@ -555,8 +555,14 @@ func TestAgentsSendTestMessageNoTextOmitsField(t *testing.T) {
 		}
 	})
 
-	if _, exists := receivedBody["text"]; exists {
-		t.Errorf("text field should be omitted on follow-up turns when --text is not provided, got %v", receivedBody["text"])
+	// TestMessage.text is required by the API, so follow-up turns without
+	// --text still send it as an empty string.
+	val, exists := receivedBody["text"]
+	if !exists {
+		t.Fatal("text field should be present (as empty string) on follow-up turns without --text")
+	}
+	if val != "" {
+		t.Errorf("expected text='' on follow-up turn without --text, got %v", val)
 	}
 }
 

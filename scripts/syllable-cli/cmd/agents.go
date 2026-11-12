@@ -423,11 +423,9 @@ the same --test-id).`,
 					"service_name":  serviceName,
 					"source":        source,
 					"session_start": sessionStart,
-				}
-				if cmd.Flags().Changed("text") {
-					message["text"] = text
-				} else if sessionStart {
-					message["text"] = ""
+					// The API requires text on every turn; an empty
+					// string is its documented "no text" value.
+					"text": text,
 				}
 				if cmd.Flags().Changed("org-name") {
 					message["org_name"] = orgName
@@ -479,7 +477,7 @@ the same --test-id).`,
 
 	cmd.Flags().StringVar(&file, "file", "", "Full TestMessage JSON body (use '-' for stdin; cannot combine with message flags)")
 	cmd.Flags().StringVar(&testID, "test-id", "", "Test session identifier (required unless using --file)")
-	cmd.Flags().StringVar(&text, "text", "", "Message text to send to the agent")
+	cmd.Flags().StringVar(&text, "text", "", "Message text to send to the agent (sent as an empty string when omitted; the API requires text on every turn)")
 	cmd.Flags().StringVar(&overrideTimestamp, "override-timestamp", "", "Timezone-naive ISO 8601 timestamp (e.g. 2030-12-25T09:30:00) to pin the agent's wall clock for this turn, interpreted in the agent's timezone. Offset (-07:00), 'Z', and space-separated forms are silently ignored by the server. Omit to use current time.")
 	cmd.Flags().BoolVar(&sessionStart, "session-start", false, "Start a new test session")
 	cmd.Flags().StringVar(&serviceName, "service-name", "test", "Service name for the test")
