@@ -75,7 +75,9 @@ One turn at a time against the agent under test, no phone number or channel requ
 | Silence | `--test-id <id> --text "" -o json` |
 | DTMF | `--test-id <id> --text "9" -o json` |
 
-**`text` is required by the API on every turn.** The CLI sends `--text ""` when you leave `--text` out, so a turn without it is a silence turn. Pass `--text` explicitly to make intent clear. With `--file`, your JSON body must include `text` (an empty string is fine).
+**`text` is required by the API on every turn.** On `--session-start` the CLI sends an empty `text` when you leave `--text` out. A follow-up turn without `--text` stops with an error and sends nothing; pass `--text ""` to send a silence turn on purpose. With `--file`, your JSON body must include `text` (an empty string is a silence turn).
+
+**Silence turns fail on some agents.** Prod currently rejects an empty follow-up turn on some agents with `400 {"detail":"There was an issue sending the message"}`, while others accept it ([cli#238](https://github.com/asksyllable/syllable-cli/issues/238)). Each failure is a server-side error, so don't send silence turns to production agents; test no-input handling on a `cli-test` agent that accepts them.
 
 **Pin the clock for date-sensitive tests** — add `--override-timestamp <iso8601>` to any turn to fix the agent's perceived "now" (drives `get_current_datetime` and time-based greeting/message rules), so relative-date scenarios ("two weeks from today") stay deterministic instead of drifting daily.
 

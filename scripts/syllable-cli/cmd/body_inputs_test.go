@@ -137,7 +137,7 @@ func TestAgentsTestMessageInlineOrgName(t *testing.T) {
 				w.Write([]byte(`{}`))
 			})
 			defer server.Close()
-			executeBodyCommand(t, agentsSendTestMessageCmd(), "42", "--test-id", "test", "--org-name", orgName, "--session-start=false")
+			executeBodyCommand(t, agentsSendTestMessageCmd(), "42", "--test-id", "test", "--text", "hi", "--org-name", orgName, "--session-start=false")
 		})
 	}
 }

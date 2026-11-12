@@ -392,6 +392,9 @@ the same --test-id).`,
   # Start a session with no caller text (agent speaks first)
   syllable agents send-test-message 42 --test-id my-test-1 --session-start
 
+  # Send a silence turn (the caller says nothing)
+  syllable agents send-test-message 42 --test-id my-test-1 --text ""
+
   # Pin the agent's wall clock for deterministic date-sensitive tests (timezone-naive ISO 8601, interpreted in the agent's timezone)
   syllable agents send-test-message 42 --test-id my-test-1 --session-start --override-timestamp "2030-12-25T09:30:00" --text "I need to schedule an appointment"`,
 		Args: cobra.ExactArgs(1),
@@ -417,15 +420,19 @@ the same --test-id).`,
 				if testID == "" {
 					return fmt.Errorf("required flag: --test-id (or use --file)")
 				}
+				// The API requires text on every turn, and an empty string
+				// is a silence turn. Some agents reject one (#238), so a
+				// follow-up turn only sends it when asked to explicitly.
+				if !sessionStart && !cmd.Flags().Changed("text") {
+					return fmt.Errorf(`--text is required on a follow-up turn; pass --text "" to send a silence turn (no caller input)`)
+				}
 				message := map[string]interface{}{
 					"agent_id":      agentID,
 					"test_id":       testID,
 					"service_name":  serviceName,
 					"source":        source,
 					"session_start": sessionStart,
-					// The API requires text on every turn; an empty
-					// string is its documented "no text" value.
-					"text": text,
+					"text":          text,
 				}
 				if cmd.Flags().Changed("org-name") {
 					message["org_name"] = orgName
@@ -477,7 +484,7 @@ the same --test-id).`,
 
 	cmd.Flags().StringVar(&file, "file", "", "Full TestMessage JSON body (use '-' for stdin; cannot combine with message flags)")
 	cmd.Flags().StringVar(&testID, "test-id", "", "Test session identifier (required unless using --file)")
-	cmd.Flags().StringVar(&text, "text", "", "Message text to send to the agent (sent as an empty string when omitted; the API requires text on every turn)")
+	cmd.Flags().StringVar(&text, "text", "", "Message text to send to the agent. Required on follow-up turns; --text \"\" sends a silence turn (no caller input). May be omitted with --session-start")
 	cmd.Flags().StringVar(&overrideTimestamp, "override-timestamp", "", "Timezone-naive ISO 8601 timestamp (e.g. 2030-12-25T09:30:00) to pin the agent's wall clock for this turn, interpreted in the agent's timezone. Offset (-07:00), 'Z', and space-separated forms are silently ignored by the server. Omit to use current time.")
 	cmd.Flags().BoolVar(&sessionStart, "session-start", false, "Start a new test session")
 	cmd.Flags().StringVar(&serviceName, "service-name", "test", "Service name for the test")
