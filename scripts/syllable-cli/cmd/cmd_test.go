@@ -535,7 +535,32 @@ func TestAgentsSendTestMessageRequiresAgentID(t *testing.T) {
 	}
 }
 
-func TestAgentsSendTestMessageNoTextSendsEmpty(t *testing.T) {
+func TestAgentsSendTestMessageFollowUpRequiresText(t *testing.T) {
+	requests := 0
+	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		json.NewEncoder(w).Encode(map[string]interface{}{"test_id": "test-789"})
+	})
+	defer server.Close()
+
+	cmd := agentsSendTestMessageCmd()
+	cmd.SetArgs([]string{"5", "--test-id", "test-789"})
+	cmd.SilenceUsage = true
+	cmd.SilenceErrors = true
+	var err error
+	captureStdout(func() { err = cmd.Execute() })
+
+	// An omitted --text on a follow-up turn is an input error, not a silence
+	// turn: some agents reject an empty turn (#238), so nothing is sent.
+	if err == nil || !strings.Contains(err.Error(), `--text ""`) {
+		t.Fatalf("expected an error pointing at --text \"\", got %v", err)
+	}
+	if requests != 0 {
+		t.Errorf("expected no request on a follow-up turn without --text, got %d", requests)
+	}
+}
+
+func TestAgentsSendTestMessageExplicitEmptyTextSendsSilence(t *testing.T) {
 	var receivedBody map[string]interface{}
 	server := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
@@ -548,21 +573,19 @@ func TestAgentsSendTestMessageNoTextSendsEmpty(t *testing.T) {
 	defer server.Close()
 
 	cmd := agentsSendTestMessageCmd()
-	cmd.SetArgs([]string{"5", "--test-id", "test-789"})
+	cmd.SetArgs([]string{"5", "--test-id", "test-789", "--text", ""})
 	captureStdout(func() {
 		if err := cmd.Execute(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
 
-	// TestMessage.text is required by the API, so follow-up turns without
-	// --text still send it as an empty string.
 	val, exists := receivedBody["text"]
-	if !exists {
-		t.Fatal("text field should be present (as empty string) on follow-up turns without --text")
+	if !exists || val != "" {
+		t.Errorf("expected text=\"\" on an explicit silence turn, got %v (present=%v)", val, exists)
 	}
-	if val != "" {
-		t.Errorf("expected text='' on follow-up turn without --text, got %v", val)
+	if receivedBody["session_start"] != false {
+		t.Errorf("expected session_start=false, got %v", receivedBody["session_start"])
 	}
 }
 
@@ -2879,7 +2902,7 @@ func TestSendTestMessageWarnsButStillSends(t *testing.T) {
 	cmd := agentsSendTestMessageCmd()
 	var stderr bytes.Buffer
 	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"42", "--test-id", "t1", "--override-timestamp", "2030-12-25T09:30:00Z"})
+	cmd.SetArgs([]string{"42", "--test-id", "t1", "--text", "hi", "--override-timestamp", "2030-12-25T09:30:00Z"})
 	captureStdout(func() {
 		if err := cmd.Execute(); err != nil {
 			t.Errorf("unexpected error: %v", err)
