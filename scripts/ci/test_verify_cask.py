@@ -65,6 +65,45 @@ class Passes(unittest.TestCase):
         self.assertEqual(check(BASE, cask(verified=True), SUMS), [])
 
 
+LEGACY = """
+  postflight do
+    if OS.mac?
+      system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/syllable"]
+    end
+  end
+"""
+STEPS = """
+  postflight_steps do
+    on_macos do
+      run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{staged_path}}/syllable"]
+    end
+  end
+"""
+
+
+class PostflightMigration(unittest.TestCase):
+    def test_legacy_to_steps(self):
+        self.assertEqual(check(cask(version="2.3.3", extra=LEGACY), cask(extra=STEPS), SUMS), [])
+
+    def test_steps_to_steps(self):
+        self.assertEqual(check(cask(version="2.3.3", extra=STEPS), cask(extra=STEPS), SUMS), [])
+
+    def test_steps_back_to_legacy_rejected(self):
+        self.assertTrue(check(cask(version="2.3.3", extra=STEPS), cask(extra=LEGACY), SUMS))
+
+    def test_steps_without_legacy_base_rejected(self):
+        self.assertTrue(check(BASE, cask(extra=STEPS), SUMS))
+
+    def test_altered_steps_rejected(self):
+        evil = STEPS.replace('"-dr", ', '"-dr", "/", ')
+        self.assertTrue(check(cask(version="2.3.3", extra=LEGACY), cask(extra=evil), SUMS))
+
+    def test_extra_step_rejected(self):
+        evil = STEPS.replace("    end\n  end", '    end\n    run "/bin/sh", args: ["-c", "x"]\n  end')
+        self.assertNotEqual(evil, STEPS)
+        self.assertTrue(check(cask(version="2.3.3", extra=LEGACY), cask(extra=evil), SUMS))
+
+
 class Rejects(unittest.TestCase):
     def assertRejected(self, new, base=BASE):
         errors = check(base, new, SUMS)

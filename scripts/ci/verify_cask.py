@@ -60,6 +60,36 @@ def structure(text):
     return sorted(l for l in lines_of(text) if l and not l.startswith("#") and not VALUE_START.match(l))
 
 
+# The one sanctioned structural change: Homebrew deprecated Ruby `postflight`
+# blocks, so GoReleaser v2.19+ writes the same quarantine removal as a declarative
+# `postflight_steps` block. A base cask with the legacy block may move to exactly
+# this replacement and nothing else. Once main carries the new form this is a no-op.
+LEGACY_POSTFLIGHT = [
+    "postflight do",
+    "if OS.mac?",
+    'system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/syllable"]',
+    "end",
+    "end",
+]
+STEPS_POSTFLIGHT = [
+    "postflight_steps do",
+    "on_macos do",
+    'run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{staged_path}}/syllable"]',
+    "end",
+    "end",
+]
+
+
+def migrated(struct):
+    """`struct` with the legacy postflight block swapped for its steps form, if present."""
+    rest = list(struct)
+    for line in LEGACY_POSTFLIGHT:
+        if line not in rest:
+            return struct
+        rest.remove(line)
+    return sorted(rest + STEPS_POSTFLIGHT)
+
+
 def check(old, new, sums):
     """Return a list of problems with `new` (the cask text); empty means it passes.
     `old` is the base cask text (None if the cask is new); `sums` maps asset
@@ -109,7 +139,7 @@ def check(old, new, sums):
         return errors
     version = versions[0]
 
-    if old is not None and structure(old) != structure(new):
+    if old is not None and structure(new) not in (structure(old), migrated(structure(old))):
         added = sorted(set(structure(new)) - set(structure(old)))
         removed = sorted(set(structure(old)) - set(structure(new)))
         errors.append(f"cask structure changed beyond version/url/sha256 values: added {added}, removed {removed}")
