@@ -9,7 +9,9 @@ description: |
 
 A Go CLI for managing the Syllable AI platform. Source and releases: **https://github.com/asksyllable/syllable-cli**
 
-> **Docs synced to CLI v2.6.3** — bump this marker whenever these docs are updated for a new release.
+> **Docs synced to CLI v2.6.7** — bump this marker whenever these docs are updated for a new release.
+>
+> v2.6.7 (patch) highlights: field-only spec sync. `SupportedLlm.reasoning_policy` is a new field.
 >
 > v2.6.3 (patch) highlights: field-only spec sync. `Session.call_start_variables` is a new field.
 >
