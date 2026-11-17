@@ -7,6 +7,12 @@ name: Release Train
 # tags that exact live-checked commit, runs the Release workflow (build,
 # publish, cask merge), and writes the release notes from the PRs.
 #
+# API syncs release once a week: when the only pending changes are spec syncs,
+# the train holds them until Thursday 13:00 UTC (repo variable
+# SYNC_RELEASE_DAY; "any" turns batching off), timed to the API's weekly
+# production rollout. Other fixes and features release right away. A manual
+# dispatch with release_now releases pending syncs immediately.
+#
 # Majors never ship automatically: a breaking marker opens an issue instead.
 
 on:
@@ -19,6 +25,10 @@ on:
         description: "Only report what would be released"
         type: boolean
         default: true
+      release_now:
+        description: "Release pending API syncs now instead of waiting for the weekly release"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -68,8 +78,10 @@ jobs:
         id: plan
         env:
           GH_TOKEN: ${{ github.token }}
+          SYNC_RELEASE_DAY: ${{ (github.event_name == 'workflow_dispatch' && inputs.release_now) && 'any' || vars.SYNC_RELEASE_DAY || 'thu' }}
         run: |
           python3 scripts/ci/release_train.py --candidate "${{ steps.candidate.outputs.sha }}" \
+            --sync-release-day "$SYNC_RELEASE_DAY" \
             --notes-out "$RUNNER_TEMP/notes.md" | tee -a "$GITHUB_OUTPUT"
           [ -f "$RUNNER_TEMP/notes.md" ] && cat "$RUNNER_TEMP/notes.md" >> "$GITHUB_STEP_SUMMARY" || true
 

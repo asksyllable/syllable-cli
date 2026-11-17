@@ -11,6 +11,13 @@ Version bump: minor if any releasable commit is `feat`, otherwise patch.
 A breaking marker (`feat!:` or a `BREAKING CHANGE` footer) stops the train:
 majors stay a human decision.
 
+API syncs (`chore:`/`feat: sync CLI to OpenAPI spec`) are batched weekly with
+--sync-release-day: when the only releasable commits are syncs, the train
+releases them only once that weekday's 13:00 UTC has passed since the last
+release. It is timed to the API's weekly production rollout, so a sync's new
+commands usually work on the day they ship. Any other `feat:`/`fix:` still releases right
+away and carries the pending syncs with it. `any` releases syncs immediately.
+
 Release notes come from each releasable PR's `## Release notes` section, or
 fall back to its title and number.
 
@@ -18,19 +25,43 @@ A tag whose GitHub release never got published (the release run failed after
 tagging) is resumed rather than treated as shipped: the train re-runs the
 release for that tag instead of tagging anything new.
 
-Prints `key=value` lines for $GITHUB_OUTPUT: release, resume, breaking, tag, last_tag.
-Usage: release_train.py --candidate SHA [--since TAG] [--notes-out FILE]
+Prints `key=value` lines for $GITHUB_OUTPUT: release, resume, breaking, held, tag, last_tag.
+Usage: release_train.py --candidate SHA [--since TAG] [--notes-out FILE] [--sync-release-day DAY]
 """
 import argparse
 import json
 import re
 import subprocess
 import sys
+from datetime import datetime, timedelta, timezone
 
 REPO = "asksyllable/syllable-cli"
 RELEASABLE = re.compile(r"^(feat|fix)(\([^)]*\))?!?: |^chore: sync CLI to OpenAPI spec")
 BREAKING_SUBJECT = re.compile(r"^\w+(\([^)]*\))?!: ")
 PR_SUFFIX = re.compile(r"\(#(\d+)\)\s*$")
+SYNC = re.compile(r"^(feat|chore)(\([^)]*\))?: sync CLI to OpenAPI spec")
+WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+SYNC_RELEASE_HOUR = 13  # UTC, before the daily 14:00 live check
+
+
+def sync_release_due(last_release, now, day):
+    """Whether pending API syncs may release now, and when the next window opens.
+
+    Syncs release once per week: after `day` at 13:00 UTC, if nothing was
+    released since then. "any" means no batching.
+    """
+    if day == "any":
+        return True, None
+    wd = WEEKDAYS.index(day)
+    window = (now - timedelta(days=(now.weekday() - wd) % 7)).replace(
+        hour=SYNC_RELEASE_HOUR, minute=0, second=0, microsecond=0)
+    if window > now:
+        window -= timedelta(days=7)
+    return last_release < window, window + timedelta(days=7)
+
+
+def tag_time(tag):
+    return datetime.fromisoformat(run("git", "for-each-ref", f"refs/tags/{tag}", "--format=%(creatordate:iso-strict)").strip())
 
 
 def run(*args):
@@ -76,6 +107,8 @@ def main():
     ap.add_argument("--candidate", required=True)
     ap.add_argument("--since", help="previous tag (default: latest released v* tag reachable from the candidate)")
     ap.add_argument("--notes-out")
+    ap.add_argument("--sync-release-day", default="any", choices=WEEKDAYS + ["any"],
+                    help="weekday (UTC) on which API syncs release; 'any' releases them right away")
     args = ap.parse_args()
 
     resume_tag = ""
@@ -107,9 +140,17 @@ def main():
             releasable.append((sha, subject))
 
     out = {"last_tag": last, "breaking": str(breaking).lower(), "release": "false", "tag": "",
-           "resume": str(bool(resume_tag)).lower()}
+           "resume": str(bool(resume_tag)).lower(), "held": "false"}
+    only_syncs = bool(releasable) and all(SYNC.match(s) for _, s in releasable)
+    due, next_window = (True, None)
+    if only_syncs and not resume_tag:
+        due, next_window = sync_release_due(tag_time(last), datetime.now(timezone.utc), args.sync_release_day)
     if breaking and not resume_tag:
         print("Breaking change since the last release; majors stay a human decision.", file=sys.stderr)
+    elif not due:
+        out["held"] = "true"
+        print(f"Holding {len(releasable)} API sync(s) for the weekly release after "
+              f"{next_window:%a %Y-%m-%d %H:%M} UTC.", file=sys.stderr)
     elif releasable or resume_tag:
         if any(s.startswith("feat") for _, s in releasable):
             minor, patch = minor + 1, 0
