@@ -145,9 +145,10 @@ Further opt-in integration coverage in `integration/body_parity_test.go` uses `S
 - **Releases are automatic.** After every successful **Spec Live Check** on `main` (each push that touches the CLI, plus the daily run), the [Release Train](.github/workflows/release-train.yml) runs [`scripts/ci/release_train.py`](scripts/ci/release_train.py):
   - **Releasable commits:** commits since the last tag with a `feat:`/`fix:` title or `chore: sync CLI to OpenAPI spec` that change shipped code (`scripts/syllable-cli/`, excluding tests). Docs, CI, test, and dependency-only changes ride along with the next real release.
   - **Version:** minor if any releasable commit is a `feat`, otherwise patch.
+  - **API syncs release weekly.** When the only pending changes are spec syncs, the train holds them until Thursday 13:00 UTC, then releases them together, timed to the API's weekly production rollout so new commands usually work the day they ship. The weekday is the `SYNC_RELEASE_DAY` repository variable (default `thu`; `any` turns batching off). Other `feat:`/`fix:` changes still release right away and carry any pending syncs with them. Syncs still merge to `main` daily, so each one stays small and tested.
   - **Release:** the train tags that exact live-checked commit, calls `release.yml`, and writes the release notes from each PR's `## Release notes` section, falling back to its title.
 
-  To preview, run `gh workflow run release-train.yml` (a dry run by default); add `-f dry_run=false` to release now. A hand-pushed `v*` tag still releases through `release.yml`, for majors and emergencies:
+  To preview, run `gh workflow run release-train.yml` (a dry run by default); add `-f dry_run=false` to release now, plus `-f release_now=true` to include API syncs before the weekly release. A hand-pushed `v*` tag still releases through `release.yml`, for majors and emergencies:
 
 ```bash
 git tag -a vX.Y.Z -m "vX.Y.Z: <short message>"
@@ -180,7 +181,7 @@ Drift is **detected automatically**, and reconciliation is assisted — but the 
   - deprecations, widened or loosened rules, and response-only changes;
   - every request rule the API enforces, new or removed: new required fields and constraints, narrowed types, and removed fields, enum values, schemas, and query or path parameters.
 
-  Each change a user can notice gets a release-notes line. The bot commits the spec, the generated-command names and docs, and the skill marker to `spec-sync/bot`, runs the full `test` workflow on that exact commit, records `test`/`cask-verify` as commit statuses (bot PRs trigger no workflows), and merges. It then runs the live check on `main` and the release train.
+  Each change a user can notice gets a release-notes line. The bot commits the spec, the generated-command names and docs, and the skill marker to `spec-sync/bot`, runs the full `test` workflow on that exact commit, records `test`/`cask-verify` as commit statuses (bot PRs trigger no workflows), and merges. It then runs the live check on `main` and the release train, which releases syncs weekly (see *Branch and release workflow*).
 - **Follow-ups.** Where a change leaves a flag behind (no flag sets a field the API now requires, a flag sets a field the API removed, or the API accepts a new optional header), the bot files a `cli-followup` issue after the merge. The local routine works through them.
 - **Changes that need CLI code** go to the local routine: a removed operation, a new one that can't be generated, a changed success response or flag-built request body, a new required header, an auth or server change, or a test failure on the new spec. The bot says so once on the `spec-drift` issue.
 
