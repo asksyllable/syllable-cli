@@ -62,8 +62,9 @@ def structure(text):
 
 # The one sanctioned structural change: Homebrew deprecated Ruby `postflight`
 # blocks, so GoReleaser v2.19+ writes the same quarantine removal as a declarative
-# `postflight_steps` block. A base cask with the legacy block may move to exactly
-# this replacement and nothing else. Once main carries the new form this is a no-op.
+# `postflight_steps` block (and a `zap :not_required` stanza, below). A base cask
+# with the legacy block may move to exactly this replacement and nothing else.
+# Once main carries the new form this is a no-op.
 LEGACY_POSTFLIGHT = [
     "postflight do",
     "if OS.mac?",
@@ -78,6 +79,8 @@ STEPS_POSTFLIGHT = [
     "end",
     "end",
 ]
+# GoReleaser v2.19+ also turns the "# No zap stanza required" comment into this stanza.
+STEPS_ZAP = "zap :not_required"
 
 
 def migrated(struct):
@@ -87,7 +90,7 @@ def migrated(struct):
         if line not in rest:
             return struct
         rest.remove(line)
-    return sorted(rest + STEPS_POSTFLIGHT)
+    return sorted(rest + STEPS_POSTFLIGHT + [STEPS_ZAP])
 
 
 def check(old, new, sums):
