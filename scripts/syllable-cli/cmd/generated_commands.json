@@ -50,6 +50,12 @@
       "operation_id": "insights_workflow_condition_catalog"
     },
     {
+      "command": "outbound campaigns excluded-dates",
+      "method": "POST",
+      "path": "/api/v1/outbound/campaigns/excluded_dates",
+      "operation_id": "outbound_campaign_excluded_dates"
+    },
+    {
       "command": "prompts list-active-labels",
       "method": "GET",
       "path": "/api/v1/prompts/labels",

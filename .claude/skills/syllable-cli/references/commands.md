@@ -559,6 +559,7 @@ Commands for API operations that don't have a hand-written command yet are gener
 | `syllable insights current-workflow-results` | `GET /api/v1/insights/workflow-results` | Current Insight Workflow Results |
 | `syllable insights file-test-transcript <file-id>` | `GET /api/v1/insights/files/{file_id}/test-transcript` | Uploaded File Tester Transcript |
 | `syllable insights workflows condition-catalog` | `GET /api/v1/insights/workflows/condition-catalog` | Insight Workflow Condition Catalog |
+| `syllable outbound campaigns excluded-dates` | `POST /api/v1/outbound/campaigns/excluded_dates` | List Outbound Communication Campaign Excluded Dates |
 | `syllable prompts list-active-labels` | `GET /api/v1/prompts/labels` | List Active Prompt Labels |
 <!-- END GENERATED COMMANDS -->
 
