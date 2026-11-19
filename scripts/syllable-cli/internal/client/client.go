@@ -50,6 +50,10 @@ type Client struct {
 	RequestPath func(method, path string) (string, error)
 	// RequestAccept selects the SDK operation's response media type.
 	RequestAccept func(method, path string) string
+	// RequestHeaders adds operation-scoped optional request headers, such as
+	// ones the spec declares as header parameters. It can't override a header
+	// the client sets itself (see ReservedHeader).
+	RequestHeaders func(method, path string) map[string]string
 	// DeleteReasonRequired limits the legacy default delete reason to operations
 	// that declare it. Nil preserves compatibility for direct client callers.
 	DeleteReasonRequired func(path string) bool
@@ -182,6 +186,7 @@ func (c *Client) Do(method, path string, body interface{}) ([]byte, int, error) 
 				}
 			}
 		}
+		c.addDryRunHeaders(out, path)
 		data, _ := json.Marshal(out)
 		return nil, 0, &DryRunResult{Output: data}
 	}
@@ -205,6 +210,7 @@ func (c *Client) Do(method, path string, body interface{}) ([]byte, int, error) 
 	if c.Verbose {
 		fmt.Fprintf(os.Stderr, "> %s %s\n", method, c.BaseURL+path)
 		fmt.Fprintf(os.Stderr, "> Syllable-API-Key: %s\n", maskKey(c.APIKey))
+		c.logRequestHeaders(req.Method, path)
 		if bodyBytes != nil {
 			fmt.Fprintf(os.Stderr, "> Content-Type: application/json\n")
 			var pretty bytes.Buffer
@@ -280,6 +286,7 @@ func (c *Client) GetStream(path string) (io.ReadCloser, int, error) {
 			"url":     c.BaseURL + path,
 			"stream":  true,
 		}
+		c.addDryRunHeaders(out, path)
 		data, _ := json.Marshal(out)
 		return nil, 0, &DryRunResult{Output: data}
 	}
@@ -293,6 +300,7 @@ func (c *Client) GetStream(path string) (io.ReadCloser, int, error) {
 	if c.Verbose {
 		fmt.Fprintf(os.Stderr, "> %s %s\n", http.MethodGet, c.BaseURL+path)
 		fmt.Fprintf(os.Stderr, "> Syllable-API-Key: %s\n", maskKey(c.APIKey))
+		c.logRequestHeaders(req.Method, path)
 		fmt.Fprintln(os.Stderr)
 	}
 
@@ -409,6 +417,7 @@ func (c *Client) doMultipart(method, path, fieldName, filePath string) ([]byte, 
 			"file":         filePath,
 			"content_type": w.FormDataContentType(),
 		}
+		c.addDryRunHeaders(out, path)
 		data, _ := json.Marshal(out)
 		return nil, 0, &DryRunResult{Output: data}
 	}
@@ -423,6 +432,7 @@ func (c *Client) doMultipart(method, path, fieldName, filePath string) ([]byte, 
 	if c.Verbose {
 		fmt.Fprintf(os.Stderr, "> %s %s\n", method, c.BaseURL+path)
 		fmt.Fprintf(os.Stderr, "> Syllable-API-Key: %s\n", maskKey(c.APIKey))
+		c.logRequestHeaders(req.Method, path)
 		fmt.Fprintf(os.Stderr, "> Content-Type: %s\n", w.FormDataContentType())
 		fmt.Fprintf(os.Stderr, "> (multipart file: %s, field: %s)\n\n", filePath, fieldName)
 	}
@@ -512,6 +522,7 @@ func (c *Client) doMultipartForm(method, path string, fields map[string]string, 
 			out["file_field"] = fileField
 			out["file"] = filePath
 		}
+		c.addDryRunHeaders(out, path)
 		data, _ := json.Marshal(out)
 		return nil, 0, &DryRunResult{Output: data}
 	}
@@ -526,6 +537,7 @@ func (c *Client) doMultipartForm(method, path string, fields map[string]string, 
 	if c.Verbose {
 		fmt.Fprintf(os.Stderr, "> %s %s\n", method, c.BaseURL+path)
 		fmt.Fprintf(os.Stderr, "> Syllable-API-Key: %s\n", maskKey(c.APIKey))
+		c.logRequestHeaders(req.Method, path)
 		fmt.Fprintf(os.Stderr, "> Content-Type: %s\n", w.FormDataContentType())
 		for k, v := range fields {
 			if isSensitiveKey(k) {
@@ -585,6 +597,7 @@ func (c *Client) DeleteWithForm(path string, fields map[string]string) ([]byte, 
 			"url":     c.BaseURL + path,
 			"body":    encoded,
 		}
+		c.addDryRunHeaders(out, path)
 		data, _ := json.Marshal(out)
 		return nil, 0, &DryRunResult{Output: data}
 	}
@@ -599,6 +612,7 @@ func (c *Client) DeleteWithForm(path string, fields map[string]string) ([]byte, 
 	if c.Verbose {
 		fmt.Fprintf(os.Stderr, "> %s %s\n", http.MethodDelete, c.BaseURL+path)
 		fmt.Fprintf(os.Stderr, "> Syllable-API-Key: %s\n", maskKey(c.APIKey))
+		c.logRequestHeaders(req.Method, path)
 		fmt.Fprintf(os.Stderr, "> Content-Type: application/x-www-form-urlencoded\n>\n> %s\n\n", encoded)
 	}
 

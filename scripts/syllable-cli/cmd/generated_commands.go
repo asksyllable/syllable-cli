@@ -6,7 +6,7 @@ package cmd
 // console-only exclusion gets a command generated from the embedded spec at
 // startup, so a new endpoint is usable as soon as the CLI syncs to it, with no
 // hand-written code. They are plain and built for agents: path parameters are
-// positional arguments, query parameters are flags, a JSON request body comes
+// positional arguments, query and optional header parameters are flags, a JSON request body comes
 // from --file, the raw JSON response is printed, and --help spells out the
 // body's fields with an example. Deletes and other body-less changes ask for
 // confirmation like the hand-written deletes.
@@ -30,6 +30,7 @@ import (
 	"sync"
 	"unicode/utf8"
 
+	"github.com/asksyllable/syllable-cli/internal/client"
 	"github.com/asksyllable/syllable-cli/internal/output"
 	apispec "github.com/asksyllable/syllable-cli/internal/spec"
 	"github.com/spf13/cobra"
@@ -347,8 +348,16 @@ func generationBlocker(op specOperation, doc *specDocument) string {
 				return fmt.Sprintf("has query parameters %q and %q that would share the --%s flag", other, p.Name, name)
 			}
 			flags[name] = p.Name
-		case "header", "cookie":
-			// The command doesn't send optional ones, so the API uses its default.
+		case "header":
+			// An optional header gets a flag that sends it when set.
+			if p.Required {
+				return fmt.Sprintf("takes a required %s parameter (%s)", p.In, p.Name)
+			}
+			if !client.ReservedHeader(p.Name) && !sdkHeaderFlagPattern.MatchString(sdkHeaderFlagName(p.Name)) {
+				return fmt.Sprintf("has an unusual header parameter %q", p.Name)
+			}
+		case "cookie":
+			// The command doesn't send an optional cookie, so the API uses its default.
 			if p.Required {
 				return fmt.Sprintf("takes a required %s parameter (%s)", p.In, p.Name)
 			}

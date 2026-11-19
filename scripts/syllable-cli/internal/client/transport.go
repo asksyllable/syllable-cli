@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/textproto"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -417,7 +418,58 @@ func (c *Client) requestAccept(method, path, fallback string) string {
 	return fallback
 }
 
+// ReservedHeader reports a request header the client sets itself, which an
+// operation's optional header parameters can't replace. OpenAPI also says to
+// ignore header parameters named Accept, Content-Type, or Authorization.
+func ReservedHeader(name string) bool {
+	switch http.CanonicalHeaderKey(name) {
+	case "Accept", "Authorization", "Connection", "Content-Length", "Content-Type", "Cookie",
+		"Host", "Syllable-Api-Key", "Transfer-Encoding", "User-Agent":
+		return true
+	}
+	return false
+}
+
+// requestHeaders returns the operation-scoped headers for a request, without
+// any reserved ones.
+func (c *Client) requestHeaders(method, path string) map[string]string {
+	if c.RequestHeaders == nil {
+		return nil
+	}
+	out := map[string]string{}
+	for name, value := range c.RequestHeaders(method, path) {
+		if !ReservedHeader(name) {
+			out[name] = value
+		}
+	}
+	return out
+}
+
+// addDryRunHeaders shows the operation-scoped headers in --dry-run output.
+func (c *Client) addDryRunHeaders(out map[string]interface{}, path string) {
+	method, _ := out["method"].(string)
+	if headers := c.requestHeaders(method, path); len(headers) > 0 {
+		out["headers"] = headers
+	}
+}
+
+// logRequestHeaders prints the operation-scoped headers for --debug.
+func (c *Client) logRequestHeaders(method, path string) {
+	headers := c.requestHeaders(method, path)
+	names := make([]string, 0, len(headers))
+	for name := range headers {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		fmt.Fprintf(os.Stderr, "> %s: %s\n", name, headers[name])
+	}
+}
+
 func (c *Client) setRequestHeaders(req *http.Request, path, accept string) {
+	for name, value := range c.requestHeaders(req.Method, path) {
+		req.Header.Set(name, value)
+	}
 	if c.APIKey != "" {
 		req.Header.Set("Syllable-API-Key", c.APIKey)
 	}

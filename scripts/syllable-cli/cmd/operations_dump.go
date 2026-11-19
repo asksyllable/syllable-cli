@@ -20,6 +20,8 @@ type operationEntry struct {
 	// treated as flags that build the body inline (an over-approximation, so
 	// automation errs toward asking a human).
 	Flags []string `json:"flags"`
+	// HeaderFlags maps each optional header parameter to the flag that sends it.
+	HeaderFlags map[string]string `json:"header_flags,omitempty"`
 	// Generated marks a command generated from the spec (generated_commands.go).
 	Generated bool `json:"generated,omitempty"`
 }
@@ -67,16 +69,20 @@ func operationEntries(root *cobra.Command) (map[string]operationEntry, error) {
 		if c.Annotations[generatedAnnotation] != "true" {
 			return
 		}
-		// Every flag of a generated command other than --file is a query
-		// parameter, so its body is always a pass-through.
+		// Every flag of a generated command other than --file is a query or
+		// header parameter, so its body is always a pass-through.
 		method, path, _ := strings.Cut(c.Annotations[generatedRouteAnnotation], " ")
-		out[c.Annotations["syllable.sdk.operation"]] = operationEntry{
+		entry := operationEntry{
 			Command:   strings.TrimPrefix(c.CommandPath(), root.Name()+" "),
 			Method:    method,
 			Path:      path,
 			Flags:     []string{},
 			Generated: true,
 		}
+		if headers := sdkHeaderFlagsOf(c); len(headers) > 0 {
+			entry.HeaderFlags = headers
+		}
+		out[c.Annotations["syllable.sdk.operation"]] = entry
 	})
 	return out, nil
 }
@@ -88,6 +94,10 @@ func newOperationEntry(root, target *cobra.Command, operation sdkOperation) oper
 			query[sdkQueryFlagName(target, parameter.Name)] = true
 		}
 	}
+	headers := sdkHeaderFlagsOf(target)
+	for _, flag := range headers {
+		query[flag] = true
+	}
 	flags := []string{}
 	target.LocalNonPersistentFlags().VisitAll(func(f *pflag.Flag) {
 		if f.Name == "file" || f.Name == "help" || query[f.Name] {
@@ -96,10 +106,14 @@ func newOperationEntry(root, target *cobra.Command, operation sdkOperation) oper
 		flags = append(flags, f.Name)
 	})
 	sort.Strings(flags)
-	return operationEntry{
+	entry := operationEntry{
 		Command: strings.TrimPrefix(target.CommandPath(), root.Name()+" "),
 		Method:  operation.Method,
 		Path:    operation.Path,
 		Flags:   flags,
 	}
+	if len(headers) > 0 {
+		entry.HeaderFlags = headers
+	}
+	return entry
 }
