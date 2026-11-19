@@ -107,8 +107,8 @@ Based on the diff output, categorize the work into a checklist:
 generated command (named from its tag and operationId, frozen in
 `cmd/generated_commands.json`) and refreshes the "Generated commands" blocks in
 `AGENTS.md` and `references/commands.md`. Hand-write a command only for an operation
-it reports it can't generate (uploads, downloads, form bodies, header parameters,
-anonymous calls). A generated command ships to users as soon as it's released, so a
+it reports it can't generate (uploads, downloads, form bodies, required header
+parameters, anonymous calls). Optional headers become flags automatically. A generated command ships to users as soon as it's released, so a
 later hand-written replacement must keep its name, or it's a breaking rename. To
 hand-write one:
 - [ ] Create `scripts/syllable-cli/cmd/widgets.go` following the standard pattern

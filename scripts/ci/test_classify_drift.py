@@ -232,8 +232,9 @@ class EdgeCases(unittest.TestCase):
             {"name": "X-Format", "in": "header", "schema": {"type": "integer"}})
         r = classify(base, new, OPS)
         self.assertEqual(r["verdict"], "ship", r)
-        self.assertIn("X-Format", r["followups"][0])
-        self.assertFalse(any("None" in f for f in r["followups"]), r)
+        self.assertEqual(r["followups"], [], r)
+        self.assertIn("`widgets list`: new optional flag `--format` (sends the `X-Format` header).", r["release_notes"])
+        self.assertFalse(any("None" in n for n in r["release_notes"]), r)
 
     def test_unresolvable_parameter_reconciles(self):
         def mutate(s):
@@ -287,9 +288,36 @@ class EdgeCases(unittest.TestCase):
 
 
 class Headers(unittest.TestCase):
-    def test_new_optional_header_ships_with_a_follow_up(self):  # like X-Insight-Workflow-Format-Version
+    def test_new_optional_header_ships_with_its_flag(self):  # like X-Insight-Workflow-Format-Version
         r = changed(lambda s: s["paths"]["/api/v1/widgets/"]["get"]["parameters"].append(
-            {"name": "X-Format", "in": "header", "required": False, "schema": {"type": "integer"}}))
+            {"name": "X-Format_Version", "in": "header", "required": False, "schema": {"type": "integer"}}))
+        self.assertEqual(r["verdict"], "ship", r)
+        self.assertEqual(r["followups"], [], r)
+        self.assertIn("`widgets list`: new optional flag `--format-version` (sends the `X-Format_Version` header).",
+                      r["release_notes"])
+
+    def test_new_optional_header_uses_the_candidate_flag_name(self):
+        def mutate(s):
+            s["paths"]["/api/v1/widgets/"]["get"]["parameters"].append(
+                {"name": "X-Format", "in": "header", "schema": {"type": "integer"}})
+        candidate = copy.deepcopy(OPS)
+        for entry in candidate.values():
+            if entry["method"] == "GET" and entry["path"] == "/api/v1/widgets/":
+                entry["header_flags"] = {"X-Format": "header-format"}
+        r = with_candidate(mutate, candidate)
+        self.assertIn("`widgets list`: new optional flag `--header-format` (sends the `X-Format` header).",
+                      r["release_notes"])
+
+    def test_reserved_header_gets_no_flag(self):
+        r = changed(lambda s: s["paths"]["/api/v1/widgets/"]["get"]["parameters"].append(
+            {"name": "Accept", "in": "header", "schema": {"type": "string"}}))
+        self.assertEqual(r["verdict"], "ship", r)
+        self.assertEqual(r["followups"], [], r)
+        self.assertFalse([n for n in r["release_notes"] if "Accept" in n], r)
+
+    def test_new_optional_cookie_ships_with_a_follow_up(self):
+        r = changed(lambda s: s["paths"]["/api/v1/widgets/"]["get"]["parameters"].append(
+            {"name": "session", "in": "cookie", "required": False, "schema": {"type": "string"}}))
         self.assertEqual(r["verdict"], "ship", r)
         self.assertEqual(len(r["followups"]), 1, r)
         self.assertIn("`widgets list`", r["followups"][0])

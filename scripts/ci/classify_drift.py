@@ -8,7 +8,8 @@ CLI's code has to change first.
 
 Verdicts:
   ship       Syncing is enough: new optional fields, schemas, enum values, and
-             query parameters; deprecations; loosened or widened rules;
+             query and header parameters (each gets a flag from the spec);
+             deprecations; loosened or widened rules;
              response-only changes; and every request rule the server
              enforces, new or removed (new required fields and constraints,
              narrowed types, removed fields, enum values, schemas, and query or
@@ -128,6 +129,22 @@ def ident(name, limit=64):
     return name if len(name) <= limit else name[:limit - 1] + "…"
 
 
+# Headers the CLI sets itself. OpenAPI also says to ignore header parameters
+# named Accept, Content-Type, or Authorization. Mirrors client.ReservedHeader.
+RESERVED_HEADERS = {"accept", "authorization", "connection", "content-length", "content-type", "cookie",
+                    "host", "syllable-api-key", "transfer-encoding", "user-agent"}
+
+
+def header_flag(entry, name):
+    """The flag that sends an optional header: the one the candidate build
+    reports, or the CLI's naming rule (lowercased, no leading X-)."""
+    flag = ((entry or {}).get("header_flags") or {}).get(name)
+    if not flag:
+        flag = str(name).lower()
+        flag = (flag[2:] if flag.startswith("x-") else flag).replace("_", "-")
+    return ident(flag)
+
+
 def value(text, limit=64):
     """A value from the upstream spec (an enum member or a constraint), which
     may contain spaces, reduced the same way."""
@@ -182,7 +199,7 @@ class Classifier:
             for name, routes in responses.items():
                 self.response_users.setdefault(name, set()).update(routes)
         self.reconcile, self.notes, self.ship_reasons = [], [], []
-        self.new_optional_headers = {}  # (in, name) -> commands
+        self.new_optional_cookies = {}  # (in, name) -> commands
         self.flag_checks = {}  # command that builds its body from flags -> what changed
         self.typed_fields = set()  # (schema, pointer) whose type change was judged
         self.output_checks = {}  # hand-written command that reads a response -> what changed
@@ -385,10 +402,16 @@ class Classifier:
                     elif b is None:
                         self.notes.append(f"`{cmd}`: the API removed the {key[0]} parameter `{ident(key[1])}`.")
                     else:
-                        # Optional: the CLI doesn't send it, so the API uses its default.
+                        # Optional: unless asked to, the CLI doesn't send it, so the API uses its default.
                         self.ship_reasons.append(f"{cmd}: optional {key[0]} parameter {ident(key[1])} added or changed")
-                        if a is None:
-                            self.new_optional_headers.setdefault(key, []).append(cmd)
+                        if a is None and key[0] == "header":
+                            # The CLI binds a flag for it from the spec.
+                            if key[1].lower() not in RESERVED_HEADERS:
+                                flag = header_flag((self.candidate or {}).get(route), key[1])
+                                self.notes.append(f"`{cmd}`: new optional flag `--{flag}` (sends the "
+                                                  f"`{ident(key[1])}` header).")
+                        elif a is None:
+                            self.new_optional_cookies.setdefault(key, []).append(cmd)
                 return
             self.reconcile.append(f"`{cmd}`: unrecognized parameter change at `{ident(change['path'], 200)}`")
             return
@@ -428,7 +451,7 @@ class Classifier:
 
     def followups(self):
         """One follow-up per command whose flags or output may no longer fit
-        the API, plus one per new optional header."""
+        the API, plus one per new optional cookie (which the CLI can't send)."""
         out = []
         for cmd, items in sorted(self.flag_checks.items()):
             out.append(f"`{cmd}` builds its request body from flags, and the API changed what it accepts: "
@@ -438,7 +461,7 @@ class Classifier:
             out.append(f"`{cmd}` parses the API's response for its output, and the response changed: "
                        f"{'; '.join(items)}. Check its table and `get` output against the new schema, and fix the "
                        f"parsing if needed.")
-        for (where, name), cmds in sorted(self.new_optional_headers.items()):
+        for (where, name), cmds in sorted(self.new_optional_cookies.items()):
             out.append(f"The API accepts a new optional {where} parameter `{ident(name)}` on `{'`, `'.join(sorted(cmds))}`, "
                        f"which the CLI doesn't send. Add a flag for it if users need it, or close this.")
         return out

@@ -309,11 +309,14 @@ syllable insights workflows update <workflow_id> --file workflow.json
 syllable insights workflows delete <workflow_id>
 syllable insights workflows activate <workflow_id>
 syllable insights workflows activate <workflow_id> --file activation.json
-syllable insights workflows inactivate <workflow_id>
+syllable insights workflows inactivate <workflow_id> [--insight-workflow-format-version N]
 syllable insights workflows executions <workflow_id> [--search STATUS]
-syllable insights workflows executions-summary <workflow_id> [--start-date DATE] [--end-date DATE]
-syllable insights workflows sessions <workflow_id> [--search SESSION_ID] [--search-field session_id|status]
-syllable insights workflows files <workflow_id> [--search TEXT] [--search-field filename|status]
+syllable insights workflows executions-summary <workflow_id> [--start-date DATE] [--end-date DATE] [--insight-workflow-format-version N]
+syllable insights workflows sessions <workflow_id> [--search SESSION_ID] [--search-field session_id|status] [--insight-workflow-format-version N]
+syllable insights workflows files <workflow_id> [--search TEXT] [--search-field filename|status] [--insight-workflow-format-version N]
+# --insight-workflow-format-version sends the X-Insight-Workflow-Format-Version header.
+# Use 2 for conditional (format version 2) workflows. Without the flag no header is
+# sent: inactivate then uses format version 1, and the reads use the API's default.
 
 # Folders
 syllable insights folders list

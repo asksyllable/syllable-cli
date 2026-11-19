@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
 
+	"github.com/asksyllable/syllable-cli/internal/client"
 	apispec "github.com/asksyllable/syllable-cli/internal/spec"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -132,9 +134,112 @@ func bindSDKQueryParameters(root *cobra.Command) error {
 	return nil
 }
 
-// bindSDKOperation adds an operation's query parameters to its command as flags
-// and scopes the request's Accept header, delete reason, and query overrides to
-// that operation. Hand-written and generated commands share it.
+// headerFlagsAnnotation records the flags bound to an operation's optional
+// header parameters, as a JSON object of header name to flag name, so the
+// __operations dump can tell them from flags that build a request body.
+const headerFlagsAnnotation = "syllable.sdk.header-flags"
+
+var sdkHeaderFlagPattern = regexp.MustCompile(`^[a-z][a-z0-9]*(-[a-z0-9]+)*$`)
+
+// sdkHeaderFlagName is the flag for an optional header parameter: lowercased,
+// without a leading X-, with underscores as dashes, so
+// X-Insight-Workflow-Format-Version becomes insight-workflow-format-version.
+// bindSDKHeaderFlags puts header- in front when that name is already taken.
+func sdkHeaderFlagName(header string) string {
+	name := strings.TrimPrefix(strings.ToLower(header), "x-")
+	return strings.ReplaceAll(name, "_", "-")
+}
+
+// sdkFlagTaken reports whether a flag name is already in use on the command,
+// including the flags it inherits.
+func sdkFlagTaken(cmd *cobra.Command, name string) bool {
+	return name == "help" || cmd.Flags().Lookup(name) != nil || cmd.InheritedFlags().Lookup(name) != nil ||
+		cmd.Root().PersistentFlags().Lookup(name) != nil || rootCmd.PersistentFlags().Lookup(name) != nil
+}
+
+type sdkHeaderFlag struct {
+	header, flag string
+}
+
+// bindSDKHeaderFlags adds a flag for each of an operation's optional header
+// parameters. A flag sends its header only when it is set, so by default the
+// API applies its own default. Required headers need hand-written code (the
+// generator won't generate an operation that takes one).
+func bindSDKHeaderFlags(cmd *cobra.Command, id string, operation sdkOperation) ([]sdkHeaderFlag, error) {
+	var headers []sdkHeaderFlag
+	names := map[string]string{}
+	for _, parameter := range operation.Parameters {
+		if parameter.In != "header" || parameter.Required || client.ReservedHeader(parameter.Name) {
+			continue
+		}
+		name := sdkHeaderFlagName(parameter.Name)
+		if !sdkHeaderFlagPattern.MatchString(name) {
+			return nil, fmt.Errorf("SDK operation %s: header parameter %q has no usable flag name", id, parameter.Name)
+		}
+		if sdkFlagTaken(cmd, name) {
+			name = "header-" + name
+			if sdkFlagTaken(cmd, name) {
+				return nil, fmt.Errorf("SDK operation %s: header parameter %q would collide with the --%s flag", id, parameter.Name, name)
+			}
+		}
+		// The spec is untrusted input, so its text is cleaned before it reaches help.
+		help := cleanSpecLine(parameter.Description, 200)
+		if help == "" {
+			help = "Sends the " + parameter.Name + " request header"
+		}
+		switch sdkSchemaType(parameter.Schema) {
+		case "boolean":
+			cmd.Flags().Bool(name, false, help)
+		case "integer":
+			cmd.Flags().Int64(name, 0, help)
+		case "number":
+			cmd.Flags().Float64(name, 0, help)
+		default:
+			cmd.Flags().String(name, "", help)
+		}
+		headers = append(headers, sdkHeaderFlag{header: parameter.Name, flag: name})
+		names[parameter.Name] = name
+	}
+	if len(names) > 0 {
+		encoded, err := json.Marshal(names)
+		if err != nil {
+			return nil, err
+		}
+		cmd.Annotations[headerFlagsAnnotation] = string(encoded)
+	}
+	return headers, nil
+}
+
+// sdkHeaderFlagsOf reads the header flags bindSDKHeaderFlags recorded.
+func sdkHeaderFlagsOf(cmd *cobra.Command) map[string]string {
+	names := map[string]string{}
+	if raw := cmd.Annotations[headerFlagsAnnotation]; raw != "" {
+		_ = json.Unmarshal([]byte(raw), &names)
+	}
+	return names
+}
+
+// sdkHeaderValues returns the headers whose flags were set on this run.
+func sdkHeaderValues(cmd *cobra.Command, headers []sdkHeaderFlag) (map[string]string, error) {
+	values := map[string]string{}
+	for _, h := range headers {
+		flag := cmd.Flags().Lookup(h.flag)
+		if flag == nil || !flag.Changed {
+			continue
+		}
+		value := flag.Value.String()
+		if strings.ContainsAny(value, "\r\n\x00") {
+			return nil, fmt.Errorf("--%s can't contain a line break", h.flag)
+		}
+		values[h.header] = value
+	}
+	return values, nil
+}
+
+// bindSDKOperation adds an operation's query and optional header parameters to
+// its command as flags and scopes the request's Accept header, extra headers,
+// delete reason, and query overrides to that operation. Hand-written and
+// generated commands share it.
 func bindSDKOperation(cmd *cobra.Command, id string, operation sdkOperation) error {
 	if cmd.Annotations == nil {
 		cmd.Annotations = make(map[string]string)
@@ -177,9 +282,17 @@ func bindSDKOperation(cmd *cobra.Command, id string, operation sdkOperation) err
 			cmd.Flags().String(name, "", help)
 		}
 	}
+	headers, err := bindSDKHeaderFlags(cmd, id, operation)
+	if err != nil {
+		return err
+	}
 	run := cmd.RunE
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		overrides, err := sdkQueryOverrides(cmd, parameters)
+		if err != nil {
+			return err
+		}
+		headerValues, err := sdkHeaderValues(cmd, headers)
 		if err != nil {
 			return err
 		}
@@ -209,6 +322,22 @@ func bindSDKOperation(cmd *cobra.Command, id string, operation sdkOperation) err
 				return previous.RequestAccept(method, path)
 			}
 			return ""
+		}
+		scoped.RequestHeaders = func(method, path string) map[string]string {
+			out := map[string]string{}
+			if previous.RequestHeaders != nil {
+				for name, value := range previous.RequestHeaders(method, path) {
+					out[name] = value
+				}
+			}
+			if len(headerValues) > 0 && operation.Method == method {
+				if u, err := url.Parse(path); err == nil && sdkOperationPathMatches(operation.Path, u.EscapedPath()) {
+					for name, value := range headerValues {
+						out[name] = value
+					}
+				}
+			}
+			return out
 		}
 		scoped.RequestPath = func(method, path string) (string, error) {
 			if previous.RequestPath != nil {
