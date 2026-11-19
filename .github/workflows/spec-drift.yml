@@ -172,10 +172,19 @@ jobs:
           num="$(gh issue list --label "$LABEL" --state open --json number --jq '.[0].number // empty')"
           [ -n "$num" ] || { echo "No open drift issue — nothing to watch."; exit 0; }
 
+          # Measure from the later of the issue's creation and the last spec
+          # sync on main. Upstream changes every weekday, so this rolling issue
+          # can stay open for weeks while the bot syncs daily; only a stretch
+          # with no sync at all is a stall.
           created="$(gh issue view "$num" --json createdAt --jq .createdAt)"
-          age_h=$(( ( $(date -u +%s) - $(date -u -d "$created" +%s) ) / 3600 ))
+          synced="$(gh api "repos/$GITHUB_REPOSITORY/commits?sha=main&path=scripts/syllable-cli/internal/spec/openapi.json&per_page=1" --jq '.[0].commit.committer.date // empty')"
+          since="$created"
+          if [ -n "$synced" ] && [ "$(date -u -d "$synced" +%s)" -gt "$(date -u -d "$created" +%s)" ]; then
+            since="$synced"
+          fi
+          age_h=$(( ( $(date -u +%s) - $(date -u -d "$since" +%s) ) / 3600 ))
           if [ "$age_h" -lt "$STALL_HOURS" ]; then
-            echo "Drift issue #$num is ${age_h}h old (< ${STALL_HOURS}h) — the routine still has time."
+            echo "Drift issue #$num: last sync or new drift ${age_h}h ago (< ${STALL_HOURS}h). The pipeline still has time."
             exit 0
           fi
 
@@ -205,7 +214,7 @@ jobs:
 
           {
             echo "$marker"
-            echo "🚨 @$OWNER — this drift has been open for **${age_h} hours** with no active reconciliation PR. The local \`syllable-spec-sync\` routine has probably stopped firing. Check, most likely first:"
+            echo "🚨 @$OWNER — the CLI has gone **${age_h} hours** without a spec sync while drift is open, and no reconciliation PR is active. The local \`syllable-spec-sync\` routine has probably stopped firing. Check, most likely first:"
             echo
             echo "1. **Is the routine's scheduler alive on the host machine?** (For a desktop-app routine, the app must be running — check the task's last-run time.)"
             echo "2. **Did the routine stop on something only a person can do?** Its last run's log names it: a denied permission, or an expired Claude or GitHub login."
