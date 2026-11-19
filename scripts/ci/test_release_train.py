@@ -26,6 +26,13 @@ class ReleaseNotesSection(unittest.TestCase):
     def test_stops_at_a_rule(self):
         self.assertEqual(release_notes_section("## Release notes\n- a\n---\nfooter"), "- a")
 
+    def test_drops_closing_references(self):
+        body = "## Release notes\n- a\n- b\n\nCloses #250\nfixes #1, #2\n\n🤖 Generated"
+        self.assertEqual(release_notes_section(body), "- a\n- b")
+
+    def test_keeps_notes_that_mention_an_issue(self):
+        self.assertEqual(release_notes_section("## Release notes\n- Fixes the hint from #240.\n"), "- Fixes the hint from #240.")
+
     def test_missing_section(self):
         self.assertEqual(release_notes_section("no notes"), "")
 

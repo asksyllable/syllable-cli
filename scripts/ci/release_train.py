@@ -80,9 +80,15 @@ def ships_code(sha):
 SECTION_END = r"^## |^---\s*$|^🤖 |\Z"
 
 
+# "Closes #N" and similar lines link issues for GitHub; they aren't notes.
+CLOSING_REF = re.compile(r"^\s*(close[sd]?|fix(e[sd])?|resolve[sd]?)\s+#\d+[\s.,#\d]*$", re.I)
+
+
 def release_notes_section(body):
     m = re.search(r"^## Release notes[ \t]*\n(.*?)(?=" + SECTION_END + ")", body or "", re.M | re.S)
-    return m.group(1).strip() if m else ""
+    if not m:
+        return ""
+    return "\n".join(l for l in m.group(1).splitlines() if not CLOSING_REF.match(l)).strip()
 
 
 def pr_info(number):
