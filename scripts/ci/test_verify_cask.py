@@ -65,6 +65,79 @@ class Passes(unittest.TestCase):
         self.assertEqual(check(BASE, cask(verified=True), SUMS), [])
 
 
+LEGACY = """
+  postflight do
+    if OS.mac?
+      system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/syllable"]
+    end
+  end
+"""
+STEPS = """
+  postflight_steps do
+    on_macos do
+      run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{staged_path}}/syllable"]
+    end
+  end
+
+  zap :not_required
+"""
+STEPS_NO_ZAP = STEPS.replace("\n  zap :not_required\n", "")
+
+TESTDATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "testdata")
+
+
+def testdata(name):
+    with open(os.path.join(TESTDATA, name)) as f:
+        return f.read()
+
+
+# Real v2.6.8 release checksums (syllable_2.6.8_checksums.txt).
+SUMS_268 = {
+    "syllable_2.6.8_darwin_amd64.tar.gz": "ba2fc02aa9239669ddda4c73e6af3e0a20a05a76156f28e40f00ab4f99d5d858",
+    "syllable_2.6.8_darwin_arm64.tar.gz": "91e13887b9726c8bcc0a31988e9c878ff422dba36f0fb7c8c46861f241dc5cd0",
+    "syllable_2.6.8_linux_amd64.tar.gz": "e330ae647810ad5f60d313a427cf6b1e61564eed2ba4c24576460a65f3ba1f1c",
+    "syllable_2.6.8_linux_arm64.tar.gz": "c2fd2875732d207f08ba5c4e4abdea11861a6f3011c4f9e6149e9ad27386611b",
+}
+
+
+class PostflightMigration(unittest.TestCase):
+    def test_legacy_to_steps(self):
+        self.assertEqual(check(cask(version="2.3.3", extra=LEGACY), cask(extra=STEPS), SUMS), [])
+
+    def test_steps_to_steps(self):
+        self.assertEqual(check(cask(version="2.3.3", extra=STEPS), cask(extra=STEPS), SUMS), [])
+
+    def test_steps_back_to_legacy_rejected(self):
+        self.assertTrue(check(cask(version="2.3.3", extra=STEPS), cask(extra=LEGACY), SUMS))
+
+    def test_steps_without_legacy_base_rejected(self):
+        self.assertTrue(check(BASE, cask(extra=STEPS), SUMS))
+
+    def test_altered_steps_rejected(self):
+        evil = STEPS.replace('"-dr", ', '"-dr", "/", ')
+        self.assertTrue(check(cask(version="2.3.3", extra=LEGACY), cask(extra=evil), SUMS))
+
+    def test_extra_step_rejected(self):
+        evil = STEPS.replace("    end\n  end", '    end\n    run "/bin/sh", args: ["-c", "x"]\n  end')
+        self.assertNotEqual(evil, STEPS)
+        self.assertTrue(check(cask(version="2.3.3", extra=LEGACY), cask(extra=evil), SUMS))
+
+    def test_steps_without_zap_rejected(self):
+        # GoReleaser v2.19+ emits both together; half the migration is not its output.
+        self.assertTrue(check(cask(version="2.3.3", extra=LEGACY), cask(extra=STEPS_NO_ZAP), SUMS))
+
+    def test_zap_without_legacy_base_rejected(self):
+        self.assertTrue(check(BASE, cask(extra="  zap :not_required\n"), SUMS))
+
+    def test_real_goreleaser_v2_20_2_cask(self):
+        # Base: the v2.6.7 cask as committed. Head: the v2.6.8 cask as GoReleaser
+        # v2.20.2 generates it (postflight_steps plus `zap :not_required`), with the
+        # published release checksums swapped in for the local build's.
+        old = testdata("cask_v2.6.7_legacy.rb")
+        new = testdata("cask_v2.6.8_goreleaser_v2.20.2.rb")
+        self.assertEqual(check(old, new, SUMS_268), [])
+
+
 class Rejects(unittest.TestCase):
     def assertRejected(self, new, base=BASE):
         errors = check(base, new, SUMS)

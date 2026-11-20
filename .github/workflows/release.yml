@@ -45,7 +45,8 @@ jobs:
           distribution: goreleaser
           # Pinned: an unpinned upgrade (v2.17.1 -> v2.18.3) once reformatted the
           # cask unannounced. Bump deliberately; cask-verify tolerates reordering.
-          version: "v2.18.3"
+          # v2.19+ is needed for `install_steps` (cask `postflight_steps`).
+          version: "v2.20.2"
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
