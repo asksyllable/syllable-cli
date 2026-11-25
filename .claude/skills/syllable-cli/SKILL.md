@@ -9,7 +9,9 @@ description: |
 
 A Go CLI for managing the Syllable AI platform. Source and releases: **https://github.com/asksyllable/syllable-cli**
 
-> **Docs synced to CLI v2.7.1** — bump this marker whenever these docs are updated for a new release.
+> **Docs synced to CLI v2.7.2** — bump this marker whenever these docs are updated for a new release.
+>
+> v2.7.2 (patch) highlights: field-only spec sync. `prompts create`: `PromptCreateRequest.name` now has `maxLength: 255` (enforced by the API). `prompts update`: `PromptUpdateRequest.name` now has `maxLength: 255` (enforced by the API).
 >
 > v2.7.1 (patch) highlights: field-only spec sync. `TestMessage.session_variables` is a new field.
 >
